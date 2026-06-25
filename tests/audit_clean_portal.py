@@ -18,6 +18,10 @@ REQUIRED = [
     'minScore',
     'opportunity_score',
     'Copier recherche',
+    'Recherches rapides famille',
+    'Famille Nord ≤1200€',
+    'T2/T3 ≤1000€',
+    '2 chambres+',
 ]
 
 # Tokens that are expected in the technical workbench but must not leak into the family-facing homepage.
