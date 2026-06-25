@@ -1,0 +1,11 @@
+name: reunion-immo-search
+created: 2026-06-15
+source_db: /opt/data/data/reunion_watch.db
+scope:
+  - appartements et maisons actifs avec photos
+  - visualisation filtrable locale
+  - priorité zones Sainte-Marie, Moufia, La Bretagne, Saint-Denis ciblé
+out_of_scope:
+  - nouveau scraping
+  - proxy mobile/Tailscale
+  - paiement/proxy résidentiel

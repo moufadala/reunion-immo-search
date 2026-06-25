@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "timezone": "Indian/Reunion",
+  "source_json": "/opt/data/projects/reunion-immo-search/artifacts/app/listings.json",
+  "public_base_url": "https://immo.148.230.103.174.sslip.io/",
+  "state_path": "/opt/data/artifacts/immo-alerts/seen.json",
+  "history_db": "/opt/data/artifacts/immo-alerts/history.sqlite",
+  "notify_price_increases": false,
+  "min_score": null,
+  "max_items_per_search": 6,
+  "searches": [
+    {
+      "id": "nord_familial_budget",
+      "name": "Famille — Sainte-Marie / quartiers 650–1000€",
+      "enabled": true,
+      "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre, score opportunité >=75 pour garder uniquement les bons matchs.",
+      "min_score": 75,
+      "filters": {
+        "region": ["Nord"],
+        "zones": [
+          "Sainte-Marie",
+          "Ste Marie",
+          "La Bretagne",
+          "Rivière des Pluies",
+          "Riviere des Pluies",
+          "Duparc",
+          "Beauséjour",
+          "Beausejour"
+        ],
+        "property_type": ["Appartement", "Maison", "Appartement / maison"],
+        "rentMin": 650,
+        "rentMax": 1000,
+        "bedroomsMin": 1,
+        "tab": "all",
+        "sort": "score"
+      }
+    },
+    {
+      "id": "sud_budget_surface",
+      "name": "Sud budget/surface <=900€ — désactivé",
+      "enabled": false,
+      "description": "Ancienne recherche exploratoire Sud, désactivée pour éviter le bruit: le besoin quasi-prod actuel est toi+famille autour de Sainte-Marie et quartiers proches.",
+      "filters": {
+        "region": ["Sud"],
+        "rentMax": 900,
+        "surfaceMin": 50,
+        "tab": "all",
+        "sort": "priceAsc"
+      }
+    }
+  ]
+}
