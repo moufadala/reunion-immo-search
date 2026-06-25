@@ -233,7 +233,7 @@ def render_change_card(change: dict[str, Any]) -> str:
     url = item.get("url") or "#"
     image = item.get("image_url")
     when = str(change.get("event_at") or "date n.c.")[:19].replace("T", " ")
-    img_html = f'<img src="{h(image)}" alt="" loading="lazy" onerror="this.closest(\'.thumb\').classList.add(\'noimg\');this.remove()">' if image else '<span>Pas de photo</span>'
+    img_html = f'<img src="{h(image)}" alt="" loading="lazy">' if image else '<span>Pas de photo</span>'
     return f"""
     <article class="change-card" data-type="{h(change.get('event_type'))}" data-q="{h(' '.join([title, loc, source]))}">
       <div class="thumb">{img_html}</div>
@@ -308,7 +308,7 @@ def render_changes_html(payload: dict[str, Any], out_path: Path = DEFAULT_HTML_O
 const q=document.getElementById('q'); const buttons=[...document.querySelectorAll('[data-filter]')]; const cards=[...document.querySelectorAll('.change-card')]; const count=document.getElementById('countLabel'); let filter='all';
 function norm(s){{return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')}}
 function apply(){{const query=norm(q.value); let n=0; cards.forEach(card=>{{const okType=filter==='all'||card.dataset.type===filter; const okQ=!query||norm(card.dataset.q).includes(query); const show=okType&&okQ; card.hidden=!show; if(show)n++;}}); if(count) count.textContent=n+' élément(s) visible(s).';}}
-buttons.forEach(b=>b.onclick=()=>{{filter=b.dataset.filter; buttons.forEach(x=>x.classList.toggle('active',x===b)); apply();}}); q.addEventListener('input',apply); apply();
+buttons.forEach(b=>b.addEventListener('click',()=>{{filter=b.dataset.filter; buttons.forEach(x=>x.classList.toggle('active',x===b)); apply();}})); q.addEventListener('input',apply); apply();
 </script>
 </body></html>"""
     out_path.write_text(html, encoding="utf-8")

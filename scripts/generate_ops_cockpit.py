@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import argparse
+import html
+import json
+import re
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
+
+FORBIDDEN_RE = re.compile(r"(/opt/data|Traceback|sqlite3\.OperationalError|SECRET_KEY|api_key=|password=|token=|Authorization:|Bearer\s+)", re.I)
+
+
+def read_json(path: Path, default: Any) -> Any:
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return default
+    return default
+
+
+def scrub_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(k): scrub_value(v) for k, v in value.items() if k not in {"app", "db", "db_path", "path", "backup", "backup_path", "candidate", "target"}}
+    if isinstance(value, list):
+        return [scrub_value(v) for v in value[:200]]
+    if isinstance(value, str):
+        value = FORBIDDEN_RE.sub("[REDACTED]", value)
+        value = re.sub(r"/[^\s'\"]+/(?:projects|artifacts|data|scripts)/[^\s'\"]+", "[path-redacted]", value)
+        return value[:500]
+    return value
+
+
+def status_label(ok: bool, warnings: list[str]) -> tuple[str, str]:
+    if not ok:
+        return "Action requise", "bad"
+    if warnings:
+        return "À vérifier", "warn"
+    return "OK", "ok"
+
+
+def card(title: str, value: str, note: str = "", cls: str = "") -> str:
+    return f"<article class='card {cls}'><div class='k'>{html.escape(title)}</div><div class='v'>{html.escape(value)}</div><p>{html.escape(note)}</p></article>"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Generate a sanitized, unlinked ops cockpit for the immo portal")
+    ap.add_argument("--app", default="artifacts/app")
+    ap.add_argument("--run-dir", default="")
+    ap.add_argument("--out", default="")
+    args = ap.parse_args()
+
+    app = Path(args.app).resolve()
+    out_dir = Path(args.out).resolve() if args.out else app
+    run_dir = Path(args.run_dir).resolve() if args.run_dir else None
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    listings_payload = read_json(app / "listings.json", {"listings": []})
+    listings = listings_payload.get("listings", []) if isinstance(listings_payload, dict) else []
+    source_health = read_json(app / "source_health.json", {})
+    dedup = read_json(app / "dedup_groups.json", {})
+    opp = read_json(app / "opportunity.json", {})
+    locations = read_json(app / "locations.json", {})
+
+    run_summary = {}
+    run_files: dict[str, Any] = {}
+    if run_dir and run_dir.exists():
+        run_summary = read_json(run_dir / "daily_summary" / "summary.json", {})
+        for name in [
+            "promote_db.json", "rollback_db_drill.json", "promote_app.json", "rollback_app_drill.json",
+            "public_delta_guard.json", "dedup_audit.json",
+        ]:
+            run_files[name] = read_json(run_dir / name, {})
+
+    statuses = []
+    if run_dir and run_dir.exists():
+        for p in sorted(run_dir.glob("*.status")):
+            text = p.read_text(encoding="utf-8", errors="replace").strip()
+            m = re.search(r"rc=(\d+).*duration_s=(\d+)", text)
+            statuses.append({"step": p.stem, "rc": int(m.group(1)) if m else None, "duration_s": int(m.group(2)) if m else None})
+
+    warnings: list[str] = []
+    if run_summary.get("warnings"):
+        warnings.extend(map(str, run_summary.get("warnings", [])))
+    if not listings:
+        warnings.append("listings.json vide ou illisible")
+    if len(listings) < 500:
+        warnings.append(f"volume public bas: {len(listings)} annonces")
+    local_photos = sum(1 for x in listings if x.get("local_image_url"))
+    desc = sum(1 for x in listings if x.get("description"))
+    top_scores = (opp.get("top") or [])[:10] if isinstance(opp, dict) else []
+    strong = sum(1 for x in top_scores if (x.get("score") or 0) >= 75)
+    failed_steps = [s for s in statuses if s.get("rc") not in (0, None)]
+    if failed_steps:
+        warnings.append(f"{len(failed_steps)} étape(s) run non-zero")
+
+    ok = not failed_steps and bool(listings)
+    label, cls = status_label(ok, warnings)
+
+    safe = scrub_value({
+        "ok": ok,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": label,
+        "public": {
+            "listings": len(listings),
+            "generated_at": listings_payload.get("generated_at") if isinstance(listings_payload, dict) else None,
+            "local_primary": local_photos,
+            "descriptions": desc,
+            "dedup_groups": dedup.get("groups_count") if isinstance(dedup, dict) else None,
+            "opportunity_top_count": len(opp.get("top") or []) if isinstance(opp, dict) else None,
+            "location_quality": (locations.get("summary") or {}).get("quality") if isinstance(locations, dict) else None,
+        },
+        "source_health": {
+            "status_counts": (source_health.get("status_counts") or source_health.get("summary") or {}) if isinstance(source_health, dict) else {},
+        },
+        "run": {
+            "name": run_dir.name if run_dir else None,
+            "summary": run_summary,
+            "steps": statuses,
+            "files": run_files,
+        },
+        "warnings": warnings,
+        "notes": [
+            "Cockpit ops séparé, non lié depuis la homepage.",
+            "Données volontairement sanitizées: pas de chemins internes, logs bruts, secrets ou stack traces.",
+            "Ce cockpit est un statut opérationnel, pas une page utilisateur/famille.",
+        ],
+    })
+
+    json_text = json.dumps(safe, ensure_ascii=False, indent=2)
+    if FORBIDDEN_RE.search(json_text):
+        raise SystemExit("forbidden token remained in ops_status.json")
+    (out_dir / "ops_status.json").write_text(json_text, encoding="utf-8")
+
+    source_rows = "".join(
+        f"<tr><td>{html.escape(str(k))}</td><td>{html.escape(str(v))}</td></tr>"
+        for k, v in sorted((run_summary.get("source_counts") or {}).items())
+    ) or "<tr><td colspan='2'>Non disponible</td></tr>"
+    step_rows = "".join(
+        f"<tr><td>{html.escape(s['step'])}</td><td>{s.get('rc')}</td><td>{s.get('duration_s') or ''}s</td></tr>"
+        for s in statuses[-40:]
+    ) or "<tr><td colspan='3'>Aucun run lié</td></tr>"
+    warning_items = "".join(f"<li>{html.escape(w)}</li>" for w in warnings) or "<li>Aucun warning bloquant.</li>"
+
+    html_text = f"""<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'">
+<title>Cockpit ops — Immo RUN</title>
+<style>
+:root{{--bg:#f7f4ee;--paper:#fffdf8;--ink:#1f211d;--muted:#6a665e;--line:#e5ded2;--ok:#087f5b;--warn:#b25b00;--bad:#b42318;--accent:#0f766e}}
+*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5}}main{{max-width:1180px;margin:auto;padding:28px 16px 72px}}.hero,.card,.panel{{background:var(--paper);border:1px solid var(--line);border-radius:24px;box-shadow:0 18px 50px rgba(44,35,20,.08)}}.hero{{padding:28px;margin-bottom:16px}}h1{{font-size:clamp(32px,6vw,64px);line-height:.96;letter-spacing:-.06em;margin:0 0 10px}}h2{{letter-spacing:-.03em}}.muted,.k,p{{color:var(--muted)}}.status{{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;font-weight:800;background:#eef7f5;color:var(--ok)}}.status.warn{{background:#fff7ed;color:var(--warn)}}.status.bad{{background:#fef2f2;color:var(--bad)}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}}.card{{padding:16px}}.v{{font-size:30px;font-weight:850;letter-spacing:-.04em}}.panel{{padding:18px;margin:14px 0;overflow:auto}}table{{width:100%;border-collapse:collapse}}td,th{{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}}code{{background:#eee7db;border-radius:8px;padding:2px 6px}}a{{color:var(--accent)}}@media(max-width:680px){{main{{padding:16px 12px 56px}}.v{{font-size:24px}}}}
+</style></head><body><main>
+<section class="hero"><span class="status {cls}">{html.escape(label)}</span><h1>Cockpit ops Immo RUN</h1><p class="muted">Page séparée, non liée depuis l’accueil. Elle résume la publication et les gates sans exposer logs bruts, chemins internes ni secrets.</p></section>
+<div class="grid">
+{card('Annonces publiques', str(len(listings)), 'Volume listings.json')}
+{card('Photos locales', f'{local_photos}/{len(listings)}', 'Photos principales locales')}
+{card('Descriptions', f'{desc}/{len(listings)}', 'Descriptions source disponibles')}
+{card('Doublons doux', str(dedup.get('groups_count') if isinstance(dedup, dict) else 'n.c.'), 'Groupes non destructifs')}
+{card('Top opportunités', str(len(opp.get('top') or []) if isinstance(opp, dict) else 'n.c.'), f'{strong} fortes dans le top 10')}
+{card('Warnings', str(len(warnings)), 'À vérifier si >0', 'warn' if warnings else '')}
+</div>
+<section class="panel"><h2>Warnings</h2><ul>{warning_items}</ul></section>
+<section class="panel"><h2>Sources actives</h2><table><thead><tr><th>Source</th><th>Annonces</th></tr></thead><tbody>{source_rows}</tbody></table></section>
+<section class="panel"><h2>Étapes du dernier run</h2><table><thead><tr><th>Étape</th><th>RC</th><th>Durée</th></tr></thead><tbody>{step_rows}</tbody></table></section>
+<section class="panel"><h2>Contrat sécurité</h2><ul><li>Pas de lien depuis la homepage.</li><li><code>noindex,nofollow,noarchive</code>.</li><li>JSON sanitizé dans <code>ops_status.json</code>.</li><li>Pas de logs bruts, stack traces, chemins internes ou secrets.</li></ul></section>
+</main></body></html>"""
+    if FORBIDDEN_RE.search(html_text):
+        raise SystemExit("forbidden token remained in ops.html")
+    (out_dir / "ops.html").write_text(html_text, encoding="utf-8")
+    print(json.dumps({"ok": True, "out": str(out_dir / "ops.html"), "status": label, "warnings": warnings}, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -197,6 +197,10 @@ run_step public_seo_audit python3 "$PROJECT/tests/audit_public_seo.py" "$PROJECT
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 run_step daily_summary python3 "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
+run_step ops_cockpit python3 "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"
+run_step ops_quality_audit python3 "$PROJECT/tests/audit_ops_cockpit.py" "$PROJECT/artifacts/app"
+run_step opportunity_v2_audit python3 "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
+run_step dedup_display_audit python3 "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1

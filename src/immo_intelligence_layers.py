@@ -236,20 +236,42 @@ def signature(it: dict[str, Any]) -> str:
     return f"{norm(loc)}|{round(p/25)*25}|{round(s/5)*5}|{title_words}"
 
 
-def similarity(a: dict[str, Any], b: dict[str, Any]) -> float:
+def similarity_details(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     pa, pb = price(a), price(b)
     sa, sb = surface(a), surface(b)
     la = a.get("location_intelligence", {}).get("commune_inferred") or a.get("city")
     lb = b.get("location_intelligence", {}).get("commune_inferred") or b.get("city")
+    title_ratio = SequenceMatcher(None, norm(a.get("title")), norm(b.get("title"))).ratio()
     score = 0.0
-    if la and lb and norm(la) == norm(lb): score += 0.26
+    reasons=[]
+    veto=[]
+    if la and lb and norm(la) == norm(lb):
+        score += 0.26; reasons.append("même commune inférée")
+    elif la and lb:
+        veto.append("communes différentes")
     if pa and pb:
-        score += max(0, 1 - abs(pa-pb)/max(pa,pb,1)) * 0.24
+        closeness=max(0, 1 - abs(pa-pb)/max(pa,pb,1))
+        score += closeness * 0.24
+        if closeness >= .95: reasons.append("prix quasi identique")
+        elif closeness >= .85: reasons.append("prix proche")
     if sa and sb:
-        score += max(0, 1 - abs(sa-sb)/max(sa,sb,1)) * 0.22
-    score += SequenceMatcher(None, norm(a.get("title")), norm(b.get("title"))).ratio() * 0.20
-    if a.get("rooms") and b.get("rooms") and a.get("rooms") == b.get("rooms"): score += 0.08
-    return round(min(score, 1.0), 3)
+        closeness=max(0, 1 - abs(sa-sb)/max(sa,sb,1))
+        score += closeness * 0.22
+        if closeness >= .97: reasons.append("surface quasi identique")
+        elif closeness >= .90: reasons.append("surface proche")
+    score += title_ratio * 0.20
+    if title_ratio >= .82: reasons.append("titre très proche")
+    elif title_ratio >= .65: reasons.append("titre proche")
+    if a.get("rooms") and b.get("rooms") and a.get("rooms") == b.get("rooms"):
+        score += 0.08; reasons.append("même nombre de pièces")
+    elif a.get("rooms") and b.get("rooms"):
+        veto.append("nombre de pièces différent")
+    score=round(min(score, 1.0), 3)
+    return {"score": score, "reasons": reasons[:6], "veto": veto[:4], "title_ratio": round(title_ratio,3)}
+
+
+def similarity(a: dict[str, Any], b: dict[str, Any]) -> float:
+    return float(similarity_details(a, b)["score"])
 
 
 def build_dedup(items: list[dict[str, Any]]) -> dict[str, Any]:
@@ -267,28 +289,39 @@ def build_dedup(items: list[dict[str, Any]]) -> dict[str, Any]:
         for i,a in enumerate(bucket_items):
             if a.get("id") in used: continue
             members=[a]
+            pair_details=[]
             for b in bucket_items[i+1:]:
                 if b.get("id") in used: continue
-                sim=similarity(a,b)
+                details=similarity_details(a,b)
+                sim=float(details["score"])
                 if sim >= 0.78 and (a.get("url") != b.get("url") or a.get("source") != b.get("source")):
                     members.append(b)
+                    pair_details.append({"a": a.get("id"), "b": b.get("id"), **details})
                     used.add(b.get("id"))
             if len(members) >= 2:
                 sources=sorted(set(str(m.get("source") or m.get("source_site") or "?") for m in members))
                 canonical=max(members, key=lambda x: ((1 if x.get("local_image_url") else 0), len(str(x.get("description") or "")), x.get("score") or 0))
                 gid=f"D{group_id:04d}"; group_id+=1
+                confidence=max(similarity(members[0], m) for m in members[1:])
+                explanations=[]
+                for d in pair_details[:4]:
+                    if d.get("reasons"):
+                        explanations.append("; ".join(d["reasons"][:4]))
                 groups.append({
                     "group_id": gid,
-                    "confidence": max(similarity(members[0], m) for m in members[1:]),
+                    "confidence": confidence,
+                    "decision": "auto_duplicate" if confidence >= 0.85 else "needs_review",
                     "canonical_id": canonical.get("id"),
                     "member_ids": [m.get("id") for m in members],
                     "sources": sources,
-                    "links": [{"source": m.get("source") or m.get("source_site"), "url": m.get("url"), "id": m.get("id")} for m in members],
+                    "links": [{"source": m.get("source") or m.get("source_site"), "url": m.get("url"), "id": m.get("id"), "price": price(m), "surface": surface(m)} for m in members],
                     "title": canonical.get("title"),
                     "price": price(canonical),
                     "surface": surface(canonical),
                     "location": canonical.get("location") or canonical.get("city"),
-                    "policy": "fusion douce: on conserve toutes les annonces et liens; aucun écrasement de champ source",
+                    "explanations": explanations[:4] or ["prix/surface/localisation proches dans le même bucket"],
+                    "pair_details": pair_details[:8],
+                    "policy": "fusion douce: on conserve toutes les annonces et liens; aucun écrasement de champ source; aucune suppression DB",
                 })
                 for m in members: used.add(m.get("id"))
     by_id={mid:g for g in groups for mid in g["member_ids"]}
@@ -297,7 +330,6 @@ def build_dedup(items: list[dict[str, Any]]) -> dict[str, Any]:
         if g:
             it["dedup_group_id"]=g["group_id"]
             it["dedup_sources"]=g["sources"]
-            it["dedup_alternative_links"]=g["links"]
     return {"generated_at": now(), "groups_count": len(groups), "groups": groups}
 
 
@@ -311,50 +343,145 @@ def percentile_rank(values: list[float], v: float) -> float:
 
 
 def opportunity(items: list[dict[str, Any]]) -> dict[str, Any]:
-    by_commune=defaultdict(list)
+    """Explainable opportunity score v2.
+
+    Community/research direction used here:
+    - do not emit an opaque magic score;
+    - split score into components;
+    - separate business opportunity from data confidence;
+    - only compare against local samples when sample size is credible;
+    - keep all assumptions visible in the exported JSON.
+    """
+    by_commune_type: dict[str, list[float]] = defaultdict(list)
+    by_commune: dict[str, list[float]] = defaultdict(list)
     for it in items:
         p=price(it); s=surface(it)
         if p and s and s>0:
             commune=it.get("location_intelligence",{}).get("commune_inferred") or it.get("city") or "Non précisée"
-            by_commune[commune].append(p/s)
-    medians={c: statistics.median(vals) for c,vals in by_commune.items() if len(vals)>=3}
+            typ=norm(it.get("property_type") or it.get("type") or "") or "type_nc"
+            ppm=p/s
+            by_commune[commune].append(ppm)
+            by_commune_type[f"{commune}|{typ}"].append(ppm)
+
+    medians_type={k: statistics.median(vals) for k,vals in by_commune_type.items() if len(vals)>=5}
+    medians_commune={c: statistics.median(vals) for c,vals in by_commune.items() if len(vals)>=5}
     global_vals=[v for vals in by_commune.values() for v in vals]
     global_med=statistics.median(global_vals) if global_vals else None
+
     scored=[]
     for it in items:
-        p=price(it); s=surface(it); commune=it.get("location_intelligence",{}).get("commune_inferred") or it.get("city") or "Non précisée"
+        p=price(it); s=surface(it)
+        commune=it.get("location_intelligence",{}).get("commune_inferred") or it.get("city") or "Non précisée"
+        typ=norm(it.get("property_type") or it.get("type") or "") or "type_nc"
         ppm=(p/s) if p and s and s>0 else None
-        ref=medians.get(commune) or global_med
-        reasons=[]; warnings=[]; score=50
+        sample_key=f"{commune}|{typ}"
+        ref=medians_type.get(sample_key) or medians_commune.get(commune) or global_med
+        ref_scope="commune+type" if sample_key in medians_type else "commune" if commune in medians_commune else "global"
+        sample_size=len(by_commune_type.get(sample_key, [])) if sample_key in medians_type else len(by_commune.get(commune, [])) if commune in medians_commune else len(global_vals)
+
+        components={"market_price": 0, "listing_quality": 0, "location_fit": 0, "freshness": 0, "risk": 0, "data_confidence": 0}
+        reasons=[]; warnings=[]; assumptions=[]
+
         if ppm and ref:
             delta=(ref-ppm)/ref
-            if delta>0:
-                score += min(30, delta*80); reasons.append(f"prix/m² {delta*100:.0f}% sous la médiane observée du secteur")
+            if delta >= .18:
+                components["market_price"] = 34; reasons.append(f"prix/m² {delta*100:.0f}% sous la référence observée ({ref_scope}, n={sample_size})")
+            elif delta >= .08:
+                components["market_price"] = 27; reasons.append(f"prix/m² {delta*100:.0f}% sous la référence observée")
+            elif delta >= -.05:
+                components["market_price"] = 18; reasons.append("prix/m² proche de la référence observée")
             else:
-                score += max(-25, delta*55); warnings.append(f"prix/m² au-dessus de la médiane observée du secteur ({ppm:.1f} €/m²)")
-        if it.get("local_image_url"): score+=6; reasons.append("photo principale locale disponible")
-        else: warnings.append("photo locale absente")
+                components["market_price"] = max(0, round(16 + delta*70)); warnings.append(f"prix/m² au-dessus de la référence observée ({ppm:.1f} €/m²)")
+        else:
+            assumptions.append("prix ou surface manquant: comparaison prix/m² impossible")
+
+        local_count=len([x for x in (it.get("local_image_urls") or []) if x]) or (1 if it.get("local_image_url") else 0)
         desc_len=len(str(it.get("description") or ""))
-        if desc_len>160: score+=5
-        elif desc_len<40: score-=8; warnings.append("description pauvre")
-        if it.get("rooms") and s and s/max(float(it.get("rooms") or 1),1) >= 18: score+=4; reasons.append("surface/pièce confortable")
-        if it.get("dedup_group_id"): score-=3; warnings.append("doublon probable: vérifier les liens sources")
-        if p and p>3500: score-=8; warnings.append("loyer élevé: comparer au marché local")
-        score=max(0,min(100,round(score)))
+        if local_count >= 3:
+            components["listing_quality"] += 10; reasons.append(f"galerie locale {local_count} photos")
+        elif local_count >= 1:
+            components["listing_quality"] += 7; reasons.append("photo principale locale disponible")
+        else:
+            warnings.append("photo locale absente")
+        if desc_len >= 350:
+            components["listing_quality"] += 8; reasons.append("description source détaillée")
+        elif desc_len >= 120:
+            components["listing_quality"] += 5
+        else:
+            components["listing_quality"] -= 4; warnings.append("description courte")
+        if it.get("rooms") and s and s/max(float(it.get("rooms") or 1),1) >= 18:
+            components["listing_quality"] += 4; reasons.append("surface/pièce confortable")
+        components["listing_quality"] = max(0, min(22, round(components["listing_quality"])))
+
+        loc_quality=(it.get("location_intelligence") or {}).get("quality")
+        if loc_quality == "haute":
+            components["location_fit"] = 10; reasons.append("localisation inférée avec confiance haute")
+        elif loc_quality == "moyenne":
+            components["location_fit"] = 7
+        else:
+            components["location_fit"] = 3; warnings.append("localisation peu précise")
+        if (it.get("location_intelligence") or {}).get("north_east_focus"):
+            components["location_fit"] += 3
+        components["location_fit"] = min(13, components["location_fit"])
+
+        if it.get("is_new") or it.get("recent"):
+            components["freshness"] = 5
+        else:
+            components["freshness"] = 3
+
+        risk_penalty=0
+        if it.get("dedup_group_id"):
+            risk_penalty += 3; warnings.append("doublon probable: vérifier les liens sources")
+        if p and p>3500:
+            risk_penalty += 6; warnings.append("loyer élevé: comparer au marché local")
+        if not p or not s:
+            risk_penalty += 6; warnings.append("prix/surface incomplet")
+        components["risk"] = max(0, 12-risk_penalty)
+
+        confidence=0
+        if sample_size >= 12: confidence += 4
+        elif sample_size >= 5: confidence += 3
+        elif sample_size >= 3: confidence += 2
+        else: assumptions.append("peu de comparables locaux: score à prendre comme tri, pas valuation")
+        if p and s: confidence += 2
+        if desc_len >= 120: confidence += 2
+        if local_count: confidence += 1
+        if loc_quality in {"haute", "moyenne"}: confidence += 1
+        components["data_confidence"] = min(10, confidence)
+
+        score=max(0,min(100,round(sum(components.values()))))
         label="opportunité forte" if score>=75 else "à étudier" if score>=58 else "standard" if score>=42 else "risque/bruit"
+        confidence_label="haute" if components["data_confidence"]>=8 else "moyenne" if components["data_confidence"]>=5 else "faible"
         analysis={
             "score": score,
+            "score_version": "opportunity-v2-explainable-2026-06-25",
             "label": label,
+            "confidence": confidence_label,
+            "components": components,
             "price_per_m2": round(ppm,2) if ppm else None,
             "sector_median_price_per_m2": round(ref,2) if ref else None,
-            "reasons": reasons[:5] or ["données suffisantes pour comparaison simple, pas de signal fort"],
-            "warnings": warnings[:5],
-            "method": "score heuristique local: prix/m² vs médiane observée, complétude annonce, photo locale, surface/pièce, doublons",
+            "reference_scope": ref_scope,
+            "reference_sample_size": sample_size,
+            "reasons": reasons[:6] or ["pas de signal fort; annonce conservée comme piste standard"],
+            "warnings": warnings[:6],
+            "assumptions": assumptions[:5],
+            "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée",
         }
-        it["opportunity_analysis"]=analysis
+        # Keep listings.json compact: the full explanation lives in opportunity.json.
+        it["opportunity_analysis"]={
+            "score": analysis["score"],
+            "score_version": analysis["score_version"],
+            "label": analysis["label"],
+            "confidence": analysis["confidence"],
+        }
         scored.append({"id": it.get("id"), "title": it.get("title"), "source": it.get("source") or it.get("source_site"), "url": it.get("url"), "location": it.get("location") or commune, **analysis})
-    return {"generated_at": now(), "global_median_price_per_m2": round(global_med,2) if global_med else None, "commune_medians": {k: round(v,2) for k,v in sorted(medians.items())}, "top": sorted(scored, key=lambda x: x["score"], reverse=True)[:80]}
-
+    return {
+        "generated_at": now(),
+        "score_version": "opportunity-v2-explainable-2026-06-25",
+        "global_median_price_per_m2": round(global_med,2) if global_med else None,
+        "commune_medians": {k: round(v,2) for k,v in sorted(medians_commune.items())},
+        "top": sorted(scored, key=lambda x: (x["score"], x.get("confidence") == "haute"), reverse=True)[:80],
+    }
 
 def render_page(title: str, subtitle: str, body: str) -> str:
     return f"""<!doctype html><html lang='fr'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{html.escape(title)}</title><style>
@@ -376,8 +503,15 @@ def write_outputs(payload: dict[str, Any], dedup: dict[str, Any], opp: dict[str,
     loc_body=f"<section class='card'><h2>Ce que j’ai compris de La Réunion</h2><p>La lecture utile pour l’immo n’est pas seulement Nord/Sud/Est/Ouest: il faut mapper communes, intercommunalités et micro-quartiers. Pour ton besoin Nord / Nord‑Est, le couloir prioritaire est CINOR puis entrée CIREST: Saint‑Denis, Sainte‑Marie, Sainte‑Suzanne, Saint‑André, Bras‑Panon, Saint‑Benoît.</p>{north}</section><section class='card'><h2>Lecture des annonces actuelles</h2><p>Qualité inférée: {dict(loc_quality)}. Annonces Nord/Nord‑Est prioritaires: {locations['summary']['north_east_listings']} / {len(items)}.</p>{cards}</section><section class='card'><h2>Algorithme carte recommandé</h2><ol><li>Normaliser accents/tirets/abréviations St/Ste.</li><li>Détecter commune déclarée puis confirmer par titre/description/quartier.</li><li>Si quartier reconnu, placer sur centroïde quartier; sinon centroïde commune.</li><li>Afficher une précision: haute / moyenne / faible, pour ne pas mentir sur une adresse absente.</li><li>Pour les points personnels (travail/école/famille), calculer distance seulement si la précision est au moins moyenne.</li></ol></section>"
     (APP/"locations.html").write_text(render_page("Localisation Réunion — analyse des annonces", "Page séparée: carte et compréhension géographique sans alourdir l’accueil.", loc_body), encoding="utf-8")
 
-    dedup_rows="".join(f"<div class='card'><h2>{html.escape(g['group_id'])} · {html.escape(g.get('title') or '')}</h2><p><b>{g.get('price') or 'prix n.c.'}€</b> · {g.get('surface') or 'surface n.c.'}m² · sources: {html.escape(', '.join(g['sources']))} · confiance {g['confidence']}</p><ul>"+"".join(f"<li>{html.escape(str(l.get('source')))} — <a href='{html.escape(str(l.get('url') or ''))}' target='_blank'>source</a></li>" for l in g['links'])+"</ul></div>" for g in dedup["groups"][:60]) or "<p>Aucun groupe fort détecté.</p>"
-    dedup_body=f"<section class='card'><h2>Politique anti-perte</h2><p>Déduplication douce: on signale des groupes probables, mais on ne supprime rien. La fiche canonique peut servir à l’affichage futur, tout en conservant tous les liens sources.</p><p>Groupes détectés: <b>{dedup['groups_count']}</b></p></section><div class='grid'>{dedup_rows}</div>"
+    dedup_rows="".join(
+        f"<div class='card'><h2>{html.escape(g['group_id'])} · {html.escape(g.get('title') or '')}</h2>"
+        f"<p><b>{g.get('price') or 'prix n.c.'}€</b> · {g.get('surface') or 'surface n.c.'}m² · sources: {html.escape(', '.join(g['sources']))} · confiance {g['confidence']} · décision {html.escape(g.get('decision',''))}</p>"
+        f"<p class='muted'>Pourquoi: {html.escape(' / '.join(g.get('explanations') or [])[:260])}</p><ul>"
+        +"".join(f"<li>{html.escape(str(l.get('source')))} — {l.get('price') or '?'}€ · {l.get('surface') or '?'}m² — <a href='{html.escape(str(l.get('url') or ''))}' target='_blank'>source</a></li>" for l in g['links'])
+        +"</ul></div>" for g in dedup["groups"][:60]
+    ) or "<p>Aucun groupe fort détecté.</p>"
+    review_count=sum(1 for g in dedup.get('groups', []) if g.get('decision') == 'needs_review')
+    dedup_body=f"<section class='card'><h2>Politique anti-perte</h2><p>Déduplication douce: on signale des groupes probables, mais on ne supprime rien. La fiche canonique peut servir à l’affichage futur, tout en conservant tous les liens sources.</p><p>Groupes détectés: <b>{dedup['groups_count']}</b>. À revoir humainement: <b>{review_count}</b>.</p></section><div class='grid'>{dedup_rows}</div>"
     (APP/"dedup.html").write_text(render_page("Doublons probables — fusion douce", "Évite le bruit sans perdre les informations ni les liens sources.", dedup_body), encoding="utf-8")
 
     opp_cards="<div class='grid'>"+"".join(f"<div class='card'><b>{o['score']}/100 · {html.escape(o['label'])}</b><p>{html.escape(o.get('title') or '')}</p><p class='muted'>{html.escape(o.get('location') or '')} · {o.get('price_per_m2') or '?'} €/m²</p><ul>"+"".join(f"<li>{html.escape(r)}</li>" for r in o.get('reasons',[])[:3])+f"</ul><a href='{html.escape(o.get('url') or '')}' target='_blank'>Source</a></div>" for o in opp["top"][:24])+"</div>"
@@ -414,11 +548,12 @@ if critical_source_newly_bad: telegram()</pre></section>
 def main() -> int:
     payload=load_payload(); items=payload["listings"]
     for it in items:
+        # Drop stale heavy fields from previous intelligence builds before recomputing.
+        it.pop("dedup_alternative_links", None)
+        it.pop("photo_status", None)
         it["location_intelligence"]=infer_location(it)
-        # photo status for transparent premium UX
-        local_gallery=it.get("local_image_urls") or ([it.get("local_image_url")] if it.get("local_image_url") else [])
-        external_gallery=it.get("image_urls") or ([it.get("image_url")] if it.get("image_url") else [])
-        it["photo_status"]={"local_count": len([x for x in local_gallery if x]), "external_count": len([x for x in external_gallery if x]), "origin": "local" if it.get("local_image_url") else "external" if it.get("image_url") else "missing", "premium_gallery_ready": len([x for x in local_gallery if x]) > 1}
+        # Gallery/photo readiness is already represented by local_image_url/local_image_urls/image_urls.
+        # Do not duplicate it into listings.json: the public payload has a strict mobile budget.
     dedup=build_dedup(items)
     opp=opportunity(items)
     write_outputs(payload, dedup, opp)
