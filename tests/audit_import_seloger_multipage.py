@@ -51,4 +51,32 @@ with tempfile.TemporaryDirectory() as td:
     assert rows == {"0": 1, "1": 1, "2": 1, "3": 1, "4": 1, "5": 0, "6": 0}, rows
     assert zimo_active == 1
 
+    raw_slug = {
+        "id": "slug1",
+        "url": "https://www.seloger.com/annonces/locations/maison/petite-ile-974/270951629.htm",
+        "prix": 1700,
+        "surface": 158.0,
+        "nb_pieces": 5,
+        "type_bien": "Maison",
+    }
+    item_slug = mod.normalize_item(raw_slug, Path(td) / "seloger.json")
+    assert item_slug["city"] == "Petite-Île", item_slug
+    assert "Petite-Île" in item_slug["title"], item_slug["title"]
+    assert "commune: Petite-Île" in item_slug["description"], item_slug["description"]
+
+    raw_field = {
+        "id": "field1",
+        "url": "https://www.seloger.com/field1/detail.htm",
+        "ville": "Bras Panon",
+        "prix": 1290,
+        "surface": 118,
+        "type_bien": "Maison",
+    }
+    item_field = mod.normalize_item(raw_field, Path(td) / "seloger.json")
+    assert item_field["city"] == "Bras-Panon", item_field
+
+    raw_opaque = {"id": "opaque1", "url": "https://www.seloger.com/270154253/detail.htm", "prix": 960}
+    item_opaque = mod.normalize_item(raw_opaque, Path(td) / "seloger.json")
+    assert item_opaque["city"] is None, item_opaque
+
 print("IMPORT_SELOGER_MULTIPAGE_AUDIT PASS")

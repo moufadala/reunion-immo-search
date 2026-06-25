@@ -56,17 +56,33 @@ CREATE TABLE IF NOT EXISTS rental_listings (
 COMMUNES = {
     "saint-denis": "Saint-Denis",
     "sainte-marie": "Sainte-Marie",
+    "sainte-suzanne": "Sainte-Suzanne",
     "sainte-clotilde": "Sainte-Clotilde",
     "saint-pierre": "Saint-Pierre",
     "le-tampon": "Le Tampon",
     "saint-paul": "Saint-Paul",
+    "saint-gilles-les-bains": "Saint-Paul",
+    "saint-gilles-les-hauts": "Saint-Paul",
+    "la-saline-les-bains": "Saint-Paul",
     "la-possession": "La Possession",
     "saint-leu": "Saint-Leu",
+    "trois-bassins": "Trois-Bassins",
+    "les-trois-bassins": "Trois-Bassins",
     "saint-andre": "Saint-André",
     "saint-benoit": "Saint-Benoît",
+    "sainte-anne": "Saint-Benoît",
+    "bras-panon": "Bras-Panon",
     "saint-louis": "Saint-Louis",
     "saint-joseph": "Saint-Joseph",
+    "saint-philippe": "Saint-Philippe",
     "le-port": "Le Port",
+    "petite-ile": "Petite-Île",
+    "l-etang-sale": "Étang-Salé",
+    "etang-sale": "Étang-Salé",
+    "les-avirons": "Les Avirons",
+    "entre-deux": "Entre-Deux",
+    "la-plaine-des-palmistes": "Plaine-des-Palmistes",
+    "cilaos": "Cilaos",
 }
 
 
@@ -76,12 +92,33 @@ def init_db(con: sqlite3.Connection) -> None:
     con.execute("CREATE INDEX IF NOT EXISTS idx_rental_source_seen ON rental_listings(source_site, seen_last_at)")
 
 
-def infer_city(url: str | None) -> str | None:
+def normalize_city(value: Any) -> str | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    low = text.lower().replace("_", "-").replace(" ", "-")
+    low = re.sub(r"[^a-z0-9\-]", "", low)
+    for slug, city in COMMUNES.items():
+        if low == slug or low.startswith(slug + "-") or slug in low:
+            return city
+    # Preserve already normalized city names from richer future artifacts.
+    for city in set(COMMUNES.values()):
+        if text.lower().replace("-", " ") == city.lower().replace("-", " "):
+            return city
+    return None
+
+
+def infer_city(url: str | None, raw: dict[str, Any] | None = None) -> str | None:
+    raw = raw or {}
+    for key in ("ville", "city", "commune", "localisation", "location", "quartier"):
+        city = normalize_city(raw.get(key))
+        if city:
+            return city
     if not url:
         return None
     low = url.lower()
     for slug, city in COMMUNES.items():
-        if f"/{slug}-974" in low or f"/{slug}/" in low:
+        if f"/{slug}-974" in low or f"/{slug}/" in low or f"/{slug}-" in low:
             return city
     return None
 
@@ -91,7 +128,7 @@ def normalize_item(a: dict[str, Any], artifact_path: Path) -> dict[str, Any]:
     if not sid:
         raise ValueError("missing SeLoger id")
     url = a.get("url") or f"https://www.seloger.com/{sid}/detail.htm"
-    city = infer_city(url)
+    city = infer_city(url, a)
     ptype = a.get("type_bien") or "Appartement / maison"
     rooms = a.get("nb_pieces")
     surface = a.get("surface")
@@ -104,7 +141,15 @@ def normalize_item(a: dict[str, Any], artifact_path: Path) -> dict[str, Any]:
     if city:
         title_bits.append(city)
     title = "Location " + " · ".join(title_bits)
-    desc = f"Annonce SeLoger collectée par CDP. Source: {url}"
+    desc_bits = ["Annonce SeLoger collectée par CDP"]
+    if city:
+        desc_bits.append(f"commune: {city}")
+    if rent:
+        desc_bits.append(f"loyer: {int(rent)} €")
+    if surface:
+        desc_bits.append(f"surface: {float(surface):g} m²")
+    desc_bits.append(f"source: {url}")
+    desc = ". ".join(desc_bits) + "."
     basis = {
         "id": sid,
         "url": url,

@@ -202,6 +202,10 @@ for it in items:
 clean.sort(key=lambda x: (x.get('score') or 0, x.get('seen_last_at') or ''), reverse=True)
 export = {'generated_at': datetime.now(timezone.utc).isoformat(), 'count': len(clean), 'listings': clean}
 (OUT / 'listings.json').write_text(json.dumps(export, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+INDEX_FIELDS = ('id', 'source', 'source_id', 'title', 'city', 'location', 'region', 'type', 'price', 'surface', 'rooms', 'bedrooms', 'score', 'local_image_url', 'seen_last_at')
+index_items = [{k: x.get(k) for k in INDEX_FIELDS if x.get(k) not in (None, '', [])} for x in clean]
+index_export = {'generated_at': export['generated_at'], 'count': len(index_items), 'listings': index_items, 'note': 'Index léger pour recherche/liste mobile; les fiches complètes restent dans listings.json.'}
+(OUT / 'listings_index.json').write_text(json.dumps(index_export, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
 
 prices=[x['price'] for x in clean if isinstance(x.get('price'), int)]
 surfaces=[x['surface'] for x in clean if isinstance(x.get('surface'), (int,float))]
@@ -222,6 +226,22 @@ coverage={
     'note': 'Portail propre avec photos principales locales et galeries quand disponibles; couches veille/intelligence servies en pages séparées.'
 }
 (OUT / 'coverage.json').write_text(json.dumps(coverage, ensure_ascii=False, indent=2), encoding='utf-8')
+PUBLIC_BASE = 'https://immo.148.230.103.174.sslip.io'
+PUBLIC_PAGES = ['', 'veille.html', 'sources.html', 'doublons.html', 'opportunites.html', 'localisation.html', 'alertes.html']
+sitemap_urls = '\n'.join(
+    f"  <url><loc>{PUBLIC_BASE}/{page}</loc><changefreq>daily</changefreq><priority>{'1.0' if not page else '0.7'}</priority></url>"
+    for page in PUBLIC_PAGES
+)
+(OUT / 'sitemap.xml').write_text(
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    + sitemap_urls + '\n</urlset>\n',
+    encoding='utf-8',
+)
+(OUT / 'robots.txt').write_text(
+    'User-agent: *\nAllow: /\nSitemap: https://immo.148.230.103.174.sslip.io/sitemap.xml\n',
+    encoding='utf-8',
+)
 
 html = r'''<!doctype html>
 <html lang="fr">

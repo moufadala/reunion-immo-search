@@ -14,8 +14,8 @@ HOSTS = [
 ]
 UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126 Mobile Safari/537.36"
 REQUIRED_PUBLIC_PATHS = [
-    "", "listings.json", "veille.html", "sources.html", "doublons.html",
-    "opportunites.html", "localisation.html", "alertes.html", "changes.json",
+    "", "listings.json", "listings_index.json", "veille.html", "sources.html", "doublons.html",
+    "opportunites.html", "localisation.html", "alertes.html", "robots.txt", "sitemap.xml", "changes.json",
     "source_health.json", "dedup_groups.json", "opportunity.json", "locations.json", "coverage.json",
 ]
 
