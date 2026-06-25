@@ -36,6 +36,14 @@ def main() -> int:
         fail("missing public listings count")
     if "Cockpit ops" not in html:
         fail("wrong title/content")
+    for token in ["Historique 7 jours", "Fraîcheur par source"]:
+        if token not in html:
+            fail(f"missing cockpit section: {token}")
+    run = data.get("run", {})
+    if "history_7d" not in run or not isinstance(run.get("history_7d"), list):
+        fail("missing run.history_7d")
+    if "freshness" not in data.get("source_health", {}):
+        fail("missing source freshness payload")
     if index_path.exists():
         idx = index_path.read_text(encoding="utf-8", errors="replace")
         if "ops.html" in idx or "ops_status.json" in idx:

@@ -5,7 +5,7 @@ import argparse
 import html
 import json
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,54 @@ def scrub_value(value: Any) -> Any:
         return value[:500]
     return value
 
+
+
+def collect_run_history(base: Path, days: int = 7) -> list[dict[str, Any]]:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    runs=[]
+    if not base.exists():
+        return []
+    for d in sorted([x for x in base.iterdir() if x.is_dir()], key=lambda x: x.name, reverse=True)[:80]:
+        try:
+            stamp = d.name
+            dt = None
+            if re.match(r"\d{8}T\d{6}Z$", stamp):
+                dt = datetime.strptime(stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+            if dt and dt < cutoff:
+                continue
+            statuses=[]
+            for st in sorted(d.glob("*.status")):
+                txt=st.read_text(encoding="utf-8", errors="replace").strip()
+                m=re.search(r"rc=(\d+).*duration_s=(\d+)", txt)
+                statuses.append({"step":st.stem,"rc":int(m.group(1)) if m else None,"duration_s":int(m.group(2)) if m else None})
+            summary=read_json(d/"daily_summary"/"summary.json", {})
+            failed=[x for x in statuses if x.get("rc") not in (0, None)]
+            runs.append({
+                "name": d.name,
+                "generated_at": dt.isoformat() if dt else None,
+                "ok": not failed and bool(statuses),
+                "steps": len(statuses),
+                "failed_steps": [x["step"] for x in failed],
+                "duration_s": sum(int(x.get("duration_s") or 0) for x in statuses),
+                "summary_status": summary.get("status") or summary.get("ok"),
+                "warnings": (summary.get("warnings") or [])[:10] if isinstance(summary, dict) else [],
+            })
+        except Exception as exc:
+            runs.append({"name": d.name, "ok": False, "error": str(exc)[:160]})
+    return runs[:14]
+
+def summarize_freshness(source_health: dict[str, Any]) -> list[dict[str, Any]]:
+    out=[]
+    for src in source_health.get("sources", []) if isinstance(source_health, dict) else []:
+        out.append({
+            "source": src.get("source"),
+            "status": src.get("status") or src.get("severity"),
+            "active_rows": src.get("active_rows"),
+            "age_hours": src.get("age_hours"),
+            "last_seen": src.get("last_seen_at") or src.get("max_seen_at"),
+            "note": src.get("note") or src.get("message"),
+        })
+    return out
 
 def status_label(ok: bool, warnings: list[str]) -> tuple[str, str]:
     if not ok:
@@ -63,6 +111,8 @@ def main() -> int:
     dedup = read_json(app / "dedup_groups.json", {})
     opp = read_json(app / "opportunity.json", {})
     locations = read_json(app / "locations.json", {})
+    run_history = collect_run_history(Path("/opt/data/artifacts/immo-public-refresh"), days=7)
+    freshness = summarize_freshness(source_health)
 
     run_summary = {}
     run_files: dict[str, Any] = {}
@@ -114,12 +164,16 @@ def main() -> int:
         },
         "source_health": {
             "status_counts": (source_health.get("status_counts") or source_health.get("summary") or {}) if isinstance(source_health, dict) else {},
+            "freshness": freshness,
         },
         "run": {
             "name": run_dir.name if run_dir else None,
             "summary": run_summary,
             "steps": statuses,
             "files": run_files,
+            "history_7d": run_history,
+            "history_ok_count": sum(1 for r in run_history if r.get("ok")),
+            "history_fail_count": sum(1 for r in run_history if not r.get("ok")),
         },
         "warnings": warnings,
         "notes": [
@@ -144,6 +198,15 @@ def main() -> int:
     ) or "<tr><td colspan='3'>Aucun run lié</td></tr>"
     warning_items = "".join(f"<li>{html.escape(w)}</li>" for w in warnings) or "<li>Aucun warning bloquant.</li>"
 
+    history_rows = "".join(
+        f"<tr><td>{html.escape(str(r.get('name')))}</td><td>{'OK' if r.get('ok') else 'KO'}</td><td>{html.escape(str(r.get('steps') or ''))}</td><td>{html.escape(', '.join(r.get('failed_steps') or []) or '—')}</td><td>{html.escape(str(r.get('duration_s') or ''))}s</td></tr>"
+        for r in run_history
+    ) or "<tr><td colspan='5'>Aucun historique 7 jours trouvé</td></tr>"
+    freshness_rows = "".join(
+        f"<tr><td>{html.escape(str(x.get('source') or ''))}</td><td>{html.escape(str(x.get('status') or 'n.c.'))}</td><td>{html.escape(str(x.get('active_rows') or ''))}</td><td>{html.escape(str(x.get('age_hours') or ''))}</td><td>{html.escape(str(x.get('last_seen') or ''))}</td></tr>"
+        for x in freshness
+    ) or "<tr><td colspan='5'>Fraîcheur source non disponible</td></tr>"
+
     html_text = f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
@@ -164,6 +227,8 @@ def main() -> int:
 </div>
 <section class="panel"><h2>Warnings</h2><ul>{warning_items}</ul></section>
 <section class="panel"><h2>Sources actives</h2><table><thead><tr><th>Source</th><th>Annonces</th></tr></thead><tbody>{source_rows}</tbody></table></section>
+<section class="panel"><h2>Historique 7 jours</h2><table><thead><tr><th>Run</th><th>Statut</th><th>Étapes</th><th>Échecs</th><th>Durée</th></tr></thead><tbody>{history_rows}</tbody></table></section>
+<section class="panel"><h2>Fraîcheur par source</h2><table><thead><tr><th>Source</th><th>Statut</th><th>Actives</th><th>Âge h</th><th>Dernière vue</th></tr></thead><tbody>{freshness_rows}</tbody></table></section>
 <section class="panel"><h2>Étapes du dernier run</h2><table><thead><tr><th>Étape</th><th>RC</th><th>Durée</th></tr></thead><tbody>{step_rows}</tbody></table></section>
 <section class="panel"><h2>Contrat sécurité</h2><ul><li>Pas de lien depuis la homepage.</li><li><code>noindex,nofollow,noarchive</code>.</li><li>JSON sanitizé dans <code>ops_status.json</code>.</li><li>Pas de logs bruts, stack traces, chemins internes ou secrets.</li></ul></section>
 </main></body></html>"""
