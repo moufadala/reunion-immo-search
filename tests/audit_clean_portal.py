@@ -17,7 +17,6 @@ REQUIRED = [
     'Un portail immo simple, alimenté par notre base scrapée.',
     'minScore',
     'opportunity_score',
-    'Copier recherche',
 ]
 
 # Tokens that are expected in the technical workbench but must not leak into the family-facing homepage.
@@ -39,6 +38,9 @@ FORBIDDEN = [
     'T2/T3 ≤1000€',
     '2 chambres+',
     'data-preset',
+    'Copier recherche',
+    'copySearchBtn',
+    'Lien copié',
 ]
 
 FAMILY_URL_TOKENS = ['r', 'z', 't', 'rentMin', 'rentMax', 'bedroomsMin', 'minScore']
