@@ -1,0 +1,39 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Secrets/config local
+.env
+*.env
+.env.*
+config.yaml
+secrets.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Data/artifacts/logs
+artifacts/
+data/
+logs/
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.bak*
+*.jsonl
+*.log
+*.out
+*.stderr
+*.stdout
+thumbs/
+
+# OS/editor
+.DS_Store
+.vscode/
+.idea/
