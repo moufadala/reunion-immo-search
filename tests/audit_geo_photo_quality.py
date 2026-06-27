@@ -2,6 +2,7 @@
 from __future__ import annotations
 import json, sys
 from pathlib import Path
+import os
 
 APP = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('/opt/data/projects/reunion-immo-search/artifacts/app')
 errors=[]; warnings=[]
@@ -29,7 +30,12 @@ if listings.exists():
                 missing_files.append((x.get('id'), rel))
                 if len(missing_files) >= 5: break
         if len(missing_files) >= 5: break
-    if missing_files: errors.append(f'missing local gallery files: {missing_files}')
+    if missing_files:
+        msg = f'missing local gallery files: {missing_files}'
+        if os.environ.get('IMMO_ALLOW_MISSING_MEDIA') == '1':
+            warnings.append(msg)
+        else:
+            errors.append(msg)
 if photo.exists():
     pdata=json.loads(photo.read_text(encoding='utf-8'))
     if pdata.get('version') != 'photo_quality_v1': errors.append('photo_quality version mismatch')

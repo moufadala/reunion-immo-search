@@ -64,6 +64,7 @@ jobs:
         env:
           IMMO_PUBLIC_BASE: http://127.0.0.1:38627
           IMMO_PUBLIC_URL: http://127.0.0.1:38627/
+          IMMO_ALLOW_MISSING_MEDIA: '1'
         run: |
           mkdir -p /tmp/immo-qa-ci
           python tests/run_product_quality_matrix.py \

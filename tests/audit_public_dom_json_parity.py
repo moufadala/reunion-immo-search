@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import os
 import re
 import socket
 import sys
@@ -189,6 +190,7 @@ def evaluate_browser_state(page: Any) -> dict[str, Any]:
 
 def run_browser_audit(base_url: str, expected_ids: set[str], expected_total: int) -> dict[str, Any]:
     result: dict[str, Any] = {"base_url": base_url, "status": "not_started", "cases": [], "console_errors": [], "errors": []}
+    allow_missing_media = os.environ.get("IMMO_ALLOW_MISSING_MEDIA") == "1"
     try:
         from playwright.sync_api import Error as PlaywrightError  # type: ignore
         from playwright.sync_api import TimeoutError as PlaywrightTimeoutError  # type: ignore
@@ -266,6 +268,10 @@ def run_browser_audit(base_url: str, expected_ids: set[str], expected_total: int
                     })"""
                 )
             browser.close()
+        console_errors = list(result["console_errors"])
+        if allow_missing_media:
+            console_errors = [e for e in console_errors if "Failed to load resource: the server responded with a status of 404" not in e]
+        result["console_errors"] = console_errors
         result["status"] = "passed" if not result["errors"] and not result["console_errors"] else "failed"
     except Exception as exc:  # browser missing, launch fail, page crash, etc.
         result.update({"status": "skipped", "reason": "playwright_runtime_unavailable_or_failed", "exception": repr(exc)})

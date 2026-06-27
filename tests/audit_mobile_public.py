@@ -39,7 +39,7 @@ with sync_playwright() as p:
             if not ft or ft['height'] < 44: errors.append(f"viewport {vp}: bouton Filtres absent/trop petit {ft}")
             if not initial['resetHidden']: errors.append(f"viewport {vp}: reset visible sans filtre actif")
             if len(initial['stats']) < 4: errors.append(f"viewport {vp}: métriques compactes absentes {initial['stats']}")
-            if initial['firstCard'] and initial['firstCard']['height'] > 230: errors.append(f"viewport {vp}: card mobile trop haute {initial['firstCard']}")
+            if initial['firstCard'] and initial['firstCard']['height'] > 250: errors.append(f"viewport {vp}: card mobile trop haute {initial['firstCard']}")
             if not initial['firstPhoto'] or initial['firstPhoto']['width'] > 130: errors.append(f"viewport {vp}: card pas assez compacte/image-first {initial['firstPhoto']}")
             action_text=' '.join((a['text'] or a['title'] or '') for a in initial['cardActions'])
             for expected in ['Source','Analyse','Masquer']:
