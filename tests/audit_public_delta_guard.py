@@ -38,6 +38,13 @@ def main() -> int:
         bad = run(["--baseline", str(baseline), "--candidate", str(candidate_bad)], ROOT)
         assert bad.returncode != 0, bad.stdout + bad.stderr
         assert "global volume dropped" in (bad.stdout + bad.stderr)
+
+        candidate_critical_bad = tmp / "candidate_critical_bad"
+        critical_bad_rows = [{"source": "seloger", "id": i} for i in range(20)] + [{"source": "ofim", "id": i} for i in range(80)]
+        write_app(candidate_critical_bad, critical_bad_rows)
+        bad = run(["--baseline", str(baseline), "--candidate", str(candidate_critical_bad), "--max-drop-pct", "99"], ROOT)
+        assert bad.returncode != 0, bad.stdout + bad.stderr
+        assert "critical source seloger dropped" in (bad.stdout + bad.stderr)
     print("AUDIT_PUBLIC_DELTA_GUARD_TEST PASS")
     return 0
 

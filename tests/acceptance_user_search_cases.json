@@ -1,0 +1,59 @@
+{
+  "version": "immo_acceptance_v1",
+  "updated_at": "2026-06-26",
+  "principle": "Moufadal gives business examples; Hermes generates and verifies full behavior families.",
+  "global_must_not_contain": ["undefined", "null", "[object Object]", "serp_view", "distributionTypes", "CDP"],
+  "cases": [
+    {"id":"empty_default", "family":"baseline", "query":"", "expect_min_count":400},
+
+    {"id":"loc_riviere_accents", "family":"location", "query":"rivière des pluies", "expect_chips_any":["Rivière des Pluies"], "expect_min_count":1, "expect_source_terms_any":["riviere des pluies", "rivieres des pluies"]},
+    {"id":"loc_riviere_no_accents", "family":"location", "query":"rivieres des pluies", "expect_chips_any":["Rivière des Pluies"], "expect_min_count":1, "expect_source_terms_any":["riviere des pluies", "rivieres des pluies"]},
+    {"id":"loc_beausejour_no_accents", "family":"location", "query":"beausejour", "expect_chips_any":["Beauséjour"], "expect_min_count":1, "expect_source_terms_any":["beausejour"]},
+    {"id":"loc_beausejour_accents", "family":"location", "query":"beauséjour", "expect_chips_any":["Beauséjour"], "expect_min_count":1, "expect_source_terms_any":["beausejour"]},
+    {"id":"loc_grande_montee_accents", "family":"location", "query":"grande montée", "expect_chips_any":["Grande Montée"], "expect_min_count":1, "expect_source_terms_any":["grande montee"]},
+    {"id":"loc_grande_montee_no_accents", "family":"location", "query":"grande montee", "expect_chips_any":["Grande Montée"], "expect_min_count":1, "expect_source_terms_any":["grande montee"]},
+    {"id":"loc_duparc_zero_exact", "family":"location_zero", "query":"duparc", "expect_chips_any":["Duparc"], "expect_max_count":0, "expect_understood_contains":"Aucune annonce", "must_not_return_all":true},
+    {"id":"loc_bretagne_zero_exact", "family":"location_zero", "query":"bretagne", "expect_chips_any":["Bretagne"], "expect_max_count":0, "expect_understood_contains":"Aucune annonce", "must_not_return_all":true},
+    {"id":"loc_la_bretagne_zero_exact", "family":"location_zero", "query":"la bretagne", "expect_chips_any":["Bretagne"], "expect_max_count":0, "expect_understood_contains":"Aucune annonce", "must_not_return_all":true},
+
+    {"id":"rooms_t4", "family":"rooms", "query":"T4", "group_equal":"rooms4", "expect_chips_any":["T/F4"], "expect_min_count":20, "expect_rooms":4},
+    {"id":"rooms_f4", "family":"rooms", "query":"F4", "group_equal":"rooms4", "expect_chips_any":["T/F4"], "expect_min_count":20, "expect_rooms":4},
+    {"id":"rooms_t_space_4", "family":"rooms", "query":"T 4", "group_equal":"rooms4", "expect_chips_any":["T/F4"], "expect_min_count":20, "expect_rooms":4},
+    {"id":"rooms_f_space_4", "family":"rooms", "query":"F 4", "group_equal":"rooms4", "expect_chips_any":["T/F4"], "expect_min_count":20, "expect_rooms":4},
+    {"id":"rooms_4_pieces", "family":"rooms", "query":"4 pièces", "expect_chips_any":["T/F4"], "expect_min_count":20, "expect_rooms":4},
+    {"id":"rooms_studio", "family":"rooms", "query":"studio", "expect_chips_any":["Studio / T1"], "expect_min_count":10},
+
+    {"id":"furnished_yes", "family":"furnished", "query":"meublé", "expect_chips_any":["Meublé"], "expect_min_count":20, "expect_no_card_terms":[]},
+    {"id":"furnished_no_non", "family":"furnished", "query":"non meublé", "expect_chips_any":["Non meublé"], "expect_min_count":20, "expect_no_card_terms":["Meublé"]},
+    {"id":"furnished_no_pas", "family":"furnished", "query":"pas meublé", "expect_chips_any":["Non meublé"], "expect_min_count":20, "expect_no_card_terms":["Meublé"]},
+    {"id":"furnished_no_sans", "family":"furnished", "query":"sans meublé", "expect_chips_any":["Non meublé"], "expect_min_count":20, "expect_no_card_terms":["Meublé"]},
+    {"id":"furnished_no_nue", "family":"furnished", "query":"location nue", "expect_chips_any":["Non meublé"], "expect_min_count":20, "expect_no_card_terms":["Meublé"]},
+
+    {"id":"budget_bare", "family":"budget", "query":"900", "expect_chips_any":["900 € ?"], "expect_understood_contains":"à préciser", "expect_price_operator_buttons":["max", "min", "equal", "around"], "must_not_filter_by_budget":true},
+    {"id":"budget_less_word", "family":"budget", "query":"moins 900", "group_monotonic":"budget_900", "expect_chips_any":["≤ 900 €"], "expect_price_max":900, "expect_min_count":10},
+    {"id":"budget_less_symbol", "family":"budget", "query":"<900", "expect_chips_any":["≤ 900 €"], "expect_price_max":900, "expect_min_count":10},
+    {"id":"budget_max_word", "family":"budget", "query":"max 900", "expect_chips_any":["≤ 900 €"], "expect_price_max":900, "expect_min_count":10},
+    {"id":"budget_plus_word", "family":"budget", "query":"plus 900", "expect_chips_any":["≥ 900 €"], "expect_price_min":900, "expect_min_count":10},
+    {"id":"budget_more_symbol", "family":"budget", "query":">900", "expect_chips_any":["≥ 900 €"], "expect_price_min":900, "expect_min_count":10},
+    {"id":"budget_min_word", "family":"budget", "query":"min 900", "expect_chips_any":["≥ 900 €"], "expect_price_min":900, "expect_min_count":10},
+    {"id":"budget_equal_symbol", "family":"budget", "query":"= 900", "expect_chips_any":["= 900 €"], "expect_price_between":[850,950], "expect_min_count":1},
+    {"id":"budget_equal_word", "family":"budget", "query":"900 exact", "expect_chips_any":["= 900 €"], "expect_price_between":[850,950], "expect_min_count":1},
+    {"id":"budget_around", "family":"budget", "query":"autour de 900", "expect_chips_any":["Autour de 900 €"], "expect_price_between":[700,1100], "expect_min_count":1},
+    {"id":"budget_between", "family":"budget", "query":"entre 800 et 1000", "expect_chips_any":["Entre 800 et 1000 €"], "expect_price_between":[800,1000], "expect_min_count":1},
+
+    {"id":"combo_family_beausejour_ambiguous_budget", "family":"combo", "query":"F4 non meublé Beauséjour 900", "expect_chips_any":["T/F4", "Beauséjour", "Non meublé", "900 € ?"], "expect_understood_contains":"Aucune annonce", "expect_price_operator_buttons":["max", "min", "equal", "around"]},
+    {"id":"combo_family_beausejour_less", "family":"combo", "query":"F4 non meublé Beauséjour moins 900", "expect_chips_any":["T/F4", "≤ 900 €", "Beauséjour", "Non meublé"], "expect_price_max":900},
+    {"id":"combo_order_variation", "family":"combo", "query":"Beauséjour moins 900 non meublé F4", "expect_chips_any":["T/F4", "≤ 900 €", "Beauséjour", "Non meublé"], "expect_price_max":900},
+    {"id":"combo_grande_montee", "family":"combo", "query":"T4 non meublé Grande Montée moins 1300", "expect_chips_any":["T/F4", "≤ 1300 €", "Grande Montée", "Non meublé"], "expect_price_max":1300},
+    {"id":"combo_riviere_t5", "family":"combo", "query":"rivière des pluies T5", "expect_chips_any":["T/F5", "Rivière des Pluies"], "expect_min_count":1, "expect_rooms":5},
+    {"id":"combo_parking_saint_denis", "family":"combo", "query":"parking saint denis moins 900", "expect_chips_any":["≤ 900 €", "Saint-Denis", "Parking"], "expect_price_max":900, "expect_min_count":1},
+    {"id":"combo_maison_grande_montee", "family":"combo", "query":"maison grande montée", "expect_chips_any":["Maison / villa", "Grande Montée"], "expect_min_count":1},
+    {"id":"combo_appart_beausejour", "family":"combo", "query":"appartement beausejour", "expect_chips_any":["Appartement", "Beauséjour"], "expect_min_count":1}
+  ],
+  "interactions": [
+    {"id":"budget_click_max", "start_query":"900", "click_price_op":"max", "expect_query":"moins 900", "expect_chips_any":["≤ 900 €"]},
+    {"id":"budget_click_min", "start_query":"900", "click_price_op":"min", "expect_query":"plus 900", "expect_chips_any":["≥ 900 €"]},
+    {"id":"budget_click_equal", "start_query":"900", "click_price_op":"equal", "expect_query":"= 900", "expect_chips_any":["= 900 €"]},
+    {"id":"budget_click_around", "start_query":"900", "click_price_op":"around", "expect_query":"autour de 900", "expect_chips_any":["Autour de 900 €"]}
+  ]
+}
