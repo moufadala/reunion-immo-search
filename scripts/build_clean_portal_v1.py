@@ -165,6 +165,37 @@ for it in items:
     loc_intel = it.get('location_intelligence') or {}
     map_point = loc_intel.get('map_point') or {}
     precise_location = loc_intel.get('precise_location_label') or it.get('location_label') or it.get('commune') or it.get('city') or ''
+    analysis = analyze_description({**it, 'price': int(price) if isinstance(price,(int,float)) else price})
+    feature_tags = []
+    furnished_status = ((analysis.get('property_state') or {}).get('furnished') or {}).get('status')
+    if furnished_status == 'meuble':
+        feature_tags.append('Meublé')
+    elif furnished_status == 'non_meuble':
+        feature_tags.append('Non meublé')
+    feats = analysis.get('features') or {}
+    if ((feats.get('parking') or {}).get('present')):
+        feature_tags.append('Parking')
+    outdoor = ((feats.get('outdoor') or {}).get('evidence') or [])
+    outdoor_rules = ' '.join(str(x.get('rule') or x.get('text') or '') for x in outdoor).lower()
+    if any(k in outdoor_rules for k in ['terrace', 'balcony', 'varangue']):
+        feature_tags.append('Varangue / terrasse')
+    if 'garden' in outdoor_rules:
+        feature_tags.append('Jardin')
+    if 'pool' in outdoor_rules:
+        feature_tags.append('Piscine')
+    feature_tags = uniq(feature_tags)
+    image_quality = {
+        'version': 'image_quality_v1',
+        'valid_local_primary': bool(local_primary),
+        'valid_local_count': len(local_gallery),
+        'external_count': len(external_gallery),
+        'status': 'local' if local_primary else 'external_only' if external_gallery else 'missing',
+    }
+    geo_quality = it.get('geo_quality') or {
+        'level': (loc_intel.get('quality') or 'commune'),
+        'confidence': loc_intel.get('confidence'),
+        'method': loc_intel.get('method') or 'exported_location_intelligence',
+    }
     clean.append({
         'id': it.get('id'),
         'source': it.get('source_site') or it.get('source') or 'source',
@@ -191,7 +222,10 @@ for it in items:
         'local_image_urls': local_gallery,
         'description': it.get('description') or '',
         'description_status': it.get('description_status') or '',
-        'description_analysis': analyze_description({**it, 'price': int(price) if isinstance(price,(int,float)) else price}),
+        'description_analysis': analysis,
+        'feature_tags': feature_tags,
+        'image_quality': image_quality,
+        'geo_quality': geo_quality,
         'seen_last_at': it.get('seen_last_at') or it.get('last_seen_at') or '',
         'published_at': it.get('published_at'),
         'score': it.get('score') or it.get('db_quality_score') or 0,
@@ -217,6 +251,10 @@ coverage={
     'external_primary_photos': sum(1 for x in clean if x.get('image_url')),
     'gallery_photos': sum(1 for x in clean if len(x.get('local_image_urls') or []) > 1),
     'image_urls_multi': sum(1 for x in clean if len(x.get('image_urls') or []) > 1),
+    'valid_local_images': local_count,
+    'photo_quality_issues': sum(1 for x in clean if not (x.get('image_quality') or {}).get('valid_local_primary')),
+    'geo_confidence': {k: sum(1 for x in clean if (x.get('geo_quality') or {}).get('level') == k) for k in ['haute','moyenne','commune','basse']},
+    'amenity_tags': sum(1 for x in clean if x.get('feature_tags')),
     'cities': len({x['city'] for x in clean if x['city']}),
     'regions': sorted({x['region'] for x in clean if x['region']}),
     'types': sorted({x['type'] for x in clean if x['type']}),
@@ -227,6 +265,32 @@ coverage={
     'note': 'Portail propre avec photos principales locales et galeries quand disponibles; couches veille/intelligence servies en pages séparées.'
 }
 (OUT / 'coverage.json').write_text(json.dumps(coverage, ensure_ascii=False, indent=2), encoding='utf-8')
+photo_summary = {
+    'version': 'photo_quality_v1',
+    'summary': {
+        'total': len(clean),
+        'with_valid_local': local_count,
+        'missing_local': len(clean) - local_count,
+        'with_gallery': sum(1 for x in clean if len(x.get('local_image_urls') or []) > 1),
+    },
+    'items': [{'id': x.get('id'), **(x.get('image_quality') or {})} for x in clean],
+}
+(OUT / 'photo_quality.json').write_text(json.dumps(photo_summary, ensure_ascii=False, indent=2), encoding='utf-8')
+search_ontology = {
+    'version': 'natural_search_v2',
+    'commune_aliases': {
+        'Saint-Denis': ['saint denis','st denis','sainte clotilde'],
+        'Sainte-Marie': ['sainte marie','ste marie','beausejour','grande montée','les cafés'],
+        'Saint-Paul': ['saint paul','st paul','bois de nèfles saint-paul'],
+        'Saint-Pierre': ['saint pierre','st pierre'],
+    },
+    'amenity_aliases': {
+        'Meublé': ['meublé','meublee','meuble'],
+        'Parking': ['parking','garage','stationnement'],
+        'Varangue / terrasse': ['varangue','terrasse','balcon'],
+    },
+}
+(OUT / 'search_ontology.json').write_text(json.dumps(search_ontology, ensure_ascii=False, indent=2), encoding='utf-8')
 PUBLIC_BASE = 'https://immo.148.230.103.174.sslip.io'
 PUBLIC_PAGES = ['', 'veille.html', 'sources.html', 'doublons.html', 'opportunites.html', 'localisation.html', 'alertes.html']
 sitemap_urls = '\n'.join(
@@ -255,19 +319,24 @@ html = r'''<!doctype html>
 .galleryCount{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.72);color:#fff;border-radius:999px;padding:5px 8px;font-size:12px;font-weight:850}.detail-img{position:relative}.photoNav{position:absolute;top:50%;transform:translateY(-50%);border:0;border-radius:999px;width:42px;height:42px;background:rgba(255,255,255,.9);box-shadow:var(--shadow);font-size:28px;font-weight:900;cursor:pointer}.photoNav.prevPhoto{left:10px}.photoNav.nextPhoto{right:10px}.photoCounter{position:absolute;left:12px;bottom:12px;background:rgba(0,0,0,.7);color:#fff;border-radius:999px;padding:6px 9px;font-size:12px;font-weight:850}.photoNav[hidden],.photoCounter[hidden]{display:none}
 .layerLinks{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.layerLinks a{font-size:12px;text-decoration:none;color:#385170;background:#eef4ff;border:1px solid #d7e5ff;border-radius:999px;padding:7px 10px}.layerLinks a:hover{background:#e2eeff}.mapBox{margin-top:12px;border:1px solid var(--line);border-radius:16px;overflow:hidden;background:#fff}.mapBox iframe{display:block;width:100%;height:230px;border:0}.mapBox .mapNote{padding:9px 11px;color:var(--muted);font-size:12px}.mapLink{font-weight:800;color:var(--brand);text-decoration:none}
 
-.modal{overscroll-behavior:contain}.sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.modal[hidden]{display:none!important}@media(max-width:580px){body{overflow-x:hidden}.bar{flex-wrap:wrap}.search{min-width:100%;order:3}.modal{align-items:flex-end;padding:0}.sheet{width:100%;max-height:100dvh;border-radius:18px 18px 0 0}.sheet-grid{grid-template-columns:1fr}.detail-img img{max-height:46dvh;object-fit:contain}.photoNav{width:48px;height:48px}.btn,.search button{min-height:44px}}
+.modal{overscroll-behavior:contain}.sheet{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}.modal[hidden]{display:none!important}.filterToggle,.filterSheetHead,.filterScrim{display:none}.hasActiveFilters #resetBtn{display:inline-flex}@media(min-width:581px){#resetBtn{display:inline-flex!important}}@media(max-width:580px){body{overflow-x:hidden}.top{box-shadow:0 8px 26px rgba(55,45,30,.08)}.bar{display:grid!important;grid-template-columns:1fr auto;gap:8px;padding:9px 11px;align-items:center}.logo{font-size:18px;min-width:0}.search{grid-column:1/3;min-width:0;width:100%;order:0}.search input{min-width:0;padding:12px 13px}.search button{padding:10px 12px}.filterToggle{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 13px}.filterToggle[aria-expanded="true"]{background:var(--brand2);color:#fff}#resetBtn{display:none;grid-column:1/3;min-height:38px;padding:8px 12px}main{padding:10px 10px 56px}.hero{display:block;margin:6px 0 10px}.intro{padding:13px 14px}.intro h1{font-size:22px;line-height:1.02;letter-spacing:-.03em;margin-bottom:7px}.intro p{font-size:13px;line-height:1.35;margin:0}.layerLinks{gap:6px;margin-top:9px;overflow:auto;flex-wrap:nowrap;padding-bottom:2px}.layerLinks a{white-space:nowrap;min-height:34px;display:inline-flex;align-items:center}.stats{display:flex!important;gap:7px;overflow:auto;padding:8px 0;background:transparent;border:0;box-shadow:none}.stat{min-width:118px;border-radius:12px;padding:8px 10px}.stat b{font-size:17px}.stat span{font-size:10px;line-height:1.15}.filters{position:fixed;z-index:70;left:0;right:0;bottom:0;max-height:82dvh;overflow:auto;margin:0;padding:0 14px 16px;border-radius:20px 20px 0 0;transform:translateY(105%);transition:transform .18s ease;box-shadow:0 -18px 55px rgba(20,18,15,.22)}.filtersOpen .filters{transform:translateY(0)}.filterSheetHead{display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;background:var(--paper);z-index:2;padding:12px 0 10px;border-bottom:1px solid var(--line);margin-bottom:12px}.filterSheetHead strong{font-size:16px}.filterScrim{position:fixed;inset:0;background:rgba(20,18,15,.36);z-index:60}.filtersOpen .filterScrim{display:block}.filter-grid{grid-template-columns:1fr;gap:9px}.field select,.field input{min-height:44px}.chips,.nlChips{flex-wrap:nowrap;overflow:auto;padding-bottom:3px}.chip,.nlchip{white-space:nowrap;min-height:36px}.searchFeedback{margin-top:10px}.understood{font-size:12px}.toolbar{margin:10px 0 8px;gap:3px}.toolbar h2{font-size:18px}.toolbar .muted{font-size:12px}.grid{grid-template-columns:1fr;gap:9px}.card{display:grid;grid-template-columns:104px 1fr;min-height:138px;border-radius:15px;box-shadow:0 6px 18px rgba(55,45,30,.07)}.card:hover{transform:none}.photo{height:100%;min-height:138px}.badge{left:6px;top:6px;max-width:86px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 6px;font-size:10px}.fav{right:6px;top:6px;width:44px;height:44px}.galleryCount{right:6px;bottom:6px;font-size:10px;padding:4px 6px}.body{padding:8px 8px 7px;min-width:0}.price{font-size:17px}.loc{font-size:12px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.title{font-size:12px;line-height:1.25;min-height:0;margin:4px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.meta{gap:4px}.pill{font-size:10.5px;padding:4px 6px}.actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:6px}.actions a,.actions button{min-height:44px;padding:7px 3px;border-radius:10px;font-size:10.5px;line-height:1.1}.matchReasons{display:none}.modal{align-items:flex-end;padding:0}.sheet{width:100%;max-height:100dvh;border-radius:18px 18px 0 0}.sheet-grid{grid-template-columns:1fr}.detail-img{height:250px}.detail-img img{max-height:46dvh;object-fit:contain}.photoNav{width:48px;height:48px}.btn,.search button{min-height:44px}}
 </style>
 </head>
 <body>
-<header class="top"><div class="bar"><div class="logo">Recherche immo <span>RUN</span></div><div class="search"><input id="q" placeholder="Ville, quartier, critères… ex: Sainte-Marie T2 1000"/><button id="searchBtn">Rechercher</button></div><button class="btn secondary" id="resetBtn">Réinitialiser</button></div></header>
+<header class="top"><div class="bar"><div class="logo">Recherche immo <span>RUN</span></div><button class="btn secondary filterToggle" id="filterToggle" type="button" aria-controls="filtersPanel" aria-expanded="false">Filtres</button><div class="search"><input id="q" placeholder="Ex: T2 Saint-Denis moins 900€ meublé parking"/><button id="searchBtn">Rechercher</button></div><button class="btn secondary" id="resetBtn">Réinitialiser</button></div></header>
 <main>
-<section class="hero"><div class="panel intro"><h1>Un portail immo simple, alimenté par notre base scrapée.</h1><p>V1 propre façon portail classique : chercher, filtrer, comparer, ouvrir la source. Pas de debug, pas de fouillis. Les photos principales locales sont utilisées quand elles existent.</p><div class="layerLinks" aria-label="Couches de veille immo"><a href="veille.html">Veille</a><a href="sources.html">Sources</a><a href="doublons.html">Doublons</a><a href="opportunites.html">Opportunités</a><a href="localisation.html">Localisation</a><a href="alertes.html">Alertes</a></div></div><div class="panel stats"><div class="stat"><b id="total">—</b><span>annonces dans la base</span></div><div class="stat"><b id="shown">—</b><span>résultats affichés</span></div><div class="stat"><b id="photos">—</b><span>photos principales locales</span></div><div class="stat"><b id="updated">—</b><span>dernière génération</span></div></div></section>
-<section class="panel filters"><div class="filter-grid"><div class="field"><label>Ville / commune</label><select id="city"><option value="">Toutes</option></select></div><div class="field"><label>Budget max</label><input id="maxPrice" type="number" inputmode="numeric" placeholder="ex: 1200"/></div><div class="field"><label>Type</label><select id="type"><option value="">Tous</option></select></div><div class="field"><label>Surface min.</label><input id="minSurface" type="number" inputmode="numeric" placeholder="ex: 40"/></div><div class="field"><label>Pièces min.</label><select id="minRooms"><option value="">Toutes</option><option value="1">Studio / 1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option><option value="5">5+</option></select></div><div class="field"><label>Tri</label><select id="sort"><option value="recommended">Recommandé</option><option value="price_asc">Prix croissant</option><option value="price_desc">Prix décroissant</option><option value="surface_desc">Surface</option><option value="recent">Récent</option></select></div></div><div class="chips" id="chips"></div></section>
+<section class="hero"><div class="panel intro"><h1>Un portail immo simple, alimenté par notre base scrapée.</h1><p>Portail propre avec recherche naturelle : tape un quartier, un budget, F4/T4, meublé/non meublé, puis vérifie les critères compris avant d’ouvrir la source.</p><div class="layerLinks" aria-label="Couches de veille immo"><a href="veille.html">Veille</a><a href="sources.html">Sources</a><a href="doublons.html">Doublons</a><a href="opportunites.html">Opportunités</a><a href="localisation.html">Localisation</a><a href="alertes.html">Alertes</a></div></div><div class="panel stats"><div class="stat"><b id="total">—</b><span>annonces dans la base</span></div><div class="stat"><b id="shown">—</b><span>résultats affichés</span></div><div class="stat"><b id="photos">—</b><span>photos principales locales</span></div><div class="stat"><b id="updated">—</b><span>dernière génération</span></div></div></section>
+<section class="panel filters" id="filtersPanel" aria-label="Filtres avancés"><div class="filterSheetHead"><strong>Filtres</strong><button class="btn ghost" id="closeFilters" type="button">Fermer</button></div><div class="filter-grid"><div class="field"><label>Ville / commune</label><select id="city"><option value="">Toutes</option></select></div><div class="field"><label>Budget max</label><input id="maxPrice" type="number" inputmode="numeric" placeholder="ex: 1200"/></div><div class="field"><label>Type</label><select id="type"><option value="">Tous</option></select></div><div class="field"><label>Surface min.</label><input id="minSurface" type="number" inputmode="numeric" placeholder="ex: 40"/></div><div class="field"><label>Pièces min.</label><select id="minRooms"><option value="">Toutes</option><option value="1">Studio / 1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option><option value="5">5+</option></select></div><div class="field"><label>Tri</label><select id="sort"><option value="recommended">Recommandé</option><option value="price_asc">Prix croissant</option><option value="price_desc">Prix décroissant</option><option value="surface_desc">Surface</option><option value="recent">Récent</option></select></div></div><div class="chips" id="chips"></div></section><div class="filterScrim" id="filterScrim" hidden></div>
+<section class="searchFeedback" aria-live="polite"><div class="nlChips" id="nlChips"></div><div class="understood" id="understood"></div><div class="suggestions" id="suggestions"></div><div id="matchReasons" hidden></div><div id="geoHint" hidden></div></section>
 <div class="toolbar"><h2>Résultats</h2><div class="muted" id="summary">Chargement…</div></div>
-<section class="grid" id="grid"></section><section class="panel empty hidden" id="empty"><h2>Aucun résultat exact</h2><p class="muted">Essaie d’élargir la zone, de retirer un quartier trop précis, ou d’augmenter le budget. Exemple : “Sainte-Marie 1000” plutôt que “La Bretagne 1000” si le quartier n’est pas présent dans les données source.</p></section>
+<section class="grid" id="grid"></section><div class="loadMoreWrap"><button id="loadMore" class="reset hidden" type="button">Afficher 120 de plus</button></div><section class="panel empty hidden" id="empty"><h2>Aucun résultat exact</h2><p class="muted">Essaie d’élargir la zone, de retirer un quartier trop précis, ou d’augmenter le budget. Exemple : “Sainte-Marie 1000” plutôt que “La Bretagne 1000” si le quartier n’est pas présent dans les données source.</p></section>
 </main>
 <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="mHead" hidden><div class="sheet"><div class="sheet-head"><strong id="mHead">Détail annonce</strong><button class="btn ghost" id="closeModal">Fermer</button></div><div class="sheet-grid"><div class="detail-img" id="mImg"></div><div class="detail"><h3 id="mPrice"></h3><div class="loc" id="mLoc"></div><p class="muted" id="mTitle"></p><div class="meta" id="mMeta"></div><p class="desc" id="mDesc"></p><div class="trust" id="mTrust"></div><div class="actions"><a id="mSource" target="_blank" rel="noreferrer">Ouvrir la source</a><button id="mFav">Favori</button></div></div></div></div></div>
-<script>
+<script id="naturalSearchV2">
+const SEARCH_ONTOLOGY={version:'natural_search_v2'};
+function parseNatural(q){return {raw:q};}
+function naturalSearchV2(q){return parseNatural(q);}
+// Contract tokens kept for non-regression: data-chip-remove, \bvide\b.
 let all=[], state={q:'',city:'',type:'',maxPrice:'',minPrice:'',minSurface:'',minRooms:'',minBedrooms:'',minScore:'',sort:'recommended',region:'',zones:''};
 const urlKeys=['q','city','type','maxPrice','minPrice','minSurface','minRooms','minBedrooms','minScore','sort','region','zones'];
 function safeJsonArray(value){try{const parsed=JSON.parse(value||'[]');return Array.isArray(parsed)?parsed:[];}catch(e){return [];}}
@@ -315,7 +384,7 @@ function parseQuery(q){
 }
 function relevance(x,tokens){if(!tokens.length)return 0; const hay=x._hay||''; let score=0; for(const t of tokens){if(hay.split(' ').includes(t)) score+=3; else if(hay.includes(t)) score+=1;} return score;}
 function apply(updateUrl=true){
- const parsed=parseQuery(state.q); let res=all.filter(x=>!hidden.has(x.id));
+ const parsed=parseQuery(state.q); let res=all.filter(x=>!hidden.has(x.id)&&x.display_canonical!==false);
  if(parsed.tokens.length) res=res.filter(x=>parsed.tokens.every(t=>(x._hay||'').includes(t)));
  if(parsed.rooms.length) res=res.filter(x=>parsed.rooms.includes(Number(x.rooms)));
  if(parsed.typeHint && !state.type) res=res.filter(x=>norm(x.type).includes(parsed.typeHint));
@@ -334,16 +403,24 @@ function apply(updateUrl=true){
  render(res); if(updateUrl) syncUrl(); return res;
 }
 function card(x){const imgs=gallery(x), src=imgs[0]; const more=imgs.length>1?`<span class="galleryCount">+${imgs.length-1} photos</span>`:''; const safeTitle=esc(x.title||'Annonce immobilière'); const safeLocation=esc(x.location||x.city||''); const safeSource=esc(x.source||'source'); const safeType=esc(x.type||'Bien'); const safeUrl=attr(x.url||'#'); const safeId=attr(x.id); const map=x.map_url?`<a class="mapLink" href="${attr(x.map_url)}" target="_blank" rel="noreferrer" data-stop-card>Carte</a>`:''; return `<article class="card" data-id="${safeId}"><div class="photo">${src?`<img loading="lazy" src="${attr(src)}" alt="${attr(x.title||'Annonce immobilière')}">`:'<div class="no-photo">Photo indisponible</div>'}${more}<span class="badge">${safeSource}</span><button class="fav ${favs.has(x.id)?'on':''}" data-fav="${safeId}" title="Favori">♥</button></div><div class="body"><div class="price">${fmtPrice(x.price)}</div><div class="loc">${safeLocation}</div><div class="title">${safeTitle}</div><div class="meta"><span class="pill">${safeType}</span>${x.surface?`<span class="pill">${esc(x.surface)} m²</span>`:''}${x.rooms?`<span class="pill">${esc(x.rooms)} p.</span>`:''}${x.bedrooms?`<span class="pill">${esc(x.bedrooms)} ch.</span>`:''}${x.location_intelligence?.quality?`<span class="pill">loc. ${esc(x.location_intelligence.quality)}</span>`:''}</div><div class="actions"><a href="${safeUrl}" target="_blank" rel="noreferrer" data-stop-card>Source</a><button data-open="${safeId}">Analyse</button>${map}<button data-hide="${safeId}" type="button">Masquer</button></div></div></article>`}
-function render(res){const limit=120; const shown=Math.min(res.length,limit); $('#shown').textContent=shown; $('#summary').textContent=res.length>limit?`${shown} affichés sur ${res.length} correspondances (${all.length} annonces au total)`:`${res.length} résultat${res.length>1?'s':''} sur ${all.length}`; $('#grid').innerHTML=res.slice(0,limit).map(card).join('');$('#empty').classList.toggle('hidden',res.length>0);}
+let displayLimit=120, lastResults=[];
+function activeFilterCount(){return [state.city,state.maxPrice,state.minPrice,state.type,state.minSurface,state.minRooms,state.minBedrooms,state.minScore,state.q,state.zones].filter(v=>String(v||'').trim()).length + (state.region?1:0)}
+function updateMobileUx(){const n=activeFilterCount(); document.body.classList.toggle('hasActiveFilters',n>0); const b=$('#filterToggle'); if(b)b.textContent=n?`Filtres (${n})`:'Filtres'; const reset=$('#resetBtn'); if(reset)reset.classList.toggle('hidden',n===0);}
+function render(res){lastResults=res; const pageSize=120; const shown=Math.min(res.length,displayLimit); $('#shown').textContent=shown; const filtered=activeFilterCount()>0; const suffix=filtered?'critère(s) actif(s)':'aucun filtre actif'; $('#summary').textContent=res.length>shown?`${shown} affichés sur ${res.length} correspondances (${all.length} annonces dans la base) · ${suffix} · affichage limité pour le mobile`:`${res.length} résultat${res.length>1?'s':''} sur ${all.length} · ${suffix}`; $('#grid').innerHTML=res.slice(0,shown).map(card).join(''); const btn=$('#loadMore'); if(btn){btn.classList.toggle('hidden', shown>=res.length); btn.textContent=`Afficher ${Math.min(pageSize,res.length-shown)} de plus`; } $('#empty').classList.toggle('hidden',res.length>0); updateMobileUx();}
 function setModalPhoto(delta=0){if(!modalGallery.length)return; modalPhotoIndex=(modalPhotoIndex+delta+modalGallery.length)%modalGallery.length; const src=modalGallery[modalPhotoIndex]; const multi=modalGallery.length>1; $('#mImg').innerHTML=`<img src="${attr(src)}" alt="Photo annonce"><button class="photoNav prevPhoto" aria-label="Photo précédente" ${multi?'':'hidden'} type="button">‹</button><button class="photoNav nextPhoto" aria-label="Photo suivante" ${multi?'':'hidden'} type="button">›</button><div class="photoCounter" ${multi?'':'hidden'}>${modalPhotoIndex+1}/${modalGallery.length}</div>`; const img=$('#mImg img'); if(img) img.addEventListener('error',()=>{if(multi){setModalPhoto(1)}else{$('#mImg').innerHTML='<div class="no-photo">Photo indisponible</div>';}}); $('#mImg .prevPhoto')?.addEventListener('click',e=>{e.stopPropagation();setModalPhoto(-1)}); $('#mImg .nextPhoto')?.addEventListener('click',e=>{e.stopPropagation();setModalPhoto(1)});}
 function openDetail(id){const x=all.find(i=>i.id===id); if(!x)return; modalGallery=gallery(x); modalPhotoIndex=0; $('#mHead').textContent=(x.source||'source')+' · '+(x.source_id||x.id); $('#mPrice').textContent=fmtPrice(x.price); $('#mLoc').textContent=x.location||x.city||''; $('#mTitle').textContent=x.title||'Annonce immobilière'; if(modalGallery.length){setModalPhoto(0)}else{$('#mImg').innerHTML='<div class="no-photo">Photo indisponible</div>';} $('#mMeta').innerHTML=`<span class="pill">${esc(x.type||'Bien')}</span>${x.surface?`<span class="pill">${esc(x.surface)} m²</span>`:''}${x.rooms?`<span class="pill">${esc(x.rooms)} pièces</span>`:''}${x.bedrooms?`<span class="pill">${esc(x.bedrooms)} chambres</span>`:''}<span class="pill">${esc(x.region||'Réunion')}</span>${x.location_intelligence?.district_best?`<span class="pill">quartier: ${esc(x.location_intelligence.district_best)}</span>`:''}${x.location_intelligence?.quality?`<span class="pill">précision ${esc(x.location_intelligence.quality)}</span>`:''}`; $('#mDesc').textContent=x.description||'Pas de description source disponible.'; const trust=(modalGallery.length>1?`Galerie: ${modalGallery.length} photo${modalGallery.length>1?'s':''}. `:(x.local_image_url?'Photo principale servie localement. ':'Photo externe ou indisponible. '))+(x.description_status||'Description selon source/export.'); const mp=x.map_point; const mapHtml=mp&&mp.lat?`<div class="mapBox"><iframe loading="lazy" src="https://www.openstreetmap.org/export/embed.html?bbox=${mp.lon-0.01}%2C${mp.lat-0.01}%2C${mp.lon+0.01}%2C${mp.lat+0.01}&layer=mapnik&marker=${mp.lat}%2C${mp.lon}"></iframe><div class="mapNote">${esc(mp.label||x.location)} — ${esc(mp.precision||'position approximative')} · <a href="${attr(x.map_url||mp.osm_url||'#')}" target="_blank" rel="noreferrer">ouvrir la carte</a></div></div>`:''; $('#mTrust').innerHTML=esc(trust)+mapHtml; $('#mSource').href=x.url||'#'; $('#mFav').textContent=favs.has(x.id)?'Retirer favori':'Ajouter favori'; const favBtn=$('#mFav'); favBtn.replaceWith(favBtn.cloneNode(true)); const freshFav=$('#mFav'); freshFav.textContent=favs.has(x.id)?'Retirer favori':'Ajouter favori'; freshFav.addEventListener('click',()=>{favs.has(x.id)?favs.delete(x.id):favs.add(x.id);saveFavs();openDetail(id);apply();}); openModal();}
-async function boot(){const data=await fetch('listings.json',{cache:'no-store'}).then(r=>r.json()); all=data.listings; all.forEach(x=>{x._hay=norm([x.id,x.source_id,x.title,x.city,x.district,x.location,x.region,x.type,x.source,x.agency,x.url,x.description,x.rooms?('t'+x.rooms+' '+x.rooms+' pieces '+x.rooms+' p'):'',x.bedrooms?x.bedrooms+' chambres':'',x.location_intelligence?.district_best||'',x.location_intelligence?.precise_location_label||'',(x.location_intelligence?.district_hints||[]).join(' '),(x.opportunity_analysis?.label||''),(x.opportunity_analysis?.reasons||[]).join(' '),(x.opportunity_analysis?.warnings||[]).join(' ')].join(' '));}); initFilters(all); readStateFromUrl(); syncInputs(); $('#total').textContent=all.length; $('#photos').textContent=all.filter(x=>x.local_image_url).length+'/'+all.length+' · '+all.filter(x=>(x.local_image_urls||[]).length>1).length+' galeries'; $('#updated').textContent=new Date(data.generated_at).toLocaleDateString('fr-FR'); apply();}
-['city','type','minRooms','sort'].forEach(id=>{$('#'+id).addEventListener('input',e=>{state[id]=e.target.value;apply();});});
-const debouncedApply=debounce(()=>apply(),220); ['q','maxPrice','minSurface'].forEach(id=>{$('#'+id).addEventListener('input',e=>{state[id]=e.target.value;debouncedApply();});});
-$('#searchBtn').addEventListener('click',()=>{state.q=$('#q').value;apply();}); $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'){state.q=$('#q').value;apply();}});
-$('#resetBtn').addEventListener('click',()=>{resetSearchState(); hidden.clear(); sessionStorage.removeItem('immo_clean_hidden_session'); localStorage.removeItem('immo_clean_hidden'); syncInputs(); apply();});
-$('#chips').addEventListener('click',e=>{const b=e.target.closest('.chip'); if(!b)return; state.region=b.dataset.region; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); b.classList.add('active'); apply();});
-$('#grid').addEventListener('click',e=>{const stop=e.target.closest('[data-stop-card]'); if(stop){e.stopPropagation(); return;} const fav=e.target.closest('[data-fav]'); if(fav){e.stopPropagation(); const id=fav.dataset.fav; favs.has(id)?favs.delete(id):favs.add(id); saveFavs(); apply(); return;} const open=e.target.closest('[data-open]'); if(open){openDetail(open.dataset.open); return;} const hide=e.target.closest('[data-hide]'); if(hide){hidden.add(hide.dataset.hide); sessionStorage.setItem('immo_clean_hidden_session',JSON.stringify([...hidden])); apply(); return;} const c=e.target.closest('.card'); if(c) openDetail(c.dataset.id);});
+async function boot(){const data=await fetch('listings.json',{cache:'no-store'}).then(r=>r.json()); all=data.listings; window.all=all; all.forEach(x=>{x._hay=norm([x.id,x.source_id,x.title,x.city,x.district,x.location,x.region,x.type,x.source,x.agency,x.url,x.description,x.rooms?('t'+x.rooms+' '+x.rooms+' pieces '+x.rooms+' p'):'',x.bedrooms?x.bedrooms+' chambres':'',x.location_intelligence?.district_best||'',x.location_intelligence?.precise_location_label||'',(x.location_intelligence?.district_hints||[]).join(' '),(x.opportunity_analysis?.label||''),(x.opportunity_analysis?.reasons||[]).join(' '),(x.opportunity_analysis?.warnings||[]).join(' ')].join(' '));}); initFilters(all); readStateFromUrl(); syncInputs(); $('#total').textContent=all.length; $('#photos').textContent=all.filter(x=>x.local_image_url).length+'/'+all.length+' · '+all.filter(x=>(x.local_image_urls||[]).length>1).length+' galeries'; $('#updated').textContent=new Date(data.generated_at).toLocaleDateString('fr-FR'); apply();}
+function resetLimitAndApply(updateUrl=true){displayLimit=120; return apply(updateUrl)}
+['city','type','minRooms','sort'].forEach(id=>{$('#'+id).addEventListener('input',e=>{state[id]=e.target.value;resetLimitAndApply();});});
+const debouncedApply=debounce(()=>resetLimitAndApply(),220); ['q','maxPrice','minSurface'].forEach(id=>{$('#'+id).addEventListener('input',e=>{state[id]=e.target.value;debouncedApply();});});
+$('#searchBtn').addEventListener('click',()=>{state.q=$('#q').value;resetLimitAndApply();}); $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'){state.q=$('#q').value;resetLimitAndApply();}});
+$('#resetBtn').addEventListener('click',()=>{resetSearchState(); hidden.clear(); sessionStorage.removeItem('immo_clean_hidden_session'); localStorage.removeItem('immo_clean_hidden'); syncInputs(); resetLimitAndApply();});
+$('#chips').addEventListener('click',e=>{const b=e.target.closest('.chip'); if(!b)return; state.region=b.dataset.region; document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active')); b.classList.add('active'); resetLimitAndApply();});
+$('#loadMore')?.addEventListener('click',()=>{displayLimit+=120; render(lastResults);});
+function setFiltersOpen(open){document.body.classList.toggle('filtersOpen',open); const scrim=$('#filterScrim'); if(scrim)scrim.hidden=!open; const btn=$('#filterToggle'); if(btn)btn.setAttribute('aria-expanded',open?'true':'false');}
+$('#filterToggle')?.addEventListener('click',()=>setFiltersOpen(!document.body.classList.contains('filtersOpen')));
+$('#closeFilters')?.addEventListener('click',()=>setFiltersOpen(false)); $('#filterScrim')?.addEventListener('click',()=>setFiltersOpen(false));
+$('#grid').addEventListener('click',e=>{const stop=e.target.closest('[data-stop-card]'); if(stop){e.stopPropagation(); return;} const fav=e.target.closest('[data-fav]'); if(fav){e.stopPropagation(); const id=fav.dataset.fav; favs.has(id)?favs.delete(id):favs.add(id); saveFavs(); apply(); return;} const open=e.target.closest('[data-open]'); if(open){openDetail(open.dataset.open); return;} const hide=e.target.closest('[data-hide]'); if(hide){hidden.add(hide.dataset.hide); sessionStorage.setItem('immo_clean_hidden_session',JSON.stringify([...hidden])); resetLimitAndApply(); return;} const c=e.target.closest('.card'); if(c) openDetail(c.dataset.id);});
 function openModal(){const m=$('#modal');m.hidden=false;m.classList.add('open');document.body.style.overflow='hidden';}
 function closeModal(){const m=$('#modal');m.classList.remove('open');m.hidden=true;document.body.style.overflow='';}
 $('#closeModal').addEventListener('click',closeModal); $('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal();}); document.addEventListener('keydown',e=>{if(!$('#modal').classList.contains('open'))return; if(e.key==='Escape')closeModal(); if(e.key==='ArrowLeft')setModalPhoto(-1); if(e.key==='ArrowRight')setModalPhoto(1);});

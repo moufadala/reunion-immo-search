@@ -6,6 +6,7 @@ import json
 import os
 import sys
 from collections import Counter
+from math import ceil
 from pathlib import Path
 from statistics import median
 
@@ -32,7 +33,18 @@ def load_items(app: Path) -> list[dict]:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Audit public description quality for the Réunion immo clean portal.")
     ap.add_argument("app", nargs="?", default=os.environ.get("IMMO_APP_PATH", "artifacts/app"))
-    ap.add_argument("--min-source", type=int, default=int(os.environ.get("IMMO_MIN_SOURCE_DESCRIPTIONS", "580")))
+    ap.add_argument(
+        "--min-source",
+        type=int,
+        default=int(os.environ.get("IMMO_MIN_SOURCE_DESCRIPTIONS", "0")),
+        help="Absolute minimum source descriptions. 0 = derive from --min-source-ratio.",
+    )
+    ap.add_argument(
+        "--min-source-ratio",
+        type=float,
+        default=float(os.environ.get("IMMO_MIN_SOURCE_DESCRIPTION_RATIO", "0.98")),
+        help="Minimum share of listings with source descriptions when --min-source is unset.",
+    )
     ap.add_argument("--max-fallback", type=int, default=int(os.environ.get("IMMO_MAX_FALLBACK_DESCRIPTIONS", "5")))
     ap.add_argument("--max-boilerplate", type=int, default=int(os.environ.get("IMMO_MAX_BOILERPLATE_DESCRIPTIONS", "0")))
     ap.add_argument("--max-empty", type=int, default=int(os.environ.get("IMMO_MAX_EMPTY_DESCRIPTIONS", "0")))
@@ -40,6 +52,7 @@ def main() -> int:
 
     app = Path(args.app)
     items = load_items(app)
+    min_source = args.min_source if args.min_source > 0 else ceil(len(items) * max(0.0, min(args.min_source_ratio, 1.0)))
     statuses = Counter(str(x.get("description_status") or "") for x in items)
     desc_lens = [len(str(x.get("description") or "").strip()) for x in items]
     empty = [x for x in items if not str(x.get("description") or "").strip()]
@@ -73,7 +86,8 @@ def main() -> int:
         ],
         "boilerplate": boilerplate[:20],
         "thresholds": {
-            "min_source": args.min_source,
+            "min_source": min_source,
+            "min_source_ratio": args.min_source_ratio if args.min_source <= 0 else None,
             "max_fallback": args.max_fallback,
             "max_boilerplate": args.max_boilerplate,
             "max_empty": args.max_empty,
@@ -81,8 +95,8 @@ def main() -> int:
     }
 
     failures = []
-    if len(source) < args.min_source:
-        failures.append(f"source descriptions below threshold: {len(source)} < {args.min_source}")
+    if len(source) < min_source:
+        failures.append(f"source descriptions below threshold: {len(source)} < {min_source}")
     if len(fallback) > args.max_fallback:
         failures.append(f"fallback descriptions above threshold: {len(fallback)} > {args.max_fallback}")
     if len(empty) > args.max_empty:

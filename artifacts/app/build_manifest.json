@@ -1,0 +1,78 @@
+{
+  "schema_version": "immo_build_manifest_v1",
+  "generated_at": "2026-06-27T17:25:05Z",
+  "project": "/opt/data/projects/reunion-immo-search",
+  "git": {
+    "branch": "reconcile/immo-safe-20260627T170208Z",
+    "commit": "844a2ed63787137e72c57327f623c6c0a69315c2",
+    "commit_short": "844a2ed",
+    "dirty": true,
+    "status_short": [
+      "M .gitignore",
+      " M artifacts/app/changes.html",
+      " M artifacts/app/changes.json",
+      " M artifacts/app/listings.json",
+      " M artifacts/app/veille.html",
+      " M config/saved_searches.json",
+      "?? scripts/sanitize_public_contacts.py"
+    ]
+  },
+  "app_summary": {
+    "app": "artifacts/app",
+    "listings_json_sha256": "3cbbfaa5b6986a501850fd72f78561db1da53a30e946a51e664ad57bf1df6788",
+    "index_html_sha256": "b3770a2379d5e45f48914f87766603650cc54ed366b412aea10b1087807cc8ba",
+    "generated_at_from_payload": "2026-06-27T11:56:25.557381+00:00",
+    "listing_count": 561,
+    "visible_listing_count": 527,
+    "local_primary_photos": 557,
+    "local_multi_galleries": 181,
+    "source_counts": {
+      "97immo": 9,
+      "alter": 12,
+      "bienici": 47,
+      "citya": 24,
+      "domimmo": 23,
+      "fnaim": 20,
+      "immo974": 17,
+      "locamoi": 21,
+      "ofim": 12,
+      "ofim_rss": 13,
+      "seloger": 270,
+      "superimmo": 14,
+      "zimo": 79
+    },
+    "source_health_summary": {
+      "source_count": 13,
+      "status_counts": {
+        "fresh": 12,
+        "aging": 1
+      },
+      "severity_counts": {
+        "ok": 12,
+        "warning": 1
+      },
+      "stale_or_attention_critical": [
+        "superimmo"
+      ],
+      "fresh_hours": 36,
+      "stale_hours": 96
+    },
+    "dedup_group_count": 95
+  },
+  "run_dir": null,
+  "run_steps": [],
+  "db": {
+    "path": null,
+    "sha256": null
+  },
+  "promotion_reports": {
+    "promote_app": {},
+    "promote_db": {},
+    "rollback_app_drill": {},
+    "rollback_db_drill": {}
+  },
+  "public": {
+    "canonical_url": "https://immo.148.230.103.174.sslip.io/",
+    "hostinger_compat_url": "https://immo.srv1723523.hstgr.cloud/"
+  }
+}

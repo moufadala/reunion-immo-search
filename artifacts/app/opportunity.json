@@ -1,0 +1,2716 @@
+{
+  "generated_at": "2026-06-27T11:21:08.988543+00:00",
+  "score_version": "opportunity-v2-explainable-2026-06-25",
+  "global_median_price_per_m2": 17.82,
+  "commune_medians": {
+    "Bras-Panon": 15.23,
+    "La Possession": 16.37,
+    "Le Tampon": 17.0,
+    "Non précisée": 20.88,
+    "Petite-Île": 12.7,
+    "Saint-André": 12.74,
+    "Saint-Denis": 19.05,
+    "Saint-Joseph": 14.25,
+    "Saint-Leu": 17.25,
+    "Saint-Louis": 12.09,
+    "Saint-Paul": 21.04,
+    "Saint-Pierre": 16.63,
+    "Sainte-Marie": 17.39,
+    "Trois-Bassins": 16.04,
+    "Étang-Salé": 18.51
+  },
+  "top": [
+    {
+      "id": "bienici:citya-immobilier-501991-GES54780002-34",
+      "title": "EXCLUSIVITÉ - APPARTEMENT 3 PIÈCES NEUF À louer : Citya Saint-Denis vous propose cet appartement de 3 pièces de 63 m² ha",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-501991-GES54780002-34",
+      "location": "Saint-Denis",
+      "score": 94,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.64,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES04890008-495",
+      "title": "EXCLUSIVITE À LOUER - LOGEMENT NEUF - DISPONIBLE DE SUITE - HONORAIRE DE LOCATION OFFERTE - SOUS CONDITIONS DE RESSOURCE",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES04890008-495",
+      "location": "Bois de Nèfles · Saint-Denis",
+      "score": 94,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.54,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 40% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES04890018-495",
+      "title": "EXCLUSIVITE À LOUER - LOGEMENT NEUF - LIBRE LE 28/06/26 - SOUS CONDITIONS DE RESSOURCE : Appartement T3 situé à BOIS DE",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES04890018-495",
+      "location": "Bois de Nèfles · Saint-Denis",
+      "score": 94,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.81,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 39% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:ag190517-530905661",
+      "title": "Maison",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/ag190517-530905661",
+      "location": "La Montagne · Saint-Denis",
+      "score": 94,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.48,
+      "sector_median_price_per_m2": 17.69,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 17,
+      "reasons": [
+        "prix/m² 35% sous la référence observée (commune+type, n=17)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pd937dc",
+      "title": "A LOUER T3 DUPLEX ST DENIS, RUE MONTHYON, 764€/MOIS, ILE DE LA REUNION",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/a-louer-t3-duplex-st-denis-rue-monthyon-764-mois-ile-de-la-reunion-pd937dc",
+      "location": "Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.75,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 39% sous la référence observée (commune+type, n=145)",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266234301855008",
+      "title": "GRAND APPARTEMENT F2 MEUBLE A LOUER ST DENIS - CHAMP FLEURI",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266234301855008/",
+      "location": "Champ Fleuri · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.72,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 34% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pf4f1b9",
+      "title": "A LOUER APPT T2 STE CLOTILDE AVEC VARANGUE",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/a-louer-appt-t2-ste-clotilde-avec-varangue-pf4f1b9",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.62,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 34% sous la référence observée (commune+type, n=145)",
+        "galerie locale 6 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-501991-GES03310233-34",
+      "title": "CITYA SAINT DENIS, vous propose à la location magnifique appartement de type 4 (3 chambres) idéalement situé entre la st",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-501991-GES03310233-34",
+      "location": "Les Camélias · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.01,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 38% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-501991-GES03310263-34",
+      "title": "CITYA A LOUER T5 Duplex Résidence Jardins aux Camélias, Rue Gustave Flaubert: Au Rdc : Une entrée, un séjour, deux chamb",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-501991-GES03310263-34",
+      "location": "Les Camélias · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.92,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 38% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ecdfc-9427-7b45-bb22-499137b58a0a",
+      "title": "Sainte-Clotilde : T3 MEUBLE à louer LIBRE A COMPTER DU 13 J",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/sainte-clotilde-t3-meuble-a-louer-libre-a-compter-du-13-j/019ecdfc-9427-7b45-bb22-499137b58a0a",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 15.21,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 21% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019f00fe-b78a-7e50-95c7-aec964e72e4d",
+      "title": "T1 40m2 SAINTE-CLOTILDE",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/t1-40m2-sainte-clotilde/019f00fe-b78a-7e50-95c7-aec964e72e4d",
+      "location": "Moufia · Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.5,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=145)",
+        "galerie locale 3 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:hektor-CABINETHABILIS-3986",
+      "title": "À LOUER - VILLA DE TYPE T6 D'ENVIRON 149.11 m2 - SAINT-PIERR",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/hektor-CABINETHABILIS-3986",
+      "location": "Bassin Plat · Saint-Pierre",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.94,
+      "sector_median_price_per_m2": 16.09,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 43,
+      "reasons": [
+        "prix/m² 26% sous la référence observée (commune+type, n=43)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11iivw",
+      "title": "location appartement 56m saint denis 97400",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-56m-saint-denis-97400-x11iivw?item=4&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Saint-Denis",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 1.41,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 93% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:hektor-CABINETHABILIS-7056",
+      "title": "A LOUER - MAISON T4 MEUBLÉE + BUNGALOW - D'ENVIRON 120 m2 -",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/hektor-CABINETHABILIS-7056",
+      "location": "Entre-Deux",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.58,
+      "sector_median_price_per_m2": 17.82,
+      "reference_scope": "global",
+      "reference_sample_size": 557,
+      "reasons": [
+        "prix/m² 18% sous la référence observée (global, n=557)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:p3405b7",
+      "title": "location appartement saint-paul 2 pièces 59 m2 reunion (97460) - 1001 € / mois",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/location-appartement-saint-paul-2-pieces-59-m2-reunion-97460-1001-mois-p3405b7",
+      "location": "Saint-Paul",
+      "score": 91,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.97,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=46)",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:hektor-CABINETHABILIS-6975",
+      "title": "A LOUER - APPARTEMENT F4 D'ENVIRON 84.91 m2 - SAINT-JOSEPH -",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/hektor-CABINETHABILIS-6975",
+      "location": "Saint-Joseph",
+      "score": 90,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 10.6,
+      "sector_median_price_per_m2": 14.33,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 6,
+      "reasons": [
+        "prix/m² 26% sous la référence observée (commune+type, n=6)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019f0410-f688-7453-8bee-c20fe7e5e9a6",
+      "title": "A louer maison F7 à étage à BRAS PANON secteur lycée",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/a-louer-maison-f7-a-etage-a-bras-panon-secteur-lycee/019f0410-f688-7453-8bee-c20fe7e5e9a6",
+      "location": "Bras-Panon",
+      "score": 89,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 18,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 9.75,
+      "sector_median_price_per_m2": 15.23,
+      "reference_scope": "commune",
+      "reference_sample_size": 6,
+      "reasons": [
+        "prix/m² 36% sous la référence observée (commune, n=6)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266235449853740",
+      "title": "Appartement Saint Denis 2 pièce(s) 48.13 m2",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266235449853740/",
+      "location": "Moufia · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.69,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 24% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019eef8e-4a30-782f-8308-c94bbedeb319",
+      "title": "Appartement 3 pièces 90 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appartement-3-pieces-90-m2/019eef8e-4a30-782f-8308-c94bbedeb319",
+      "location": "La Montagne · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.11,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 42% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266235038898931",
+      "title": "A LOUER T3 LA MONTAGNE AVEC GRAND JARDIN",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266235038898931/",
+      "location": "La Montagne · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.17,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 42% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:netty-company38833fgt-appt-2045",
+      "title": "APPARTEMENT T3 PLAIN PIED AVEC COUR",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/netty-company38833fgt-appt-2045",
+      "location": "Le Tampon",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.54,
+      "sector_median_price_per_m2": 18.29,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 36,
+      "reasons": [
+        "prix/m² 26% sous la référence observée (commune+type, n=36)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES12560015-495",
+      "title": "EN EXCLUSIVITE - A LOUER MAISON 4 PIECES A PETITE ILE - DISPONIBLE DEBUT JUIN 2026. Située à Petite Île, cette maison d",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES12560015-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 7,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.64,
+      "sector_median_price_per_m2": 18.5,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 20,
+      "reasons": [
+        "prix/m² 32% sous la référence observée (commune+type, n=20)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pfdf4ab",
+      "title": "T3 à Saint Pierre à louer - Locagestion, expert en gestion locative",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/t3-a-saint-pierre-a-louer-locagestion-expert-en-gestion-locative-pfdf4ab",
+      "location": "Ravine des Cabris · Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.54,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=51)",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pa39d8e",
+      "title": "location appartement saint-pierre 3 pièces 65 m2 reunion (97410) - 880 € / mois",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/location-appartement-saint-pierre-3-pieces-65-m2-reunion-97410-880-mois-pa39d8e",
+      "location": "Ravine des Cabris · Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.54,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=51)",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ed2a8-e46f-7420-9134-3eb4b28a911f",
+      "title": "A LOUER - T3 - BOIS D'OLIVES - 914€",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/a-louer-t3-bois-d-olives-914/019ed2a8-e46f-7420-9134-3eb4b28a911f",
+      "location": "Ravine des Cabris · Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.54,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=51)",
+        "galerie locale 3 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019f02ce-5663-722d-9aab-5f49e48480df",
+      "title": "Appartement Saint Denis 2 pièce(s) 46.70 m2",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appartement-saint-denis-2-piece-s-46-70-m2/019f02ce-5663-722d-9aab-5f49e48480df",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.83,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266254782394305",
+      "title": "Appartement Saint Denis 2 pièce(s) 46.70 m2",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266254782394305/",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.6,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 24% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES01380044-495",
+      "title": "À LOUER : Appartement T3 situé à La Possession, dans le code postal 97419. Ce bien immobilier se distingue par son agenc",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES01380044-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 7,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 15.87,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 30% sous la référence observée (commune+type, n=46)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "97immo:294_1035",
+      "title": "Location Appartement 19.7m² 1 pièce Sainte Clotilde",
+      "source": "97immo",
+      "url": "https://www.97immo.com/immobilier-annonce/location/appartement/sainte-clotilde/la-r%C3%A9union/294/1035",
+      "location": "Moufia · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.1,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 32% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019f02ce-5655-7f4a-b243-f54723ba0572",
+      "title": "Le Tampon 3 Mares - Appartement F2 - 758€ CC - Dispo le 16/07/2026",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/le-tampon-3-mares-appartement-f2-758-cc-dispo-le-16-07-2026/019f02ce-5655-7f4a-b243-f54723ba0572",
+      "location": "Le Tampon",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.08,
+      "sector_median_price_per_m2": 18.29,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 36,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=36)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "citya:GES25080040-542",
+      "title": "Appartement à louer 2 pièces 45.79 m² - Sainte-Suzanne (974) - 650€",
+      "source": "citya",
+      "url": "https://www.citya.com/annonces/location/appartement/sainte-suzanne-97441/GES25080040-542",
+      "location": "Sainte-Suzanne",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.2,
+      "sector_median_price_per_m2": 17.82,
+      "reference_scope": "global",
+      "reference_sample_size": 557,
+      "reasons": [
+        "prix/m² 20% sous la référence observée (global, n=557)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES11822004-495",
+      "title": "EXCLUSIVITÉ - APPARTEMENT 2 PIECES A LOUER - RUE DES GLYCINES Centre-ville de CILAOS. DISPONIBLE LE 02/07/26 En location",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES11822004-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 7,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.64,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 40% sous la référence observée (commune+type, n=46)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11ip85",
+      "title": "location appartement 48m sainte clotilde 97490",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-48m-sainte-clotilde-97490-x11ip85?item=1&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.21,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 37% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266244412004739",
+      "title": "MAGNIFIQUE T4 DUPLEX PROCHE CENTRE ST PIERRE",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266244412004739/",
+      "location": "Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.89,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266254446718886",
+      "title": "T4 récent au centre ville de St-Pierre",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266254446718886/",
+      "location": "Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.53,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 20% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11j4m5",
+      "title": "location appartement 86m saint paul 97411",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-86m-saint-paul-97411-x11j4m5?item=5&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Saint-Paul",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 0.31,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 99% sous la référence observée (commune+type, n=46)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:netty-company38833fgt-appt-2251",
+      "title": "A LOUER GRAND T3 PLAIN PIED MEUBLE - LIGNE PARADIS SAINT PIERRE",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/netty-company38833fgt-appt-2251",
+      "location": "Saint-Pierre",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.96,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=51)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES01500006-495",
+      "title": "EXCLUVISITE A LOUER - APPARTEMENT MEUBLE 3 PIECES REFAIT A NEUF - GRANDE FONTAINE - SAINT PAUL - DISPONIBLE LE 21 JUILL",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES01500006-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 88,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 17.59,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=46)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pfe5443",
+      "title": "Appartement 2 pièces, 70 m² à louer à Sainte-Marie (97438)",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/appartement-2-pieces-70-m-a-louer-a-sainte-marie-97438-pfe5443",
+      "location": "Beauséjour · Sainte-Marie",
+      "score": 87,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 10.81,
+      "sector_median_price_per_m2": 18.65,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 7,
+      "reasons": [
+        "prix/m² 42% sous la référence observée (commune+type, n=7)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ef3be-69f3-7c62-b2d4-82544dfadd13",
+      "title": "Appt. F3 - la possession",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appt-f3-la-possession/019ef3be-69f3-7c62-b2d4-82544dfadd13",
+      "location": "La Possession",
+      "score": 87,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 12.62,
+      "sector_median_price_per_m2": 16.37,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 7,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=7)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11itr9",
+      "title": "location appartement 65m les trois bassins 97426",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-65m-les-trois-bassins-97426-x11itr9?item=4&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Trois-Bassins",
+      "score": 87,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 10.72,
+      "sector_median_price_per_m2": 16.04,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 5,
+      "reasons": [
+        "prix/m² 33% sous la référence observée (commune+type, n=5)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ebfea-ef1f-753d-b622-5e9993f746d7",
+      "title": "Loue maison f5",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/loue-maison-f5/019ebfea-ef1f-753d-b622-5e9993f746d7",
+      "location": "La Possession",
+      "score": 87,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 11.59,
+      "sector_median_price_per_m2": 17.63,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 6,
+      "reasons": [
+        "prix/m² 34% sous la référence observée (commune+type, n=6)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "ofim_rss:73009",
+      "title": "Location Maison / Villa SAINT GILLES LES HAUTS - Île de la Réunion - A LOUER superbe maison de type F5 avec PISCINE à SAINT-GILLES LES HAUTS",
+      "source": "ofim_rss",
+      "url": "https://www.ofim.fr/73009/Location-Maison-Villa-SAINT-GILLES-LES-HAUTS-ile-de-la-Reunion-A-LOUER-superbe-maison-de-type-F5-avec-PISCINE-a-SAINT-GILLES-LES-HAUTS.html",
+      "location": "Saint-Paul",
+      "score": 87,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 18,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 4.11,
+      "sector_median_price_per_m2": 18.5,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 20,
+      "reasons": [
+        "prix/m² 78% sous la référence observée (commune+type, n=20)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:p03047e",
+      "title": "Apt T2 à Sainte-Marie",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/apt-t2-a-sainte-marie-p03047e",
+      "location": "Les Cafés · Sainte-Marie",
+      "score": 86,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 16.94,
+      "sector_median_price_per_m2": 18.65,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 7,
+      "reasons": [
+        "prix/m² 9% sous la référence observée",
+        "galerie locale 6 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019eddd0-e714-7405-b2ad-d48935fe1242",
+      "title": "Villa 4 pièces 100 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/villa-4-pieces-100-m2/019eddd0-e714-7405-b2ad-d48935fe1242",
+      "location": "Saint-André",
+      "score": 86,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 10.8,
+      "sector_median_price_per_m2": 12.74,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 9,
+      "reasons": [
+        "prix/m² 15% sous la référence observée",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "ofim_rss:73046",
+      "title": "Location Maison / Villa SAINT ANDRE - Île de la Réunion - À LOUER À SAINT-ANDRÉ VILLA F4 AU 01/08/2026",
+      "source": "ofim_rss",
+      "url": "https://www.ofim.fr/73046/Location-Maison-Villa-SAINT-ANDRE-ile-de-la-Reunion-a-LOUER-a-SAINT-ANDRe-VILLA-F4-AU-01-08-2026.html",
+      "location": "Saint-André",
+      "score": 86,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 18,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 9
+      },
+      "price_per_m2": 2.7,
+      "sector_median_price_per_m2": 12.74,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 9,
+      "reasons": [
+        "prix/m² 79% sous la référence observée (commune+type, n=9)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "fnaim:13087",
+      "title": "location appartement st denis 97400 5 pieces 1538€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+      "source": "fnaim",
+      "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-5-pieces-13087/",
+      "location": "Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 11.92,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 38% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "fnaim:13086",
+      "title": "location appartement st denis 97400 4 pieces 1160€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+      "source": "fnaim",
+      "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-4-pieces-13086/",
+      "location": "Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.08,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 37% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "97immo:8170_1035",
+      "title": "Location Appartement 20.04m² 1 pièce Sainte Clotilde",
+      "source": "97immo",
+      "url": "https://www.97immo.com/immobilier-annonce/location/appartement/sainte-clotilde/la-r%C3%A9union/8170/1035",
+      "location": "Moufia · Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.02,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 32% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "citya:GES05190081-34",
+      "title": "Appartement à louer 2 pièces 40.76 m² - Saint-Denis (974) - 543€",
+      "source": "citya",
+      "url": "https://www.citya.com/annonces/location/appartement/saint-denis-97411/GES05190081-34",
+      "location": "Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.32,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 31% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "fnaim:13070",
+      "title": "location appartement st denis 97400 2 pieces 547€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+      "source": "fnaim",
+      "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-2-pieces-13070/",
+      "location": "Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.03,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 27% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "fnaim:13098",
+      "title": "location appartement st pierre 97410 2 pieces 663€ CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+      "source": "fnaim",
+      "url": "https://www.fnaim.re/id-location-appartement-38253-st-pierre-2-pieces-13098/",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.53,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 40% sous la référence observée (commune+type, n=46)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ef899-b426-7f33-8c1d-13525ac74b57",
+      "title": "Appartement 3 pièces 86 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appartement-3-pieces-86-m2/019ef899-b426-7f33-8c1d-13525ac74b57",
+      "location": "Saint-Paul",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.08,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=46)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266254101481140",
+      "title": "LA PLAINE ST PAUL - Apt F4 en défiscalisation - avec vue",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266254101481140/",
+      "location": "Saint-Paul",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.08,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=46)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "immo974:745178",
+      "title": "Appartement 3 pièce(s) 86 m2",
+      "source": "immo974",
+      "url": "https://www.immo974.com/annonce/locations/appartement/saint-paul-97460/la-plaine-st-paul-apt-f4-en-defiscalisation-avec-vue-745178.html",
+      "location": "Saint-Paul",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.08,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=46)",
+        "galerie locale 8 photos",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11iu7b",
+      "title": "location maison 87m saint pierre 97432",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-maison-87m-saint-pierre-97432-x11iu7b?item=13&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Saint-Pierre",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 1.15,
+      "sector_median_price_per_m2": 16.09,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 43,
+      "reasons": [
+        "prix/m² 93% sous la référence observée (commune+type, n=43)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "97immo:5084_1037",
+      "title": "Location Appartement 20.9m² 1 pièce Saint Denis",
+      "source": "97immo",
+      "url": "https://www.97immo.com/immobilier-annonce/location/appartement/saint-denis/la-r%C3%A9union/5084/1037",
+      "location": "Saint-Denis",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.01,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 32% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "97immo:601_1035",
+      "title": "Location Appartement 21.2m² 1 pièce Le Tampon",
+      "source": "97immo",
+      "url": "https://www.97immo.com/immobilier-annonce/location/appartement/le-tampon/la-r%C3%A9union/601/1035",
+      "location": "Le Tampon",
+      "score": 85,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.07,
+      "sector_median_price_per_m2": 18.29,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 36,
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=36)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "locamoi:pa0e004",
+      "title": "Location appartement Saint-Denis 2 pièces 38.93m² 643.04€ | Cabinet Habilis",
+      "source": "locamoi",
+      "url": "https://locamoi.fr/listings/location-appartement-saint-denis-2-pieces-38-93m-643-04-cabinet-habilis-pa0e004",
+      "location": "Saint-Denis",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.92,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 12% sous la référence observée",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ec840-6022-75c7-8279-0c8f02210cc1",
+      "title": "BEAU T4 LUMINEUX",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/beau-t4-lumineux/019ec840-6022-75c7-8279-0c8f02210cc1",
+      "location": "Le Tampon",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 15,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 12.41,
+      "sector_median_price_per_m2": 18.29,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 36,
+      "reasons": [
+        "prix/m² 32% sous la référence observée (commune+type, n=36)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-501991-GES01400010-34",
+      "title": "Résidence Couleur Vanille Dans une Résidence sécurisée belle prestation pour cet appartement de type 3 entièrement meubl",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-501991-GES01400010-34",
+      "location": "Saint-Denis",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.13,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 16% sous la référence observée",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266254782394308",
+      "title": "A louer studio Résidence MILLENIUM à Ste Clotilde - Proche d",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266254782394308/",
+      "location": "Moufia · Saint-Denis",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 17.51,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 9% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "alter:a-louer-t5-st-clotilde-vide",
+      "title": "A LOUER - T5 ST CLOTILDE - VIDE - Alter Immobilier",
+      "source": "alter",
+      "url": "https://alter-immobilier.re/post_type_annonces/a-louer-t5-st-clotilde-vide/",
+      "location": "Saint-Denis",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 12,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 9.07,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 53% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ed159-a8e4-7845-9e80-f2b09e3539ca",
+      "title": "Maison 6 pièces 200 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/maison-6-pieces-200-m2/019ed159-a8e4-7845-9e80-f2b09e3539ca",
+      "location": "Saint-Denis",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 15.0,
+      "sector_median_price_per_m2": 17.69,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 17,
+      "reasons": [
+        "prix/m² 15% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES11570006-495",
+      "title": "COLOCATION ACCEPTE - CDI CONFIRME ou PROFESSION LIBERALES + DE 2 ANS EXP EXCLUSIVITÉ - À LOUER - VILLA T5 - SAINT-GILLE",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES11570006-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 84,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.02,
+      "sector_median_price_per_m2": 18.5,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 20,
+      "reasons": [
+        "prix/m² 13% sous la référence observée",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ed0a7-d78e-7c25-b8ed-efb7d71f2124",
+      "title": "Appartement 2 pièces 63 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appartement-2-pieces-63-m2/019ed0a7-d78e-7c25-b8ed-efb7d71f2124",
+      "location": "Saint-Joseph",
+      "score": 83,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 12.54,
+      "sector_median_price_per_m2": 14.33,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 6,
+      "reasons": [
+        "prix/m² 13% sous la référence observée",
+        "galerie locale 7 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "ofim_rss:73081",
+      "title": "Location Appartement TROIS BASSINS - Île de la Réunion - A LOUER spacieux appartement de type F2 à TROIS BASSINS",
+      "source": "ofim_rss",
+      "url": "https://www.ofim.fr/73081/Location-Appartement-TROIS-BASSINS-ile-de-la-Reunion-A-LOUER-spacieux-appartement-de-type-F2-a-TROIS-BASSINS.html",
+      "location": "Trois-Bassins",
+      "score": 83,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 15,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 9
+      },
+      "price_per_m2": 10.72,
+      "sector_median_price_per_m2": 16.04,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 5,
+      "reasons": [
+        "prix/m² 33% sous la référence observée (commune+type, n=5)",
+        "galerie locale 8 photos",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019f002a-e1a8-7664-9d84-999b93264219",
+      "title": "Appartement 2 pièces 49 m²",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/appartement-2-pieces-49-m2/019f002a-e1a8-7664-9d84-999b93264219",
+      "location": "Saint-Pierre",
+      "score": 82,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.53,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 25% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "citya:GES04650027-495",
+      "title": "Appartement à louer 2 pièces 49.1 m² - Saint-Pierre (974) - 663€",
+      "source": "citya",
+      "url": "https://www.citya.com/annonces/location/appartement/saint-pierre-97416/GES04650027-495",
+      "location": "Saint-Pierre",
+      "score": 82,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.5,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 26% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "citya:GES01500006-495",
+      "title": "Appartement à louer 3 pièces 71.59 m² - Saint-Paul (974) - 1 259€",
+      "source": "citya",
+      "url": "https://www.citya.com/annonces/location/appartement/saint-paul-97415/GES01500006-495",
+      "location": "Saint-Paul",
+      "score": 82,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 17.59,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=46)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019efc9d-c29e-7752-97ba-e13ce9f73125",
+      "title": "Loue Petit Appart T2 Sur St-Pierre",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/loue-petit-appart-t2-sur-st-pierre/019efc9d-c29e-7752-97ba-e13ce9f73125",
+      "location": "Saint-Pierre",
+      "score": 82,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.88,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266250136630503",
+      "title": "Loue Petit Appart T2 Sur St-Pierre",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266250136630503/",
+      "location": "Saint-Pierre",
+      "score": 82,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 16,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 13.88,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 23% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11i15q",
+      "title": "location appartement 42m saint denis 97400",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-42m-saint-denis-97400-x11i15q?item=9&q=%2Flocation%2Fappartement%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+      "location": "Bellepierre · Saint-Denis",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 17.55,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 9% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "superimmo:x11hl56",
+      "title": "location appartement 36m sainte clotilde 97490",
+      "source": "superimmo",
+      "url": "https://www.superimmo.com/annonces/location-appartement-36m-sainte-clotilde-97490-x11hl56?item=3&q=%2Flocation%2Fappartement%2Fdom-tom%2Fla-reunion%2Fpieces-2-2%3Fp%3D0",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.88,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 12% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "immo974:745218",
+      "title": "Appartement 2 pièce(s) 47 m2",
+      "source": "immo974",
+      "url": "https://www.immo974.com/annonce/locations/appartement/saint-denis-97400/appartement-saint-denis-2-pieces-46-70-m2-745218.html",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.96,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 12% sous la référence observée",
+        "galerie locale 5 photos",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "zimo:019ed535-5c2c-70dc-b2ce-5191e8b73e89",
+      "title": "LOCATION T2 meublé CENTRE-VILLE ST PIERRE",
+      "source": "zimo",
+      "url": "https://www.zimo.fr/annonce/location-t2-meuble-centre-ville-st-pierre/019ed535-5c2c-70dc-b2ce-5191e8b73e89",
+      "location": "Saint-Pierre",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.5,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 9% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "domimmo:266244578675460",
+      "title": "Appartement - 36 m²",
+      "source": "domimmo",
+      "url": "https://www.domimmo.com/reunion/immobilier/266244578675460/",
+      "location": "Sainte-Clotilde · Saint-Denis",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 13,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 16.67,
+      "sector_median_price_per_m2": 19.26,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 145,
+      "reasons": [
+        "prix/m² 13% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "alter:a-louer-t3-bois-dolives-914e",
+      "title": "A LOUER - T3 - BOIS D'OLIVES - 914€ - Alter Immobilier",
+      "source": "alter",
+      "url": "https://alter-immobilier.re/post_type_annonces/a-louer-t3-bois-dolives-914e/",
+      "location": "Ravine des Cabris · Saint-Pierre",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 34,
+        "listing_quality": 12,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 14.51,
+      "sector_median_price_per_m2": 18.13,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 51,
+      "reasons": [
+        "prix/m² 20% sous la référence observée (commune+type, n=51)",
+        "photo principale locale disponible",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES00750006-495",
+      "title": "EXCLUSIVITE À LOUER - APPARTEMENT T2 - MONT ROQUEFEUIL - DISPONIBLE LE 1er JUILLET 2026 Découvrez ce charmant apparteme",
+      "source": "bienici",
+      "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES00750006-495",
+      "location": "La Saline les Bains · Saint-Paul",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 22,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 9,
+        "data_confidence": 10
+      },
+      "price_per_m2": 19.16,
+      "sector_median_price_per_m2": 22.73,
+      "reference_scope": "commune+type",
+      "reference_sample_size": 46,
+      "reasons": [
+        "prix/m² 16% sous la référence observée",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [
+        "doublon probable: vérifier les liens sources"
+      ],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    },
+    {
+      "id": "citya:GES10120028-35",
+      "title": "Appartement à louer 2 pièces 42.6 m² - L",
+      "source": "citya",
+      "url": "https://www.citya.com/annonces/location/appartement/letang-sale-97427/GES10120028-35",
+      "location": "Étang-Salé",
+      "score": 81,
+      "score_version": "opportunity-v2-explainable-2026-06-25",
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "components": {
+        "market_price": 27,
+        "listing_quality": 19,
+        "location_fit": 10,
+        "freshness": 3,
+        "risk": 12,
+        "data_confidence": 10
+      },
+      "price_per_m2": 15.26,
+      "sector_median_price_per_m2": 18.51,
+      "reference_scope": "commune",
+      "reference_sample_size": 12,
+      "reasons": [
+        "prix/m² 18% sous la référence observée",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ],
+      "warnings": [],
+      "assumptions": [],
+      "method": "score explicable v2: prix/m² vs référence locale si échantillon suffisant, qualité annonce, localisation, fraîcheur, risques et confiance séparée"
+    }
+  ]
+}

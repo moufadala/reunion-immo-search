@@ -1,0 +1,92 @@
+{
+  "version": 1,
+  "scope": "private",
+  "mode": "dry_run_only",
+  "owner_context": "Example private watch profiles; replace with local private config outside Git for real people.",
+  "telegram_live_enabled": false,
+  "public_base_url": "https://immo.148.230.103.174.sslip.io/",
+  "source_json": "artifacts/app/listings.json",
+  "events": [
+    "new",
+    "price_drop",
+    "reappeared",
+    "useful_enrichment",
+    "significant_change"
+  ],
+  "profiles": [
+    {
+      "id": "sample_north_rental_small",
+      "name": "Exemple profil A — logement Nord",
+      "scope": "private",
+      "alert_mode": "dry_run",
+      "description": "Exemple générique: appartement/maison >=60m², zones Nord, budget 850–1000€, >=1 chambre.",
+      "events": [
+        "new",
+        "price_drop",
+        "reappeared",
+        "useful_enrichment",
+        "significant_change"
+      ],
+      "criteria": {
+        "transaction": "location",
+        "property_type": ["Appartement", "Maison", "Appartement / maison"],
+        "surface_min_m2": 60,
+        "zones": ["Duparc", "Les Cafés", "Rivière des Pluies", "La Bretagne"],
+        "preferred_zones": ["Duparc"],
+        "rent_min_eur": 850,
+        "rent_max_eur": 1000,
+        "bedrooms_min": 1,
+        "furnished_preference": "Non meublé",
+        "floor_ok": ["RDC", "1er étage"],
+        "elevator_required_above_floor": 1
+      },
+      "fallbacks": {
+        "furnished": ["Meublé", "Non précisé"],
+        "floor_above_first_with_elevator": true,
+        "missing_floor": true
+      },
+      "warnings": [
+        "furnished_fallback",
+        "floor_without_elevator",
+        "missing_floor_or_elevator_data"
+      ],
+      "must_label_fallbacks": true
+    },
+    {
+      "id": "sample_north_rental_large",
+      "name": "Exemple profil B — grand logement Nord",
+      "scope": "private",
+      "alert_mode": "dry_run",
+      "description": "Exemple générique: maison/appartement >=115m², zones Nord, 900–1400€, 3 chambres préférées, 2 chambres en fallback, jardin préféré.",
+      "events": [
+        "new",
+        "price_drop",
+        "reappeared",
+        "useful_enrichment",
+        "significant_change"
+      ],
+      "criteria": {
+        "transaction": "location",
+        "property_type": ["Maison", "Appartement", "Appartement / maison"],
+        "surface_min_m2": 115,
+        "zones": ["Duparc", "Les Cafés", "Rivière des Pluies", "La Bretagne", "Moufia"],
+        "rent_min_eur": 900,
+        "rent_max_eur": 1400,
+        "bedrooms_min": 3,
+        "furnished_preference": "Non meublé"
+      },
+      "fallbacks": {
+        "bedrooms_min": 2,
+        "furnished": ["Meublé", "Non précisé"],
+        "missing_garden": true
+      },
+      "preferences": ["garden_preferred", "non_furnished_preferred"],
+      "warnings": [
+        "two_bedrooms_fallback",
+        "furnished_fallback",
+        "garden_missing_or_unknown"
+      ],
+      "must_label_fallbacks": true
+    }
+  ]
+}

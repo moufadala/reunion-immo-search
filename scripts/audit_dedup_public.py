@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import argparse
+import datetime as dt
 import json
 import re
+import tempfile
 from collections import defaultdict
 from pathlib import Path
 
@@ -31,6 +33,12 @@ def load_rows(path: Path) -> list[dict]:
     return [r for r in rows if isinstance(r, dict)]
 
 
+def default_qa_out(name: str) -> Path:
+    """Return a temp report path so duplicate audits do not dirty artifacts/app."""
+    stamp = dt.datetime.now(dt.UTC).strftime("%Y%m%dT%H%M%SZ")
+    return Path(tempfile.gettempdir()) / f"immo-qa-{stamp}" / name
+
+
 def source_of(row: dict) -> str:
     return str(row.get("source") or row.get("source_site") or "unknown").strip().lower() or "unknown"
 
@@ -48,8 +56,8 @@ def duplicate_key(row: dict) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="Non-destructive duplicate audit for public immo listings.")
     ap.add_argument("--listings", type=Path, default=Path("artifacts/app/listings.json"))
-    ap.add_argument("--json-out", type=Path, default=Path("artifacts/app/dedup_audit.json"))
-    ap.add_argument("--md-out", type=Path, default=Path("artifacts/app/dedup_audit.md"))
+    ap.add_argument("--json-out", type=Path, default=default_qa_out("dedup_audit.json"))
+    ap.add_argument("--md-out", type=Path, default=default_qa_out("dedup_audit.md"))
     ap.add_argument("--min-group-size", type=int, default=2)
     args = ap.parse_args()
 

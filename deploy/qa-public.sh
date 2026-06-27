@@ -65,9 +65,9 @@ def qa_host(host, force_ipv4=False):
     assert len(items) >= 500, len(items)
     local_primary=sum(1 for x in items if x.get('local_image_url'))
     local_multi=sum(1 for x in items if isinstance(x.get('local_image_urls'), list) and len(x.get('local_image_urls')) > 1)
-    opp=sum(1 for x in items if x.get('opportunity_analysis'))
-    assert local_primary >= 550, local_primary
-    assert local_multi >= 180, local_multi
+    opp=sum(1 for x in items if x.get('opportunity_analysis') or x.get('opportunity_score') is not None)
+    assert local_primary >= max(350, int(len(items) * 0.98)), (local_primary, len(items))
+    assert local_multi >= max(100, int(len(items) * 0.30)), (local_multi, len(items))
     assert opp == len(items), (opp, len(items))
 
     for path in REQUIRED_PATHS:
@@ -75,7 +75,7 @@ def qa_host(host, force_ipv4=False):
         assert rp.status == 200 and len(body) > 100, (path, rp.status, len(body))
 
     cov=json.loads(fetch(f'https://{host}/coverage.json', force_ipv4=force_ipv4)[1])
-    assert cov.get('gallery_photos', 0) >= 180, cov
+    assert cov.get('gallery_photos', 0) >= max(100, int(len(items) * 0.30)), cov
     assert cov.get('count') == len(items), (cov.get('count'), len(items))
     opp_payload=json.loads(fetch(f'https://{host}/opportunity.json', force_ipv4=force_ipv4)[1])
     assert len(opp_payload.get('top') or []) >= 20

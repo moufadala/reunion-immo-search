@@ -1,0 +1,147 @@
+{
+  "ok": true,
+  "listing_count": 561,
+  "status_counts": {
+    "ok": 550,
+    "uncertain": 11
+  },
+  "top_issues": [
+    [
+      "missing_local_primary_photo",
+      4
+    ],
+    [
+      "surface_unknown",
+      4
+    ],
+    [
+      "price_outlier",
+      3
+    ]
+  ],
+  "samples": {
+    "uncertain": [
+      {
+        "id": "immo974:745217",
+        "title": "Appartement 3 pièce(s) 61 m2",
+        "price": 962,
+        "surface": 61.0,
+        "rooms": 3,
+        "type": "Appartement",
+        "issues": [
+          "missing_local_primary_photo"
+        ]
+      },
+      {
+        "id": "immo974:745216",
+        "title": "Appartement 2 pièce(s) 41 m2",
+        "price": 645,
+        "surface": 41.0,
+        "rooms": 2,
+        "type": "Appartement",
+        "issues": [
+          "missing_local_primary_photo"
+        ]
+      },
+      {
+        "id": "locamoi:p8fbbdb",
+        "title": "A LOUER AU PORT",
+        "price": 997,
+        "surface": 78.0,
+        "rooms": 3,
+        "type": "Appartement",
+        "issues": [
+          "missing_local_primary_photo"
+        ]
+      },
+      {
+        "id": "superimmo:x11ibnw",
+        "title": "location appartement les trois mares 97430",
+        "price": 700,
+        "surface": null,
+        "rooms": 2,
+        "type": "Appartement",
+        "issues": [
+          "surface_unknown"
+        ]
+      },
+      {
+        "id": "superimmo:x11iu7b",
+        "title": "location maison 87m saint pierre 97432",
+        "price": 100,
+        "surface": 87.0,
+        "rooms": 4,
+        "type": "Maison",
+        "issues": [
+          "price_outlier=100"
+        ]
+      },
+      {
+        "id": "superimmo:x11j4m5",
+        "title": "location appartement 86m saint paul 97411",
+        "price": 27,
+        "surface": 86.0,
+        "rooms": 3,
+        "type": "Appartement",
+        "issues": [
+          "price_outlier=27"
+        ]
+      },
+      {
+        "id": "superimmo:x11iivw",
+        "title": "location appartement 56m saint denis 97400",
+        "price": 80,
+        "surface": 56.86,
+        "rooms": 3,
+        "type": "Appartement",
+        "issues": [
+          "price_outlier=80"
+        ]
+      },
+      {
+        "id": "ofim_rss:73096",
+        "title": "Location Appartement SAINTE CLOTILDE - Île de la Réunion - A louer studio meublé dans la residence Lobellia à Ste Clotilde",
+        "price": 546,
+        "surface": null,
+        "rooms": null,
+        "type": "Appartement",
+        "issues": [
+          "surface_unknown"
+        ]
+      },
+      {
+        "id": "zimo:019f05a9-0703-7d6f-b629-c1af7113fb69",
+        "title": "À LOUER LICENCE IV ÎLE DE LA RÉUNION",
+        "price": 500,
+        "surface": null,
+        "rooms": null,
+        "type": "Appartement / maison",
+        "issues": [
+          "surface_unknown"
+        ]
+      },
+      {
+        "id": "domimmo:266241031496778",
+        "title": "Studio dans résidence étudiante",
+        "price": 430,
+        "surface": 23.0,
+        "rooms": 1,
+        "type": "Appartement",
+        "issues": [
+          "missing_local_primary_photo"
+        ]
+      },
+      {
+        "id": "ofim_rss:73077",
+        "title": "Location Maison / Villa SAINTE ANNE - Île de la Réunion - A louer grande Villa 3 chambres idéalement placée à Sainte-Anne",
+        "price": 1200,
+        "surface": null,
+        "rooms": null,
+        "type": "Maison",
+        "issues": [
+          "surface_unknown"
+        ]
+      }
+    ]
+  }
+}

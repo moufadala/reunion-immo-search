@@ -1,0 +1,310 @@
+{
+  "ok": true,
+  "validation_errors": [],
+  "source_json": "listings.json",
+  "config_path": "saved_searches.json",
+  "public_base_url": "https://immo.148.230.103.174.sslip.io/",
+  "version": 1,
+  "search_count": 2,
+  "enabled_count": 1,
+  "disabled_count": 1,
+  "config": {
+    "version": 1,
+    "timezone": "Indian/Reunion",
+    "source_json": "listings.json",
+    "public_base_url": "https://immo.148.230.103.174.sslip.io/",
+    "state_path": "seen.json",
+    "history_db": "history.sqlite",
+    "notify_price_increases": false,
+    "min_score": null,
+    "max_items_per_search": 6,
+    "searches": [
+      {
+        "id": "nord_familial_budget",
+        "name": "Famille — Sainte-Marie / quartiers 650–1000€",
+        "enabled": true,
+        "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre. Le score opportunité sert au tri/à la priorisation, pas à exclure silencieusement des annonces valides.",
+        "min_score": null,
+        "filters": {
+          "region": [
+            "Nord"
+          ],
+          "zones": [
+            "Sainte-Marie",
+            "Ste Marie",
+            "La Bretagne",
+            "Rivière des Pluies",
+            "Riviere des Pluies",
+            "Duparc",
+            "Beauséjour",
+            "Beausejour"
+          ],
+          "property_type": [
+            "Appartement",
+            "Maison",
+            "Appartement / maison"
+          ],
+          "rentMin": 650,
+          "rentMax": 1000,
+          "bedroomsMin": 1,
+          "tab": "all",
+          "sort": "score"
+        }
+      },
+      {
+        "id": "sud_budget_surface",
+        "name": "Sud budget/surface <=900€ — désactivé",
+        "enabled": false,
+        "description": "Ancienne recherche exploratoire Sud, désactivée pour éviter le bruit: le besoin quasi-prod actuel est toi+famille autour de Sainte-Marie et quartiers proches.",
+        "filters": {
+          "region": [
+            "Sud"
+          ],
+          "rentMax": 900,
+          "surfaceMin": 50,
+          "tab": "all",
+          "sort": "priceAsc"
+        }
+      }
+    ]
+  },
+  "searches": [
+    {
+      "id": "nord_familial_budget",
+      "name": "Famille — Sainte-Marie / quartiers 650–1000€",
+      "enabled": true,
+      "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre. Le score opportunité sert au tri/à la priorisation, pas à exclure silencieusement des annonces valides.",
+      "filters": {
+        "region": [
+          "Nord"
+        ],
+        "zones": [
+          "Sainte-Marie",
+          "Ste Marie",
+          "La Bretagne",
+          "Rivière des Pluies",
+          "Riviere des Pluies",
+          "Duparc",
+          "Beauséjour",
+          "Beausejour"
+        ],
+        "property_type": [
+          "Appartement",
+          "Maison",
+          "Appartement / maison"
+        ],
+        "rentMin": 650,
+        "rentMax": 1000,
+        "bedroomsMin": 1,
+        "tab": "all",
+        "sort": "score"
+      },
+      "match_count": 3,
+      "alert_match_count": 3,
+      "disabled_preview_count": 0,
+      "avg_score": 81.3,
+      "url": "https://immo.148.230.103.174.sslip.io/?immo=1&r=Nord&z=Sainte-Marie%7CSte+Marie%7CLa+Bretagne%7CRivi%C3%A8re+des+Pluies%7CRiviere+des+Pluies%7CDuparc%7CBeaus%C3%A9jour%7CBeausejour&t=Appartement%7CMaison%7CAppartement+%2F+maison&rentMin=650&rentMax=1000&bedroomsMin=1",
+      "samples": [
+        {
+          "id": "locamoi:pfe5443",
+          "title": "Appartement 2 pièces, 70 m² à louer à Sainte-Marie (97438)",
+          "rent_eur": 757,
+          "surface_m2": 70.0,
+          "rooms": 2,
+          "bedrooms": 1,
+          "location_label": "Nord",
+          "source_site": null,
+          "score": 87.0,
+          "url": "https://locamoi.fr/listings/appartement-2-pieces-70-m-a-louer-a-sainte-marie-97438-pfe5443",
+          "decision_summary": null
+        },
+        {
+          "id": "locamoi:p03047e",
+          "title": "Apt T2 à Sainte-Marie",
+          "rent_eur": 830,
+          "surface_m2": 49.0,
+          "rooms": 2,
+          "bedrooms": 1,
+          "location_label": "Nord",
+          "source_site": null,
+          "score": 86.0,
+          "url": "https://locamoi.fr/listings/apt-t2-a-sainte-marie-p03047e",
+          "decision_summary": null
+        },
+        {
+          "id": "bienici:citya-immobilier-52424705300084-GES00570022-542",
+          "title": "À LOUER : Appartement T2 à Sainte Marie. Ce bien de 36 m² se trouve au troisième étage d'un immeuble sans ascenseur, off",
+          "rent_eur": 720,
+          "surface_m2": 36.47,
+          "rooms": 2,
+          "bedrooms": 1,
+          "location_label": "Nord",
+          "source_site": null,
+          "score": 71.0,
+          "url": "https://www.bienici.com/annonce/citya-immobilier-52424705300084-GES00570022-542",
+          "decision_summary": null
+        }
+      ],
+      "alert_policy": {
+        "active_for_alerts": true,
+        "new_listings": true,
+        "price_drops": true,
+        "disappeared": true,
+        "reappeared": true,
+        "price_increases": false,
+        "max_items_per_search": 6,
+        "anti_spam": "listing/event emitted once across searches; first matching search wins"
+      }
+    },
+    {
+      "id": "sud_budget_surface",
+      "name": "Sud budget/surface <=900€ — désactivé",
+      "enabled": false,
+      "description": "Ancienne recherche exploratoire Sud, désactivée pour éviter le bruit: le besoin quasi-prod actuel est toi+famille autour de Sainte-Marie et quartiers proches.",
+      "filters": {
+        "region": [
+          "Sud"
+        ],
+        "rentMax": 900,
+        "surfaceMin": 50,
+        "tab": "all",
+        "sort": "priceAsc"
+      },
+      "match_count": 28,
+      "alert_match_count": 0,
+      "disabled_preview_count": 28,
+      "avg_score": 71.8,
+      "url": "https://immo.148.230.103.174.sslip.io/?immo=1&r=Sud&rentMax=900&surfaceMin=50&sort=priceAsc",
+      "samples": [
+        {
+          "id": "superimmo:x11iu7b",
+          "title": "location maison 87m saint pierre 97432",
+          "rent_eur": 100,
+          "surface_m2": 87.0,
+          "rooms": 4,
+          "bedrooms": 3,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 85.0,
+          "url": "https://www.superimmo.com/annonces/location-maison-87m-saint-pierre-97432-x11iu7b?item=13&q=%2Flocation%2Fdom-tom%2Fla-reunion%3Fp%3D0",
+          "decision_summary": null
+        },
+        {
+          "id": "seloger:26BWLY1WKANS",
+          "title": "Location Autre · 4 pièce(s) · 114 m² · Le Tampon",
+          "rent_eur": 460,
+          "surface_m2": 114.0,
+          "rooms": 4,
+          "bedrooms": 3,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 74.0,
+          "url": "https://www.seloger.com/annonces/locations/appartement/le-tampon-974/272500341.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D5#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+          "decision_summary": null
+        },
+        {
+          "id": "seloger:26MVSAJF3LFE",
+          "title": "Location Autre · 2 pièce(s) · 114 m² · Le Tampon",
+          "rent_eur": 460,
+          "surface_m2": 114.0,
+          "rooms": 2,
+          "bedrooms": 1,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 74.0,
+          "url": "https://www.seloger.com/annonces/locations/appartement/le-tampon-974/273467965.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D6#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+          "decision_summary": null
+        },
+        {
+          "id": "seloger:26YAZ1QBJQ8B",
+          "title": "Location Autre · 141 m² · Saint-Louis",
+          "rent_eur": 500,
+          "surface_m2": 141.0,
+          "rooms": null,
+          "bedrooms": null,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 70.0,
+          "url": "https://www.seloger.com/annonces/locations/appartement/saint-louis-974/26YAZ1QBJQ8B.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+          "decision_summary": null
+        },
+        {
+          "id": "seloger:26I6XJENMI86",
+          "title": "Location Villa · 10 pièce(s) · 100 m² · Saint-Pierre",
+          "rent_eur": 550,
+          "surface_m2": 100.0,
+          "rooms": 10,
+          "bedrooms": 8,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 70.0,
+          "url": "https://www.seloger.com/annonces/locations/maison/saint-pierre-974/265981341.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D8#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+          "decision_summary": null
+        },
+        {
+          "id": "locamoi:pd4fa53",
+          "title": "Location appartement Saint-Joseph 3 pièces 55.2m² 760€ | Cabinet Habilis",
+          "rent_eur": 760,
+          "surface_m2": 55.0,
+          "rooms": 3,
+          "bedrooms": 2,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 74.0,
+          "url": "https://locamoi.fr/listings/location-appartement-saint-joseph-3-pieces-55-2m-760-cabinet-habilis-pd4fa53",
+          "decision_summary": null
+        },
+        {
+          "id": "seloger:26HNFVEQY2VD",
+          "title": "Location Maison · 4 pièce(s) · 61 m² · Le Tampon",
+          "rent_eur": 762,
+          "surface_m2": 61.0,
+          "rooms": 4,
+          "bedrooms": 3,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 70.0,
+          "url": "https://www.seloger.com/annonces/locations/maison/le-tampon-974/272501869.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D7#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+          "decision_summary": null
+        },
+        {
+          "id": "zimo:019ed0a7-d78e-7c25-b8ed-efb7d71f2124",
+          "title": "Appartement 2 pièces 63 m²",
+          "rent_eur": 790,
+          "surface_m2": 63.0,
+          "rooms": 2,
+          "bedrooms": 1,
+          "location_label": "Sud",
+          "source_site": null,
+          "score": 83.0,
+          "url": "https://www.zimo.fr/annonce/appartement-2-pieces-63-m2/019ed0a7-d78e-7c25-b8ed-efb7d71f2124",
+          "decision_summary": null
+        }
+      ],
+      "alert_policy": {
+        "active_for_alerts": false,
+        "new_listings": false,
+        "price_drops": false,
+        "disappeared": false,
+        "reappeared": false,
+        "price_increases": false,
+        "max_items_per_search": 6,
+        "anti_spam": "listing/event emitted once across searches; first matching search wins"
+      }
+    }
+  ],
+  "template_search": {
+    "id": "nouvelle_recherche",
+    "name": "Nouvelle recherche",
+    "enabled": true,
+    "description": "À adapter puis copier dans config/saved_searches.json",
+    "filters": {
+      "region": [],
+      "zones": [],
+      "rentMax": null,
+      "surfaceMin": null,
+      "tab": "all",
+      "sort": "score"
+    }
+  }
+}

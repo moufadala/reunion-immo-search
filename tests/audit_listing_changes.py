@@ -81,7 +81,7 @@ with tempfile.TemporaryDirectory() as td:
             errors.append("changes.html not written")
         else:
             html = html_out.read_text(encoding="utf-8")
-            for needle in ["Journal des changements", "Baisse de prix", "1 000 € → 900 €", "Appartement test Moufia"]:
+            for needle in ["Journal des changements", "Baisse de prix", "1 000 € → 900 €", "Appartement test Moufia", "Baisses (1)", "Hausses (0)", 'data-direction="down"']:
                 if needle not in html:
                     errors.append(f"changes.html missing {needle!r}")
 

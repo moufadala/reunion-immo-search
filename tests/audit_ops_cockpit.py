@@ -36,7 +36,7 @@ def main() -> int:
         fail("missing public listings count")
     if "Cockpit ops" not in html:
         fail("wrong title/content")
-    for token in ["Historique 7 jours", "Fraîcheur par source"]:
+    for token in ["Historique 7 jours", "Fraîcheur par source", "Dernier sprint", "Pipeline", "Alertes dry-run", "Liens QA"]:
         if token not in html:
             fail(f"missing cockpit section: {token}")
     run = data.get("run", {})
@@ -44,6 +44,16 @@ def main() -> int:
         fail("missing run.history_7d")
     if "freshness" not in data.get("source_health", {}):
         fail("missing source freshness payload")
+    if not isinstance(data.get("pipeline", {}).get("groups"), dict):
+        fail("missing pipeline groups payload")
+    if not data.get("last_sprint"):
+        fail("missing last sprint payload")
+    dry = data.get("alert_dry_run", {})
+    if dry.get("available") and dry.get("ok") is not True:
+        fail("alert dry-run available but not ok")
+    qa_links = data.get("qa_links") or []
+    if len(qa_links) < 5 or not all(str(x.get("href", "")).endswith((".html", "/")) for x in qa_links if isinstance(x, dict)):
+        fail("missing safe QA links")
     if index_path.exists():
         idx = index_path.read_text(encoding="utf-8", errors="replace")
         if "ops.html" in idx or "ops_status.json" in idx:

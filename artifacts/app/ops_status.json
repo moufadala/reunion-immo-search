@@ -1,0 +1,335 @@
+{
+  "ok": true,
+  "generated_at": "2026-06-27T11:59:24.889584+00:00",
+  "status": "OK",
+  "public": {
+    "listings": 561,
+    "generated_at": "2026-06-27T11:56:25.557381+00:00",
+    "local_primary": 557,
+    "descriptions": 561,
+    "dedup_groups": 95,
+    "opportunity_top_count": 80,
+    "location_quality": {
+      "haute": 524,
+      "moyenne": 16,
+      "faible": 21
+    }
+  },
+  "source_health": {
+    "status_counts": {
+      "source_count": 13,
+      "status_counts": {
+        "fresh": 12,
+        "aging": 1
+      },
+      "severity_counts": {
+        "ok": 12,
+        "warning": 1
+      },
+      "stale_or_attention_critical": [
+        "superimmo"
+      ],
+      "fresh_hours": 36,
+      "stale_hours": 96
+    },
+    "freshness": [
+      {
+        "source": "97immo",
+        "status": "fresh",
+        "active_rows": 9,
+        "age_hours": 2.31,
+        "last_seen": "2026-06-27T09:02:28.964411+00:00",
+        "note": null
+      },
+      {
+        "source": "alter",
+        "status": "fresh",
+        "active_rows": 16,
+        "age_hours": 2.28,
+        "last_seen": "2026-06-27T09:04:13.109265+00:00",
+        "note": null
+      },
+      {
+        "source": "bienici",
+        "status": "fresh",
+        "active_rows": 48,
+        "age_hours": 2.36,
+        "last_seen": "2026-06-27T08:59:46.601493+00:00",
+        "note": null
+      },
+      {
+        "source": "citya",
+        "status": "fresh",
+        "active_rows": 24,
+        "age_hours": 2.27,
+        "last_seen": "2026-06-27T09:04:45.187351+00:00",
+        "note": null
+      },
+      {
+        "source": "domimmo",
+        "status": "fresh",
+        "active_rows": 25,
+        "age_hours": 2.27,
+        "last_seen": "2026-06-27T09:04:46.970502+00:00",
+        "note": null
+      },
+      {
+        "source": "fnaim",
+        "status": "fresh",
+        "active_rows": 20,
+        "age_hours": 2.31,
+        "last_seen": "2026-06-27T09:02:19.140793+00:00",
+        "note": null
+      },
+      {
+        "source": "immo974",
+        "status": "fresh",
+        "active_rows": 20,
+        "age_hours": 2.32,
+        "last_seen": "2026-06-27T09:01:40.953284+00:00",
+        "note": null
+      },
+      {
+        "source": "locamoi",
+        "status": "fresh",
+        "active_rows": 21,
+        "age_hours": 2.27,
+        "last_seen": "2026-06-27T09:04:49.416657+00:00",
+        "note": null
+      },
+      {
+        "source": "ofim",
+        "status": "fresh",
+        "active_rows": 27,
+        "age_hours": 2.32,
+        "last_seen": "2026-06-27T09:01:36.899397+00:00",
+        "note": null
+      },
+      {
+        "source": "ofim_rss",
+        "status": "fresh",
+        "active_rows": 27,
+        "age_hours": 2.29,
+        "last_seen": "2026-06-27T09:03:29.610678+00:00",
+        "note": null
+      },
+      {
+        "source": "seloger",
+        "status": "fresh",
+        "active_rows": 270,
+        "age_hours": 2.26,
+        "last_seen": "2026-06-27T09:05:42.929044+00:00",
+        "note": null
+      },
+      {
+        "source": "superimmo",
+        "status": "aging",
+        "active_rows": 15,
+        "age_hours": 41.85,
+        "last_seen": "2026-06-25T17:29:49.987121+00:00",
+        "note": null
+      },
+      {
+        "source": "zimo",
+        "status": "fresh",
+        "active_rows": 96,
+        "age_hours": 2.27,
+        "last_seen": "2026-06-27T09:04:47.527464+00:00",
+        "note": null
+      }
+    ]
+  },
+  "run": {
+    "name": "immo-ops-current",
+    "summary": {},
+    "steps": [],
+    "files": {},
+    "history_7d": [
+      {
+        "name": "smoke-20260624T162633Z",
+        "generated_at": null,
+        "ok": true,
+        "steps": 9,
+        "failed_steps": [],
+        "duration_s": 384,
+        "summary_status": null,
+        "warnings": []
+      },
+      {
+        "name": "smoke-20260624T161950Z",
+        "generated_at": null,
+        "ok": false,
+        "steps": 1,
+        "failed_steps": [
+          "realestate_refresh"
+        ],
+        "duration_s": 371,
+        "summary_status": null,
+        "warnings": []
+      },
+      {
+        "name": "p123c-20260625T172433Z",
+        "generated_at": null,
+        "ok": true,
+        "steps": 31,
+        "failed_steps": [],
+        "duration_s": 530,
+        "summary_status": true,
+        "warnings": []
+      },
+      {
+        "name": "p123b-20260625T171522Z",
+        "generated_at": null,
+        "ok": false,
+        "steps": 25,
+        "failed_steps": [
+          "public_quality_budget_audit"
+        ],
+        "duration_s": 528,
+        "summary_status": null,
+        "warnings": []
+      },
+      {
+        "name": "p123-20260625T170603Z",
+        "generated_at": null,
+        "ok": false,
+        "steps": 19,
+        "failed_steps": [
+          "promote_db_candidate"
+        ],
+        "duration_s": 526,
+        "summary_status": null,
+        "warnings": []
+      },
+      {
+        "name": "manual-nextphases-20260625T191525Z",
+        "generated_at": null,
+        "ok": false,
+        "steps": 0,
+        "failed_steps": [],
+        "duration_s": 0,
+        "summary_status": null,
+        "warnings": []
+      },
+      {
+        "name": "cron-20260624T163354Z",
+        "generated_at": null,
+        "ok": true,
+        "steps": 9,
+        "failed_steps": [],
+        "duration_s": 423,
+        "summary_status": null,
+        "warnings": []
+      }
+    ],
+    "history_ok_count": 3,
+    "history_fail_count": 4
+  },
+  "last_sprint": {
+    "available": true,
+    "file": "product_v2_sprint_20260626T125823Z.md",
+    "title": "Product V2 sprint — 20260626T125823Z",
+    "bullets": [
+      "phase_a_inventory_oracle: PASS — [REDACTED][path-redacted]",
+      "phase_b_product_hardening_v5: PASS — [REDACTED][path-redacted]",
+      "phase_b_natural_search_contract: PASS — [REDACTED][path-redacted]",
+      "phase_d_regen_changes: PASS — [REDACTED][path-redacted]",
+      "phase_d_enhance_changes: PASS — [REDACTED][path-redacted]",
+      "phase_e_wave2_detail_geo_photo: PASS — [REDACTED][path-redacted]",
+      "phase_e_ops_cockpit: PASS — [REDACTED][path-redacted]",
+      "audit_search_alerts: PASS — [REDACTED][path-redacted]"
+    ]
+  },
+  "pipeline": {
+    "ok": null,
+    "groups": {
+      "build": {
+        "ok": null,
+        "present": 0,
+        "expected": 4,
+        "failed": [],
+        "note": "non mesuré sur ce run"
+      },
+      "data": {
+        "ok": null,
+        "present": 0,
+        "expected": 4,
+        "failed": [],
+        "note": "non mesuré sur ce run"
+      },
+      "promotion": {
+        "ok": null,
+        "present": 0,
+        "expected": 4,
+        "failed": [],
+        "note": "non mesuré sur ce run"
+      },
+      "qa": {
+        "ok": null,
+        "present": 0,
+        "expected": 4,
+        "failed": [],
+        "note": "non mesuré sur ce run"
+      }
+    },
+    "summary_ok": null
+  },
+  "alert_dry_run": {
+    "available": true,
+    "ok": true,
+    "search_count": 1,
+    "would_emit": true,
+    "new_total": 1,
+    "event_total": 0,
+    "bootstrap_silent": false,
+    "top_searches": [
+      {
+        "id": "nord_familial_budget",
+        "name": "Famille — Sainte-Marie / quartiers 650–1000€",
+        "matches": 3,
+        "new": 1,
+        "search_url": "https://immo.148.230.103.174.sslip.io/?immo=1&r=Nord&z=Sainte-Marie%7CSte+Marie%7CLa+Bretagne%7CRivi%C3%A8re+des+Pluies%7CRiviere+des+Pluies%7CDuparc%7CBeaus%C3%A9jour%7CBeausejour&t=Appartement%7CMaison%7CAppartement+%2F+maison&rentMin=650&rentMax=1000&bedroomsMin=1"
+      }
+    ]
+  },
+  "qa_links": [
+    {
+      "label": "Accueil public",
+      "href": "index.html"
+    },
+    {
+      "label": "Veille",
+      "href": "veille.html"
+    },
+    {
+      "label": "Nouveautés",
+      "href": "changes.html"
+    },
+    {
+      "label": "Santé sources",
+      "href": "source_health.html"
+    },
+    {
+      "label": "Doublons",
+      "href": "dedup.html"
+    },
+    {
+      "label": "Opportunités",
+      "href": "opportunity.html"
+    },
+    {
+      "label": "Localisation",
+      "href": "locations.html"
+    },
+    {
+      "label": "Alertes cours",
+      "href": "alertes_cours.html"
+    }
+  ],
+  "warnings": [],
+  "notes": [
+    "Cockpit ops séparé, non lié depuis la homepage.",
+    "Données volontairement sanitizées: pas de chemins internes, logs bruts, secrets ou stack traces.",
+    "Ce cockpit est un statut opérationnel, pas une page utilisateur/famille."
+  ]
+}
