@@ -10,10 +10,10 @@
   "max_items_per_search": 6,
   "searches": [
     {
-      "id": "nord_familial_budget",
-      "name": "Famille — Sainte-Marie / quartiers 650–1000€",
-      "enabled": true,
-      "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre. Le score opportunité sert au tri/à la priorisation, pas à exclure silencieusement des annonces valides.",
+      "id": "sample_north_family_budget",
+      "name": "Exemple Nord — budget familial 650–1000€",
+      "enabled": false,
+      "description": "Exemple générique désactivé: zones Nord, 650–1000€, au moins 1 chambre. Copier ce modèle dans une configuration locale non versionnée pour les recherches personnelles.",
       "min_score": null,
       "filters": {
         "region": ["Nord"],
@@ -36,10 +36,10 @@
       }
     },
     {
-      "id": "sud_budget_surface",
-      "name": "Sud budget/surface <=900€ — désactivé",
+      "id": "sample_sud_budget_surface",
+      "name": "Exemple Sud — budget/surface <=900€",
       "enabled": false,
-      "description": "Ancienne recherche exploratoire Sud, désactivée pour éviter le bruit: le besoin quasi-prod actuel est toi+famille autour de Sainte-Marie et quartiers proches.",
+      "description": "Exemple générique désactivé pour tester les alertes sans contexte personnel.",
       "filters": {
         "region": ["Sud"],
         "rentMax": 900,
