@@ -1,0 +1,34 @@
+{
+  "count": 561,
+  "local_primary_photos": 557,
+  "external_primary_photos": 561,
+  "gallery_photos": 181,
+  "image_urls_multi": 0,
+  "valid_local_images": 557,
+  "photo_quality_issues": 4,
+  "geo_confidence": {
+    "haute": 524,
+    "moyenne": 11,
+    "commune": 26,
+    "basse": 0
+  },
+  "amenity_tags": 210,
+  "cities": 23,
+  "regions": [
+    "Est",
+    "Nord",
+    "Ouest",
+    "Région non précisée",
+    "Sud"
+  ],
+  "types": [
+    "Appartement",
+    "Appartement / maison",
+    "Maison"
+  ],
+  "price_min": 27,
+  "price_max": 5540,
+  "surface_min": 9.7,
+  "surface_max": 400.0,
+  "note": "Portail propre avec photos principales locales et galeries quand disponibles; couches veille/intelligence servies en pages séparées."
+}

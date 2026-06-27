@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://immo.148.230.103.174.sslip.io/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/veille.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/sources.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/doublons.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/opportunites.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/localisation.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+  <url><loc>https://immo.148.230.103.174.sslip.io/alertes.html</loc><changefreq>daily</changefreq><priority>0.7</priority></url>
+</urlset>

@@ -5,6 +5,8 @@ import argparse
 import html
 import json
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
@@ -68,6 +70,69 @@ def collect_run_history(base: Path, days: int = 7) -> list[dict[str, Any]]:
             runs.append({"name": d.name, "ok": False, "error": str(exc)[:160]})
     return runs[:14]
 
+def latest_sprint(artifacts: Path) -> dict[str, Any]:
+    """Return a short, sanitized pointer to the latest sprint report artifact."""
+    candidates = sorted(artifacts.glob("product_v*_sprint_*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+    if not candidates:
+        return {"available": False}
+    p = candidates[0]
+    text = p.read_text(encoding="utf-8", errors="replace")[:3000]
+    title = next((line.lstrip("# ").strip() for line in text.splitlines() if line.strip().startswith("#")), p.name)
+    bullets = [line.strip("- ").strip() for line in text.splitlines() if line.strip().startswith("-")][:8]
+    return scrub_value({"available": True, "file": p.name, "title": title, "bullets": bullets})
+
+
+def collect_pipeline_status(statuses: list[dict[str, Any]], run_summary: dict[str, Any]) -> dict[str, Any]:
+    gates = {
+        "build": ["build_technical_app", "build_clean_portal", "product_hardening_v5", "slim_public_listings"],
+        "data": ["realestate_refresh", "seloger_import", "source_detail_enrichment", "source_health_audit"],
+        "promotion": ["promote_db_candidate", "rollback_db_drill", "promote_app_candidate", "rollback_app_drill"],
+        "qa": ["clean_portal_audit", "public_qa", "public_user_search_audit", "ops_quality_audit"],
+    }
+    by_step = {s.get("step"): s for s in statuses}
+    groups = {}
+    for name, wanted in gates.items():
+        present = [by_step[x] for x in wanted if x in by_step]
+        failed = [x for x in present if x.get("rc") not in (0, None)]
+        if not present:
+            groups[name] = {"ok": None, "present": 0, "expected": len(wanted), "failed": [], "note": "non mesuré sur ce run"}
+        else:
+            groups[name] = {"ok": not failed, "present": len(present), "expected": len(wanted), "failed": [x.get("step") for x in failed]}
+    return scrub_value({"ok": all(x["ok"] for x in groups.values()) if statuses else None, "groups": groups, "summary_ok": run_summary.get("ok") if isinstance(run_summary, dict) else None})
+
+
+def collect_alert_dry_run(project: Path, app: Path) -> dict[str, Any]:
+    """Run saved-search alerts in dry-run mode and keep only safe counters/links."""
+    script = project / "src" / "search_alerts.py"
+    cfg = project / "config" / "saved_searches.json"
+    if not script.exists() or not cfg.exists() or not (app / "listings.json").exists():
+        return {"available": False, "reason": "missing alert script/config/listings"}
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--config", str(cfg), "--dry-run"],
+            cwd=str(project), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=60,
+        )
+    except Exception as exc:
+        return scrub_value({"available": False, "ok": False, "error": str(exc)[:160]})
+    if proc.returncode != 0:
+        return scrub_value({"available": True, "ok": False, "rc": proc.returncode, "stderr": proc.stderr[:240]})
+    try:
+        data = json.loads(proc.stdout)
+    except Exception as exc:
+        return scrub_value({"available": True, "ok": False, "error": f"invalid json: {exc}"})
+    searches = data.get("searches") or []
+    return scrub_value({
+        "available": True,
+        "ok": bool(data.get("ok") and data.get("dry_run")),
+        "search_count": len(searches),
+        "would_emit": bool(data.get("would_emit")),
+        "new_total": data.get("new_total"),
+        "event_total": data.get("event_total"),
+        "bootstrap_silent": data.get("bootstrap_silent"),
+        "top_searches": [{"id": s.get("id"), "name": s.get("name"), "matches": s.get("matches"), "new": s.get("new"), "search_url": s.get("search_url")} for s in searches[:6]],
+    })
+
+
 def summarize_freshness(source_health: dict[str, Any]) -> list[dict[str, Any]]:
     out=[]
     for src in source_health.get("sources", []) if isinstance(source_health, dict) else []:
@@ -101,6 +166,7 @@ def main() -> int:
     args = ap.parse_args()
 
     app = Path(args.app).resolve()
+    project = Path(__file__).resolve().parents[1]
     out_dir = Path(args.out).resolve() if args.out else app
     run_dir = Path(args.run_dir).resolve() if args.run_dir else None
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -130,6 +196,20 @@ def main() -> int:
             text = p.read_text(encoding="utf-8", errors="replace").strip()
             m = re.search(r"rc=(\d+).*duration_s=(\d+)", text)
             statuses.append({"step": p.stem, "rc": int(m.group(1)) if m else None, "duration_s": int(m.group(2)) if m else None})
+
+    sprint = latest_sprint(project / "artifacts")
+    pipeline = collect_pipeline_status(statuses, run_summary)
+    alert_dry_run = collect_alert_dry_run(project, app)
+    qa_links = [
+        {"label": "Accueil public", "href": "index.html"},
+        {"label": "Veille", "href": "veille.html"},
+        {"label": "Nouveautés", "href": "changes.html"},
+        {"label": "Santé sources", "href": "source_health.html"},
+        {"label": "Doublons", "href": "dedup.html"},
+        {"label": "Opportunités", "href": "opportunity.html"},
+        {"label": "Localisation", "href": "locations.html"},
+        {"label": "Alertes cours", "href": "alertes_cours.html"},
+    ]
 
     warnings: list[str] = []
     if run_summary.get("warnings"):
@@ -175,6 +255,10 @@ def main() -> int:
             "history_ok_count": sum(1 for r in run_history if r.get("ok")),
             "history_fail_count": sum(1 for r in run_history if not r.get("ok")),
         },
+        "last_sprint": sprint,
+        "pipeline": pipeline,
+        "alert_dry_run": alert_dry_run,
+        "qa_links": qa_links,
         "warnings": warnings,
         "notes": [
             "Cockpit ops séparé, non lié depuis la homepage.",
@@ -206,6 +290,18 @@ def main() -> int:
         f"<tr><td>{html.escape(str(x.get('source') or ''))}</td><td>{html.escape(str(x.get('status') or 'n.c.'))}</td><td>{html.escape(str(x.get('active_rows') or ''))}</td><td>{html.escape(str(x.get('age_hours') or ''))}</td><td>{html.escape(str(x.get('last_seen') or ''))}</td></tr>"
         for x in freshness
     ) or "<tr><td colspan='5'>Fraîcheur source non disponible</td></tr>"
+    pipeline_rows = "".join(
+        f"<tr><td>{html.escape(str(name))}</td><td>{'OK' if info.get('ok') else ('n.c.' if info.get('ok') is None else 'KO')}</td><td>{html.escape(str(info.get('present')))} / {html.escape(str(info.get('expected')))}</td><td>{html.escape(', '.join(info.get('failed') or []) or '—')}</td></tr>"
+        for name, info in (pipeline.get("groups") or {}).items()
+    ) or "<tr><td colspan='4'>Pipeline non disponible</td></tr>"
+    qa_link_items = "".join(
+        f"<li><a href=\"{html.escape(x['href'], quote=True)}\">{html.escape(x['label'])}</a></li>" for x in qa_links
+    )
+    dry_rows = "".join(
+        f"<tr><td>{html.escape(str(x.get('name') or x.get('id') or ''))}</td><td>{html.escape(str(x.get('matches') or 0))}</td><td>{html.escape(str(x.get('new') or 0))}</td><td><a href=\"{html.escape(str(x.get('search_url') or '#'), quote=True)}\">QA recherche</a></td></tr>"
+        for x in (alert_dry_run.get("top_searches") or [])
+    ) or "<tr><td colspan='4'>Dry-run alertes non disponible</td></tr>"
+    sprint_items = "".join(f"<li>{html.escape(str(x))}</li>" for x in (sprint.get("bullets") or [])[:6]) or "<li>Aucun résumé sprint détecté.</li>"
 
     html_text = f"""<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -216,7 +312,7 @@ def main() -> int:
 :root{{--bg:#f7f4ee;--paper:#fffdf8;--ink:#1f211d;--muted:#6a665e;--line:#e5ded2;--ok:#087f5b;--warn:#b25b00;--bad:#b42318;--accent:#0f766e}}
 *{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5}}main{{max-width:1180px;margin:auto;padding:28px 16px 72px}}.hero,.card,.panel{{background:var(--paper);border:1px solid var(--line);border-radius:24px;box-shadow:0 18px 50px rgba(44,35,20,.08)}}.hero{{padding:28px;margin-bottom:16px}}h1{{font-size:clamp(32px,6vw,64px);line-height:.96;letter-spacing:-.06em;margin:0 0 10px}}h2{{letter-spacing:-.03em}}.muted,.k,p{{color:var(--muted)}}.status{{display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;font-weight:800;background:#eef7f5;color:var(--ok)}}.status.warn{{background:#fff7ed;color:var(--warn)}}.status.bad{{background:#fef2f2;color:var(--bad)}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0}}.card{{padding:16px}}.v{{font-size:30px;font-weight:850;letter-spacing:-.04em}}.panel{{padding:18px;margin:14px 0;overflow:auto}}table{{width:100%;border-collapse:collapse}}td,th{{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}}code{{background:#eee7db;border-radius:8px;padding:2px 6px}}a{{color:var(--accent)}}@media(max-width:680px){{main{{padding:16px 12px 56px}}.v{{font-size:24px}}}}
 </style></head><body><main>
-<section class="hero"><span class="status {cls}">{html.escape(label)}</span><h1>Cockpit ops Immo RUN</h1><p class="muted">Page séparée, non liée depuis l’accueil. Elle résume la publication et les gates sans exposer logs bruts, chemins internes ni secrets.</p></section>
+<section class="hero"><span class="status {cls}">{html.escape(label)}</span><h1>Cockpit ops Immo RUN</h1><p class="muted">Page séparée, non liée depuis l’accueil. Elle résume sprint, sources, alertes dry-run, pipeline et liens QA sans exposer logs bruts, chemins internes ni secrets.</p></section>
 <div class="grid">
 {card('Annonces publiques', str(len(listings)), 'Volume listings.json')}
 {card('Photos locales', f'{local_photos}/{len(listings)}', 'Photos principales locales')}
@@ -226,6 +322,10 @@ def main() -> int:
 {card('Warnings', str(len(warnings)), 'À vérifier si >0', 'warn' if warnings else '')}
 </div>
 <section class="panel"><h2>Warnings</h2><ul>{warning_items}</ul></section>
+<section class="panel"><h2>Dernier sprint</h2><p><strong>{html.escape(str(sprint.get('title') or 'Non disponible'))}</strong> <span class="muted">{html.escape(str(sprint.get('file') or ''))}</span></p><ul>{sprint_items}</ul></section>
+<section class="panel"><h2>Pipeline</h2><table><thead><tr><th>Groupe</th><th>Statut</th><th>Étapes</th><th>Échecs</th></tr></thead><tbody>{pipeline_rows}</tbody></table></section>
+<section class="panel"><h2>Alertes dry-run</h2><p class="muted">Dry-run non destructif: {html.escape('OK' if alert_dry_run.get('ok') else 'à vérifier')} · recherches {html.escape(str(alert_dry_run.get('search_count') or 0))} · nouvelles {html.escape(str(alert_dry_run.get('new_total') or 0))} · événements {html.escape(str(alert_dry_run.get('event_total') or 0))} · émission {html.escape('oui' if alert_dry_run.get('would_emit') else 'non')}.</p><table><thead><tr><th>Recherche</th><th>Matchs</th><th>Nouvelles</th><th>Lien QA</th></tr></thead><tbody>{dry_rows}</tbody></table></section>
+<section class="panel"><h2>Liens QA</h2><ul class="qa-links">{qa_link_items}</ul></section>
 <section class="panel"><h2>Sources actives</h2><table><thead><tr><th>Source</th><th>Annonces</th></tr></thead><tbody>{source_rows}</tbody></table></section>
 <section class="panel"><h2>Historique 7 jours</h2><table><thead><tr><th>Run</th><th>Statut</th><th>Étapes</th><th>Échecs</th><th>Durée</th></tr></thead><tbody>{history_rows}</tbody></table></section>
 <section class="panel"><h2>Fraîcheur par source</h2><table><thead><tr><th>Source</th><th>Statut</th><th>Actives</th><th>Âge h</th><th>Dernière vue</th></tr></thead><tbody>{freshness_rows}</tbody></table></section>

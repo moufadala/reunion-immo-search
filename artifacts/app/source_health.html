@@ -1,0 +1,82 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Santé sources immo Réunion</title>
+<style>
+:root{--bg:#faf8f4;--ink:#211f1d;--muted:#716b64;--card:#fff;--line:#e8e1d8;--ok:#067647;--warn:#b54708;--bad:#b42318;--accent:#ff385c}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:var(--ink)}main{max-width:1120px;margin:auto;padding:18px 18px 60px}header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;margin-bottom:14px}h1{font-size:clamp(28px,5vw,46px);line-height:.98;margin:0;letter-spacing:-1.2px}.sub{color:var(--muted);max-width:680px;line-height:1.45}.actions{display:flex;gap:8px;flex-wrap:wrap}a,button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 13px;color:inherit;text-decoration:none;font-weight:750;cursor:pointer}.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:11px}.kpi b{display:block;font-size:22px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.source{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:13px;box-shadow:0 2px 8px rgba(0,0,0,.035)}.source.high{border-color:rgba(180,35,24,.35);background:#fff7f5}.source.warning{border-color:rgba(181,71,8,.30);background:#fffaf3}.source.ok{border-color:rgba(6,118,71,.20)}.source>div:first-child{display:flex;justify-content:space-between;gap:10px;align-items:start}.source strong{font-size:18px}.source span,.source p,.source small{color:var(--muted)}.source p{margin:.55rem 0}.nums{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:6px;align-items:baseline;margin-top:10px}.nums b{font-size:22px}.toolbar{position:sticky;top:0;background:rgba(250,248,244,.94);backdrop-filter:blur(12px);padding:8px 0;z-index:2;display:flex;gap:7px;flex-wrap:wrap}.toolbar input{flex:1;min-width:220px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:10px 13px;font:inherit}@media(max-width:760px){main{padding:10px 10px 50px}header{display:block;margin-bottom:8px}.actions{overflow:auto;flex-wrap:nowrap;padding-bottom:2px}.actions a{white-space:nowrap;min-height:44px}h1{font-size:28px;letter-spacing:-.7px}.sub{font-size:13px}.cards{display:flex;gap:7px;overflow:auto;margin:8px 0}.kpi{min-width:118px;padding:8px 10px}.kpi b{font-size:18px}.kpi span{font-size:11px}.grid{grid-template-columns:1fr;gap:8px}a,button{min-height:44px}.toolbar{top:0;border:1px solid var(--line);border-radius:15px;padding:8px;margin-bottom:9px;overflow:auto;flex-wrap:nowrap}.toolbar input{min-width:180px;min-height:44px}.toolbar button{white-space:nowrap;padding:8px 11px}.source{border-radius:14px;padding:11px}.source strong{font-size:16px}.source p,.source small{font-size:12px}}
+</style></head><body><main><header><div><h1>Santé sources immo</h1><p class="sub">Vue non destructive de la fraîcheur par source. Une source stale ne supprime rien: elle indique seulement qu'il faut investiguer le scraper avant de polir le produit.</p></div><div class="actions"><a href="/">Dashboard</a><a href="/source_health.json">JSON</a><a href="/changes.html">Changements</a></div></header><section class="cards"><div class="kpi"><b>13</b><span>sources</span></div><div class="kpi"><b>12</b><span>fresh</span></div><div class="kpi"><b>1</b><span>à surveiller</span></div><div class="kpi"><b>1</b><span>critiques attention</span></div></section><div class="toolbar"><input id="sourceQ" placeholder="Filtrer source…"><button data-filter="all">Tout</button><button data-filter="fresh">Fresh</button><button data-filter="aging">Aging</button><button data-filter="stale">Stale</button><button data-filter="not-tested">Non testées</button></div><section class="grid" id="grid">
+        <article class="source ok" data-status="fresh" data-source="97immo">
+          <div><strong>97immo</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>9</b><span>actives</span><b>9</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:02:28.964411+00:00 · smoke count: 19</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="alter">
+          <div><strong>alter</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>16</b><span>actives</span><b>16</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:04:13.109265+00:00 · smoke count: 21</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="bienici">
+          <div><strong>bienici</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>48</b><span>actives</span><b>48</b><span>photos</span></div>
+          <p>vu il y a 7.8h</p>
+          <small>Dernier vu: 2026-06-27T08:59:46.601493+00:00 · smoke count: 102</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="citya">
+          <div><strong>citya</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>24</b><span>actives</span><b>24</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:04:45.187351+00:00 · smoke count: 48</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="domimmo">
+          <div><strong>domimmo</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>25</b><span>actives</span><b>24</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:04:46.970502+00:00 · smoke count: 66</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="fnaim">
+          <div><strong>fnaim</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>20</b><span>actives</span><b>20</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:02:19.140793+00:00 · smoke count: 73</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="immo974">
+          <div><strong>immo974</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>20</b><span>actives</span><b>20</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:01:40.953284+00:00 · smoke count: 92</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="locamoi">
+          <div><strong>locamoi</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>21</b><span>actives</span><b>21</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:04:49.416657+00:00 · smoke count: 57</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="ofim">
+          <div><strong>ofim</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>27</b><span>actives</span><b>27</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:01:36.899397+00:00 · smoke count: 78</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="ofim_rss">
+          <div><strong>ofim_rss</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>27</b><span>actives</span><b>27</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:03:29.610678+00:00 · smoke count: 60</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="seloger">
+          <div><strong>seloger</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>270</b><span>actives</span><b>270</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:05:42.929044+00:00 · smoke count: 368</small>
+        </article>
+        <article class="source warning" data-status="aging" data-source="superimmo">
+          <div><strong>superimmo</strong><span>aging · covered-by-db-report</span></div>
+          <div class="nums"><b>15</b><span>actives</span><b>15</b><span>photos</span></div>
+          <p>vu il y a 47.3h</p>
+          <small>Dernier vu: 2026-06-25T17:29:49.987121+00:00 · smoke count: 46</small>
+        </article>
+        <article class="source ok" data-status="fresh" data-source="zimo">
+          <div><strong>zimo</strong><span>fresh · covered-by-db-report</span></div>
+          <div class="nums"><b>96</b><span>actives</span><b>96</b><span>photos</span></div>
+          <p>vu il y a 7.7h</p>
+          <small>Dernier vu: 2026-06-27T09:04:47.527464+00:00 · smoke count: 348</small>
+        </article></section><p class="sub">Généré: 2026-06-27T16:45:10.577170+00:00 · smoke run: 20260627T162009Z</p></main><script>let currentFilter='all';const q=document.getElementById('sourceQ');function norm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}function apply(){const query=norm(q?.value);document.querySelectorAll('.source').forEach(c=>{const st=c.dataset.status, smoke=c.textContent.includes('not-tested'), okFilter=currentFilter==='all'||st===currentFilter||(currentFilter==='not-tested'&&smoke), okQ=!query||norm(c.textContent).includes(query);c.style.display=(okFilter&&okQ)?'block':'none'})}document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{currentFilter=b.dataset.filter;apply()});q?.addEventListener('input',apply);apply();</script></body></html>

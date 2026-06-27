@@ -13,8 +13,8 @@
       "id": "nord_familial_budget",
       "name": "Famille — Sainte-Marie / quartiers 650–1000€",
       "enabled": true,
-      "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre, score opportunité >=75 pour garder uniquement les bons matchs.",
-      "min_score": 75,
+      "description": "Recherche quasi-prod pour Moufadal et famille: Sainte-Marie, La Bretagne, Rivière des Pluies, Duparc, Beauséjour; 650–1000€, au moins 1 chambre. Le score opportunité sert au tri/à la priorisation, pas à exclure silencieusement des annonces valides.",
+      "min_score": null,
       "filters": {
         "region": ["Nord"],
         "zones": [

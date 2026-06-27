@@ -1,0 +1,429 @@
+{
+  "version": "domain_inventory_v2",
+  "listing_count": 343,
+  "cities": [
+    [
+      "Saint-Denis",
+      117
+    ],
+    [
+      "Saint-Pierre",
+      57
+    ],
+    [
+      "Saint-Paul",
+      51
+    ],
+    [
+      "Le Tampon",
+      28
+    ],
+    [
+      "Saint-Leu",
+      13
+    ],
+    [
+      "Saint-André",
+      11
+    ],
+    [
+      "Étang-Salé",
+      9
+    ],
+    [
+      "Sainte-Marie",
+      8
+    ],
+    [
+      "Saint-Joseph",
+      7
+    ],
+    [
+      "La Possession",
+      7
+    ],
+    [
+      "Saint-Louis",
+      7
+    ],
+    [
+      "Trois-Bassins",
+      6
+    ],
+    [
+      "Petite-Île",
+      5
+    ],
+    [
+      "Non précisée",
+      4
+    ],
+    [
+      "Bras-Panon",
+      4
+    ],
+    [
+      "Saint-Benoît",
+      4
+    ],
+    [
+      "Sainte-Suzanne",
+      3
+    ],
+    [
+      "Le Port",
+      1
+    ],
+    [
+      "Entre-Deux",
+      1
+    ]
+  ],
+  "districts": [
+    [
+      "Saint-Denis",
+      57
+    ],
+    [
+      "Saint-Pierre",
+      47
+    ],
+    [
+      "Sainte-Clotilde",
+      31
+    ],
+    [
+      "Le Tampon",
+      28
+    ],
+    [
+      "Saint-Paul",
+      27
+    ],
+    [
+      "La Saline les Bains",
+      23
+    ],
+    [
+      "Moufia",
+      15
+    ],
+    [
+      "Saint-Leu",
+      13
+    ],
+    [
+      "Saint-André",
+      9
+    ],
+    [
+      "La Montagne",
+      7
+    ],
+    [
+      "Saint-Louis",
+      7
+    ],
+    [
+      "Bellepierre",
+      6
+    ],
+    [
+      "Ravine des Cabris",
+      6
+    ],
+    [
+      "Saint-Joseph",
+      6
+    ],
+    [
+      "Trois-Bassins",
+      6
+    ],
+    [
+      "Etang-Salé",
+      6
+    ],
+    [
+      "Sainte-Marie",
+      5
+    ],
+    [
+      "Sainte-Suzanne",
+      5
+    ],
+    [
+      "Zone non précisée",
+      4
+    ],
+    [
+      "Bras-Panon",
+      4
+    ],
+    [
+      "Bassin Plat",
+      4
+    ],
+    [
+      "Bois de Nèfles Sainte-Clotilde",
+      3
+    ],
+    [
+      "La Possession",
+      3
+    ],
+    [
+      "Saint-Benoît",
+      3
+    ],
+    [
+      "Moulin Joli",
+      2
+    ],
+    [
+      "Les Camélias",
+      2
+    ],
+    [
+      "Petite Ile",
+      2
+    ],
+    [
+      "Ligne des Bambous",
+      2
+    ],
+    [
+      "La Saline",
+      2
+    ],
+    [
+      "Beauséjour",
+      1
+    ],
+    [
+      "La Grande Montée",
+      1
+    ],
+    [
+      "Les Cafés",
+      1
+    ],
+    [
+      "Champ Fleuri",
+      1
+    ],
+    [
+      "Le Port",
+      1
+    ],
+    [
+      "Bas de la Rivière",
+      1
+    ],
+    [
+      "Cambaie",
+      1
+    ],
+    [
+      "Entre-Deux",
+      1
+    ]
+  ],
+  "regions": [
+    [
+      "Nord",
+      128
+    ],
+    [
+      "Sud",
+      114
+    ],
+    [
+      "Ouest",
+      78
+    ],
+    [
+      "Est",
+      19
+    ],
+    [
+      "Région non précisée",
+      4
+    ]
+  ],
+  "types": [
+    [
+      "Appartement",
+      253
+    ],
+    [
+      "Maison",
+      82
+    ],
+    [
+      "Appartement / maison",
+      8
+    ]
+  ],
+  "sources": [
+    [
+      "zimo",
+      79
+    ],
+    [
+      "bienici",
+      47
+    ],
+    [
+      "seloger",
+      30
+    ],
+    [
+      "citya",
+      24
+    ],
+    [
+      "domimmo",
+      23
+    ],
+    [
+      "ofim",
+      23
+    ],
+    [
+      "ofim_rss",
+      23
+    ],
+    [
+      "locamoi",
+      21
+    ],
+    [
+      "fnaim",
+      20
+    ],
+    [
+      "immo974",
+      17
+    ],
+    [
+      "superimmo",
+      15
+    ],
+    [
+      "alter",
+      12
+    ],
+    [
+      "97immo",
+      9
+    ]
+  ],
+  "features": [
+    [
+      "Varangue / terrasse",
+      160
+    ],
+    [
+      "Parking",
+      134
+    ],
+    [
+      "Meublé",
+      120
+    ],
+    [
+      "Jardin",
+      47
+    ],
+    [
+      "Piscine",
+      20
+    ],
+    [
+      "Non meublé",
+      15
+    ]
+  ],
+  "price_summary": {
+    "count": 321,
+    "min": 60,
+    "max": 5540,
+    "p25": 612,
+    "median": 890,
+    "p75": 1325
+  },
+  "surface_summary": {
+    "count": 339,
+    "min": 9.7,
+    "max": 400.0,
+    "median": 52.87
+  },
+  "rooms": [
+    [
+      2,
+      95
+    ],
+    [
+      1,
+      72
+    ],
+    [
+      4,
+      66
+    ],
+    [
+      3,
+      65
+    ],
+    [
+      5,
+      25
+    ],
+    [
+      6,
+      4
+    ],
+    [
+      7,
+      1
+    ]
+  ],
+  "furnished": {
+    "yes": 135,
+    "no_explicit": 0,
+    "unknown_or_not_furnished": 208
+  },
+  "missing_fields": [
+    [
+      "rooms",
+      44
+    ],
+    [
+      "price",
+      22
+    ],
+    [
+      "surface",
+      4
+    ],
+    [
+      "local_image_url",
+      3
+    ]
+  ],
+  "changes": [
+    [
+      "disappeared",
+      72
+    ],
+    [
+      "price_changed",
+      5
+    ],
+    [
+      "reappeared",
+      3
+    ]
+  ]
+}

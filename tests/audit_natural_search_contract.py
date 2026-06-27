@@ -20,6 +20,12 @@ if 'Ex: T2 Saint-Denis moins 900€ meublé parking' not in html:
     errors.append('placeholder does not teach natural search')
 if html.count('id="naturalSearchV2"') != 1:
     errors.append(f'naturalSearchV2 script count != 1: {html.count("id=\"naturalSearchV2\"")}')
+if 'V1 propre façon portail classique' in html:
+    errors.append('stale V1 homepage copy still visible')
+if 'Portail propre avec recherche naturelle' not in html:
+    errors.append('missing product-search homepage copy')
+if '\\bvide\\b' not in html:
+    errors.append('missing vide => non meublé parser support')
 if ontology.exists():
     o=json.loads(ontology.read_text(encoding='utf-8'))
     if o.get('version') != 'natural_search_v2': errors.append('ontology version mismatch')

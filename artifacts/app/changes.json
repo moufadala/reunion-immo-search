@@ -1,0 +1,4087 @@
+{
+  "meta": {
+    "generated_at": "2026-06-27T16:45:10.498063+00:00",
+    "db": "history.sqlite",
+    "ok": true,
+    "public_base_url": "https://immo.148.230.103.174.sslip.io/",
+    "current_rows": 1020,
+    "active_rows": 561,
+    "latest_event_at": "2026-06-27T16:45:10.048678+00:00",
+    "limit": 80,
+    "note": "Baseline new events are intentionally excluded; this file exposes only price/status changes."
+  },
+  "summary": {
+    "total_events": 80,
+    "by_type": {
+      "disappeared": 75,
+      "reappeared": 1,
+      "price_changed": 4
+    },
+    "all_history_counts": {
+      "disappeared": 485,
+      "new": 1020,
+      "price_changed": 30,
+      "reappeared": 26
+    },
+    "price_drops": 4
+  },
+  "changes": [
+    {
+      "event_id": 1474,
+      "listing_id": "domimmo:266250136630503",
+      "event_type": "price_changed",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 750,
+      "new_value": 555,
+      "delta_eur": -195,
+      "direction": "down",
+      "severity": "positive",
+      "lifecycle": {
+        "status_event_count": 0,
+        "price_event_count": 1,
+        "recent_status_events": [],
+        "recent_price_events": [
+          {
+            "event_id": 1474,
+            "event_type": "price_changed",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 750,
+            "new_value": 555
+          }
+        ]
+      },
+      "classification_note": null,
+      "item": {
+        "id": "domimmo:266250136630503",
+        "title": "Loue Petit Appart T2 Sur St-Pierre",
+        "url": "https://www.domimmo.com/reunion/immobilier/266250136630503/",
+        "source_site": "domimmo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/19c4db75b3909d19ef9ab224.jpg",
+        "description": "St-Pierre, à quelques minutes à pied du rond point Auchan La Balance, se loue ce petit appartement T2 toujours entretenu et disponible de suite",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-27T09:04:46.970121+00:00"
+      }
+    },
+    {
+      "event_id": 1473,
+      "listing_id": "zimo:019efc9d-c29e-7752-97ba-e13ce9f73125",
+      "event_type": "price_changed",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 750,
+      "new_value": 555,
+      "delta_eur": -195,
+      "direction": "down",
+      "severity": "positive",
+      "lifecycle": {
+        "status_event_count": 0,
+        "price_event_count": 1,
+        "recent_status_events": [],
+        "recent_price_events": [
+          {
+            "event_id": 1473,
+            "event_type": "price_changed",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 750,
+            "new_value": 555
+          }
+        ]
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019efc9d-c29e-7752-97ba-e13ce9f73125",
+        "title": "Loue Petit Appart T2 Sur St-Pierre",
+        "url": "https://www.zimo.fr/annonce/loue-petit-appart-t2-sur-st-pierre/019efc9d-c29e-7752-97ba-e13ce9f73125",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/f1a7bdbb8b07f358e257bbca.webp",
+        "description": "St-Pierre, à quelques minutes à pied du rond point Auchan La Balance, se loue ce petit appartement T2 toujours entretenu et disponible de suite",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-27T09:04:47.525684+00:00"
+      }
+    },
+    {
+      "event_id": 1472,
+      "listing_id": "seloger:269X5YT7AQV5",
+      "event_type": "price_changed",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1415,
+      "new_value": 1265,
+      "delta_eur": -150,
+      "direction": "down",
+      "severity": "positive",
+      "lifecycle": {
+        "status_event_count": 0,
+        "price_event_count": 1,
+        "recent_status_events": [],
+        "recent_price_events": [
+          {
+            "event_id": 1472,
+            "event_type": "price_changed",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1415,
+            "new_value": 1265
+          }
+        ]
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:269X5YT7AQV5",
+        "title": "Location Appartement · 2 pièce(s) · 57.3 m² · Saint-Paul",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-paul-974/263690973.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D5#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/05971e0d18cf1fd5688a1a09.webp",
+        "description": "Appartement · 2 pièce(s) · 57.3 m² · Saint-Paul · 1265 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-27T09:05:42.929044+00:00"
+      }
+    },
+    {
+      "event_id": 1471,
+      "listing_id": "seloger:263J5VL3PE7P",
+      "event_type": "price_changed",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1290,
+      "new_value": 1140,
+      "delta_eur": -150,
+      "direction": "down",
+      "severity": "positive",
+      "lifecycle": {
+        "status_event_count": 0,
+        "price_event_count": 1,
+        "recent_status_events": [],
+        "recent_price_events": [
+          {
+            "event_id": 1471,
+            "event_type": "price_changed",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1290,
+            "new_value": 1140
+          }
+        ]
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:263J5VL3PE7P",
+        "title": "Location Appartement · 2 pièce(s) · 47 m² · Saint-Paul",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-paul-974/272654251.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D2#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/e6ce52728e4a6e93a1501572.webp",
+        "description": "Appartement · 2 pièce(s) · 47.0 m² · Saint-Paul · 1140 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-27T09:05:42.929044+00:00"
+      }
+    },
+    {
+      "event_id": 1482,
+      "listing_id": "bienici:citya-immobilier-12453256-GES12191994-495",
+      "event_type": "reappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 0,
+      "new_value": 1,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "info",
+      "lifecycle": {
+        "status_event_count": 2,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1194,
+            "event_type": "disappeared",
+            "event_at": "2026-06-24T16:45:28.903965+00:00",
+            "old_value": 1,
+            "new_value": 0
+          },
+          {
+            "event_id": 1482,
+            "event_type": "reappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 0,
+            "new_value": 1
+          }
+        ],
+        "recent_price_events": [],
+        "last_disappeared_at": "2026-06-24T16:45:28.903965+00:00",
+        "offline_days": 3.0,
+        "cycle_label": "réapparition après disparition"
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:citya-immobilier-12453256-GES12191994-495",
+        "title": "EXCLUSIVITE A LOUER - MAISON 3 PIECES MEUBLEE - DISPONIBLE LE 16/06/26 - GRAND FOND SAINT LEU A louer : Charmante maison",
+        "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES12191994-495",
+        "source_site": "bienici",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Meublé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/b5a547fc542a200ad7b4004b.jpg",
+        "description": "EXCLUSIVITE A LOUER - MAISON 3 PIECES MEUBLEE - DISPONIBLE LE 16/06/26 - GRAND FOND SAINT LEU A louer : Charmante maison de type T3 située à Grand Fond - Piton Saint Leu, offrant un cadre rustique et chaleureux. Cette maison de 60m² dispose d'une cuisine aménagée, idéale pour préparer de délicieux repas en famille ou entre amis. Avec 2 chambres et une salle de douche, elle offre tout le confort nécessaire pour une vie paisible. Vous serez séduit par le patio, parfait pour profiter des journées ensoleillées et des soirées douces. L'ensemble de la maison dégage une atmosphère authentique, propice à la détente et au bien-être. Cette maison meublée est idéalement située à proximité de plusieurs commodités. Vous trouverez des supermarchés tels que Casino et E. Leclerc, ainsi que des établissement scolaire comme le Lycée STELLA MATUTINA et des pharmacies à quelques minutes en voiture. Pour les amateurs de pain frais, des boulangeries renommées telles que la Boulangerie de Stella et La Vanilleraie sont accessibles. Vous pourrez également profiter de la vue sur la mer depuis la maison, ajoutant une touche de sérénité à votre quotidien. À seulement 10 minutes en voiture de la 4 voies, cette maison bénéficie d'un emplacement pratique tout en offrant un cadre de vie paisible et pittoresque. Ne manquez pas cette opportunité de louer ce charmant bien au charme rustique. CITYA FRANCE IMMOBILIER. Loyer de 1 060,96 euros par mois charges comprises Soit avec Assurance Habitation et Assistance* ( 25.00 euros ) : 1 085,96 euros. Les honoraires charge locataire sont de 640,14 euros ( soit 11,10 euros/m² ) dont 174,74 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-27T08:59:46.599892+00:00"
+      }
+    },
+    {
+      "event_id": 1561,
+      "listing_id": "zimo:019eff4b-a027-795d-a297-928133d345da",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1561,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eff4b-a027-795d-a297-928133d345da",
+        "title": "A LOUER - T2 MEUBLE - VARANGUE - MONTROQUEFEUIL",
+        "url": "https://www.zimo.fr/annonce/a-louer-t2-meuble-varangue-montroquefeuil/019eff4b-a027-795d-a297-928133d345da",
+        "source_site": "zimo",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/cafc44ea3eb86d988cd0f6ed.webp",
+        "description": "Dossier n 260 L'Immo By Odyssée vous propose à la location au 2e étage d'une résidence sécurisée, un appartement spacieux de type 2 entièrement rénové et meublé avec goût de 47 m2. Il se compose d'un agréable séjour lumineux, d'une cuisine aménagée et équipée, d'une chambre climatisée avec placard intégré, d'une salle d'eau ainsi qu'un toilette séparé. Vous profiterez également d'une vaste terrasse avec une vue imprenable sur l'océan ainsi qu'une place de parking sécurisé. PAS DE VISITE EN VISIO DISPONIBILITE IMMEDIATEMENT Loyer : 1350,00 euros CC dont 50 euros de provisions pour charges de copropriété. Dépôt de garantie : 2600,00 euros Honoraires de mise en location : 611,00 euros dont 141,00 euros pour l'établissement de l'état des lieux d'entrée. Mentions obligatoires : - L'île de la réunion n'est pas concernée par le diagnostic de performance énergétique. DPE Consommation énergetique et faible émission de GES",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.616926+00:00"
+      }
+    },
+    {
+      "event_id": 1560,
+      "listing_id": "fnaim:13079",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1560,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13079",
+        "title": "location maison st paul 97460 4 pieces 2350€ NATO IMMOBILIER 974 LE-PORT",
+        "url": "https://www.fnaim.re/id-location-maison-38251-st-paul-4-pieces-13079/",
+        "source_site": "fnaim",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/2e606a0ecf817ecefb396197.jpg",
+        "description": "Annonce immobilière de location maison 4 pieces de € sur st paul 97460 - avec NATO IMMOBILIER 974 LE-PORT",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583477+00:00"
+      }
+    },
+    {
+      "event_id": 1559,
+      "listing_id": "97immo:1106_1035",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1559,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "97immo:1106_1035",
+        "title": "Location Appartement 41.1m² 2 pièces Saint Denis",
+        "url": "https://www.97immo.com/immobilier-annonce/location/appartement/saint-denis/la-r%C3%A9union/1106/1035",
+        "source_site": "97immo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/d34b1f199c6a35904bec6c85.jpg",
+        "description": "Immobilier La Réunion LOGER LOUE A SAINT DENIS RUE DU GENERAL DE GAULLE, PROCHE DE TOUTES COMMODITES, UN APPARTEMENT DE TYPE T2 SITUE DANS UNE PETITE RESIDENCE RECENTE, COMPRENANT : UN SEJOUR AVEC UN COIN CUISINE, UNE",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:21.511224+00:00"
+      }
+    },
+    {
+      "event_id": 1558,
+      "listing_id": "zimo:019efeed-d7ba-7143-986b-b2137239b3cb",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1558,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019efeed-d7ba-7143-986b-b2137239b3cb",
+        "title": "SD1537: APPARTEMENT T2 A LOUER ST PIERRE",
+        "url": "https://www.zimo.fr/annonce/sd1537-appartement-t2-a-louer-st-pierre/019efeed-d7ba-7143-986b-b2137239b3cb",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/0676a568fddd8ea6d56557e7.webp",
+        "description": "APPARTEMENT A LOUER ST PIERRE - PROXIMITÉ CENTRE VILLE : Le Cabinet Lemerle et Rivière vous propose à la location cet appartement T2 de 48,5 m². Ce bien se compose d'un séjour spacieux de 27 m² ouvrant sur une terrasse. Vous profiterez également d'une cuisine séparée de 5,6 m², d'une chambre de 9,8 m² et d'une salle de bains avec toilettes. Idéalement situé, l'appartement se trouve à seulement 5 minutes du centre-ville et de la plage !! LES INFOS/ CONTACT: LOYER : 600.00€/mois dont 20.00€ de provision charges TEOM Dépôt de garantie : 580.00 € Honoraires charge locataire : - visite, constitution du dossier, rédaction du bail : 485.00€ TTC - état des lieux d'entrée : 145.00€ TTC Réf : SD1537 Stone DE LONGPREZ 0692 91 03 03 Hamza SAID 0692 88 57 80 ***",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.616403+00:00"
+      }
+    },
+    {
+      "event_id": 1557,
+      "listing_id": "zimo:019eff47-88c7-7137-80ad-7c1304a02330",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1557,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eff47-88c7-7137-80ad-7c1304a02330",
+        "title": "Appartement 4 pièces 95 m²",
+        "url": "https://www.zimo.fr/annonce/appartement-4-pieces-95-m2/019eff47-88c7-7137-80ad-7c1304a02330",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/3cfb4de003b72b4a13c8e8bc.webp",
+        "description": "RUNIMMO - SAINTE MARIE- Rue General de gaulle Situé au 1er étage et dernier étage , nous vous proposons ce bel appartement T4 de 95M² comprenant une pièce de vie lumineuse et climatisée avec une vue mer, une cuisine équipée et aménagée, une belle véranda, un WC indépendant. A l'étage : trois chambres climatisées avec placard dont 2 donnent sur un balcon vue mer, une salle de bains, un WC indépendant Situé dans une résidence au calme et bien entretenue, la copropriété se trouve a proximité du centre ville et de nombreuses commodités: station, la poste ,commerces ,Leclerc la réserve. En complément: -2 places de parkings privatives -local vélo. Pour une visite contactez EMILIE au 0692 26 92 05. Honoraires de 1 249 € TTC à la charge du locataire comprenant 286 € TTC pour l'état des lieux. Loyer de base 896 €/mois. Provision sur charges 60 €/mois, régularisation annuelle. Dépôt de garantie 896 €. Non soumis au DPE",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.616368+00:00"
+      }
+    },
+    {
+      "event_id": 1556,
+      "listing_id": "seloger:26GI3EY6HGAR",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1556,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26GI3EY6HGAR",
+        "title": "Location Appartement · 1 pièce(s) · 20 m²",
+        "url": "https://www.seloger.com/271126089/detail.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D6#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Région non précisée",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Région non précisée",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/4ac827a09dd85aede5e83f28.webp",
+        "description": "Appartement · 1 pièce(s) · 20.0 m² · Non précisée · 490 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1555,
+      "listing_id": "fnaim:13057",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1555,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13057",
+        "title": "location appartement la saline les bains 97434 2 pieces 1170€ CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "url": "https://www.fnaim.re/id-location-appartement-38298-la-saline-les-bains-2-pieces-13057/",
+        "source_site": "fnaim",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/41e18ba5244d3ebdb4b0b037.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur la saline les bains 97434 - avec CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583609+00:00"
+      }
+    },
+    {
+      "event_id": 1554,
+      "listing_id": "immo974:745137",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1554,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745137",
+        "title": "Appartement 2 pièce(s) 52 m2",
+        "url": "https://www.immo974.com/annonce/locations/appartement/saint-paul-97460/a-louer-t2-centre-st-gilles-les-bains-vue-mer-745137.html",
+        "source_site": "immo974",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non meublé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/32a4423019558bc11ae728a9.jpg",
+        "description": "ALTER IMMOBILIER vous propose à la location : un T2 vide dans la résidence SEA BLUE à St Gilles les Bains. Découvrez le confort et la tranquillité de cet appartement, prêt à accueillir. Avec ses 52m2 de surface habitable et…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377227+00:00"
+      }
+    },
+    {
+      "event_id": 1553,
+      "listing_id": "bienici:citya-immobilier-12453256-GES12620005-495",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1553,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:citya-immobilier-12453256-GES12620005-495",
+        "title": "EXCLUSIVITE A LOUER - VILLA T4 NUE- LA SALINE LES HAUTS - DISPONIBLE LE 10 JUILLET 2026 À louer - Superbe villa de stan",
+        "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES12620005-495",
+        "source_site": "bienici",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 2,
+        "image_url": "thumbs/20e6e7f7f286ef7e1a47c8e5.jpg",
+        "description": "EXCLUSIVITE A LOUER - VILLA T4 NUE- LA SALINE LES HAUTS - DISPONIBLE LE 10 JUILLET 2026 À louer - Superbe villa de standing de 95,38 m² Nichée dans le charmant quartier de La Saline, cette villa d'exception vous invite à découvrir un cadre de vie alliant modernité et confort. Avec ses 95 m², cette maison T4 se distingue par son agencement réfléchi et ses prestations de qualité. Dès votre entrée, vous serez accueilli par un spacieux séjour lumineux, où la cuisine ouverte s'intègre harmonieusement, créant un espace convivial idéal pour recevoir vos proches. La villa dispose d'une belle suite parentale au rez-de-chaussée, dotée d'une douche à l'italienne, offrant ainsi un espace intime et raffiné. À l'étage, l'espace nuit se compose de deux chambres supplémentaires, dont une vaste chambre de plus de 20 m², agrémentée d'une terrasse attenante. Cet espace extérieur est parfait pour profiter des doux rayons du soleil et des soirées étoilées. Une salle de bains moderne complète cet étage, garantissant confort et praticité. La dernière chambre, quant à elle, offre une vue apaisante sur la mer, apportant une touche d'évasion au quotidien. La villa, entièrement meublée, est prête à accueillir ses nouveaux occupants sans nécessiter de travaux supplémentaires. Cette villa allie confort, fonctionnalité et cadre de vie privilégié, faisant d'elle un lieu de vie rêvé pour les familles ou les couples en quête de sérénité. Ne manquez pas cette opportunité unique de vivre dans un environnement d'exception. CITYA FRANCE IMMOBILIER. Loyer de 1 550,00 euros par mois charges comprises Soit avec Assurance Habitation et Assistance* ( 31.00 euros ) : 1 581,00 euros. Les honoraires charge locataire sont de 1 251,39 euros ( soit 13,12 euros/m² ) dont 289,00 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.100256+00:00"
+      }
+    },
+    {
+      "event_id": 1552,
+      "listing_id": "bienici:citya-immobilier-501991-GES04840110-34",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1552,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:citya-immobilier-501991-GES04840110-34",
+        "title": "À LOUER : Appartement T2 situé à Saint Denis, dans le secteur prisé de Montgaillard, au sein de la résidence Jacaranda.",
+        "url": "https://www.bienici.com/annonce/citya-immobilier-501991-GES04840110-34",
+        "source_site": "bienici",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/e94d7c1b2e42d2849021a696.jpg",
+        "description": "À LOUER : Appartement T2 situé à Saint Denis, dans le secteur prisé de Montgaillard, au sein de la résidence Jacaranda. Ce bien immobilier offre une superficie de 39.65 m², idéal pour un couple ou une personne seule à la recherche d'un cadre de vie agréable. L'appartement se trouve au troisième étage d'un immeuble équipé d'un ascenseur, facilitant l'accès. Il se compose d'un séjour lumineux, d'une chambre confortable, ainsi que d'une salle de bain. La cuisine est aménagée, offrant un espace fonctionnel pour préparer vos repas. De plus, un branchement pour machine à laver est prévu, ajoutant à la praticité de cet appartement. L'appartement dispose également d'une terrasse, parfaite pour profiter des journées ensoleillées et se détendre en extérieur. Pour votre confort, le bien est équipé d'un système de climatisation, garantissant une température agréable tout au long de l'année. La résidence Jacaranda est sécurisée, avec un digicode à l'entrée, et comprend un parking, vous permettant de stationner votre véhicule en toute tranquillité. Bien que l'appartement ne soit pas meublé, il offre une toile vierge pour personnaliser votre espace selon vos goûts. Ce bien est idéalement situé à proximité des commodités, des transports en commun et des espaces verts, vous permettant de profiter pleinement de la vie à Saint Denis. N'attendez plus pour visiter cet appartement qui pourrait devenir votre nouveau chez-vous. Le bien est soumis au statut de la copropriété. Loyer de 546,68 euros par mois charges comprises dont 40,00 euros par mois de provision pour charges (soumis à la régularisation annuelle). Soit avec Assurance Habitation et Assistance* ( 21.00 euros ) : 567,68 euros. Les honoraires charge locataire sont de 520,21 euros ( soit 13,12 euros/m² ) dont 120,14 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.100986+00:00"
+      }
+    },
+    {
+      "event_id": 1551,
+      "listing_id": "seloger:26EG2B79PH3Z",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1551,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26EG2B79PH3Z",
+        "title": "Location Maison · 5 pièce(s) · 90 m² · Le Tampon",
+        "url": "https://www.seloger.com/annonces/locations/maison/le-tampon-974/272227091.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D2#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 3,
+        "image_url": "thumbs/72ad3b76c704e47d94b7d1ce.webp",
+        "description": "Maison · 5 pièce(s) · 90.0 m² · Le Tampon · 1320 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1550,
+      "listing_id": "bienici:netty-company38833fgt-house-847",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1550,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:netty-company38833fgt-house-847",
+        "title": "MAISON T4 TAMPON PROCHE FAC ET BOULEVARD LYCEE",
+        "url": "https://www.bienici.com/annonce/netty-company38833fgt-house-847",
+        "source_site": "bienici",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 3,
+        "image_url": "thumbs/09093c08ea02323cc649bbfe.jpg",
+        "description": "A LOUER EN EXCLUSIVITE – MAISON CONTEMPORAINE T4 GARAGE & JARDIN – LE TAMPON 5 MINUTES A PIED DE L'UNIVERSITE. GARAGE. JARDIN. AUCUN VIS-A-VIS. EXCELLENT ETAT. 90 m². 3 chambres a l'etage. Garage ferme. Jardin a l'avant. Cour a l'arriere. Vue degagee. En excellent etat. Quartier calme et residentiel du Tampon. CE QUE VOUS AVEZ Maison contemporaine 90 m², Le Tampon, secteur Quatorzieme. Grand salon sejour lumineux avec cuisine ouverte amenagee et equipee Aucun vis-a-vis : intimite et tranquillite garanties Vue degagee 3 chambres a l'etage Salle de bains + 2 WC dont 1 independant Jardin privatif a l'avant Cour a l'arriere Garage ferme + 2 stationnements interieurs Etat interieur en excellent etat : aucun travaux A 5 minutes a pied de l'Universite du Tampon et du Boulevard des Lycees. Commerces, services et transports a proximite. IMAGINEZ Vos enfants a l'ecole en quelques minutes a pied. Le soir, votre jardin pour souffler. Le week-end, votre cour et votre garage a disposition. Une maison contemporaine en excellent etat, dans l'un des quartiers les plus calmes du Tampon. Ici, on vit bien. CONDITIONS DE CANDIDATURE Logement eligible a la Garantie Visale — renseignez-vous sur visale.fr . Sans Visale, GLI possible avec revenus salariaux reguliers (minimum 3x le loyer soit environ 3 840 euros/mois). Chaque dossier est etudie avec attention. INFORMATIONS FINANCIERES _ Loyer de base : 1 320 € / mois (dont 40€ de Provision sur charges pour la taxe d'ordures ménagères) ( Eau et électricité à la charge du locataire ) _ Dépôt de garantie : 1 280 € _ Honoraires locataire : 990 € TTC (dont 270 € TTC état des lieux inclus dans les 990€) CONTACTEZ BILKISSE POUR VISITER Bilkisse GOGUILLON Honoraires de 990 € TTC à la charge du locataire comprenant 270 € TTC pour l'état des lieux. Loyer de base 1280 €/mois. Provision sur charges 40 €/mois, régularisation annuelle. Dépôt de garantie 1 280 €. Non soumis au DPE. Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : georisques.gouv.fr. Votre conseiller PRO G IMMO : Bilkisse GOGUILLON Agent commercial (Entreprise individuelle)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.100324+00:00"
+      }
+    },
+    {
+      "event_id": 1549,
+      "listing_id": "fnaim:13059",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1549,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13059",
+        "title": "location appartement bois de nefles st paul 97411 3 pieces 1170€ CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "url": "https://www.fnaim.re/id-location-appartement-38267-bois-de-nefles-st-paul-3-pieces-13059/",
+        "source_site": "fnaim",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/c8642eb940dd17e674e808df.jpg",
+        "description": "Annonce immobilière de location appartement 3 pieces de € sur bois de nefles st paul 97411 - avec CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583634+00:00"
+      }
+    },
+    {
+      "event_id": 1548,
+      "listing_id": "fnaim:13051",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1548,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13051",
+        "title": "location appartement st denis 97400 2 pieces 1010€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-2-pieces-13051/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/51372cfb68e873d2ef2b3468.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur st denis 97400 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583566+00:00"
+      }
+    },
+    {
+      "event_id": 1547,
+      "listing_id": "zimo:019ef7ea-23aa-7e3a-92ed-497742138b02",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1547,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ef7ea-23aa-7e3a-92ed-497742138b02",
+        "title": "Location petit F3 secteur bras pontho tampon",
+        "url": "https://www.zimo.fr/annonce/location-petit-f3-secteur-bras-pontho-tampon/019ef7ea-23aa-7e3a-92ed-497742138b02",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/394e993aeb3167eff19e8a74.webp",
+        "description": "Bsr location F3 sur le secteur bsr pontho pontho au tampon avec petite cour Maison F3 de 64m2 Avec 2 chambre de 10 M2 et 21m2 Douche à l'italienne Petit coin salon et cuisine qui donne sur une terrasse 2 place de parking Chauffe eau solaire de 300 litres 710euros/mois Priorité personne seule Dispo à partir 01/08/2026",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.616553+00:00"
+      }
+    },
+    {
+      "event_id": 1546,
+      "listing_id": "fnaim:13052",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1546,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13052",
+        "title": "location appartement moufia 97490 1 pieces 516€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38318-moufia-1-piece-13052/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/7ce1f80a206240618cc66f27.jpg",
+        "description": "Annonce immobilière de location appartement 1 pieces de € sur moufia 97490 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583528+00:00"
+      }
+    },
+    {
+      "event_id": 1545,
+      "listing_id": "immo974:745155",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1545,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745155",
+        "title": "Appartement 2 pièce(s) 48 m2",
+        "url": "https://www.immo974.com/annonce/locations/appartement/saint-denis-97400/appartement-saint-denis-2-pieces-48-13-m2-745155.html",
+        "source_site": "immo974",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/ff720b7acec7a93808f691f6.jpg",
+        "description": "Agréable logement entièrement Meublé de 48 m², situé au 1er étage par escalier uniquement, comprenant un séjour et une cuisine ouverte, une salle de bains, un WC séparé, une chambre climatisée avec placard, une varangue couverte d'environ 6 m² et…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377194+00:00"
+      }
+    },
+    {
+      "event_id": 1544,
+      "listing_id": "immo974:745127",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1544,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745127",
+        "title": "Maison / Villa 4 pièce(s) 110 m2",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/petite-ile-97429/charmante-maison-f4-de-plain-pied-petite-ile-745127.html",
+        "source_site": "immo974",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/3533cea9a114b299d6f40959.jpg",
+        "description": "Idéalement située à seulement 5 minutes du centre-ville de Petite-Île, cette agréable maison de plain-pied offre un cadre de vie paisible et confortable, parfait pour une famille. ? Les atouts du bien : * Maison F4 de 110 m² habitables…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377246+00:00"
+      }
+    },
+    {
+      "event_id": 1543,
+      "listing_id": "seloger:26AG3691FB2V",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1543,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26AG3691FB2V",
+        "title": "Location Appartement · 2 pièce(s) · 42 m² · Saint-Denis",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-denis-974/272552003.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/6f5b0e478d1f9fd5a9d9ce7f.webp",
+        "description": "Appartement · 2 pièce(s) · 42.0 m² · Saint-Denis · 737 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1542,
+      "listing_id": "fnaim:13061",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1542,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13061",
+        "title": "location appartement st denis 97400 3 pieces 1080€ GO IMMO MOUFIA",
+        "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-3-pieces-13061/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/4ac0326d8cd5d0d859ad2645.jpg",
+        "description": "Annonce immobilière de location appartement 3 pieces de € sur st denis 97400 - avec GO IMMO MOUFIA",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583581+00:00"
+      }
+    },
+    {
+      "event_id": 1541,
+      "listing_id": "fnaim:13060",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1541,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13060",
+        "title": "location appartement st denis 97400 2 pieces 827€ G.T.I. ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-2-pieces-13060/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/c4285ab2cf883d291b02ec6c.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur st denis 97400 - avec G.T.I. ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583545+00:00"
+      }
+    },
+    {
+      "event_id": 1540,
+      "listing_id": "bienici:century-21-202_3485_2133",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1540,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:century-21-202_3485_2133",
+        "title": "Rivière des pluies, Ste Marie (Altitude 190m) , Century21 chaussée royale vous présente cette maison meublée de 147m² di",
+        "url": "https://www.bienici.com/annonce/century-21-202_3485_2133",
+        "source_site": "bienici",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 3,
+        "image_url": "thumbs/6a7db349a506176268b84433.jpg",
+        "description": "Rivière des pluies, Ste Marie (Altitude 190m) , Century21 chaussée royale vous présente cette maison meublée de 147m² disponible dès le 16/08/2026. En franchissant le seuil, vous découvrez un séjour de 64m² ouvrant directement sur une terrasse, idéal pour profiter des soirées en plein air. La mezzanine de 27m², parfaitement située entre le séjour et les espaces nuit, offre un coin supplémentaire qui peut servir de bureau, de salle de jeux ou de chambre d'appoint selon vos besoins. Deux chambres et une suite parentale permettent d'accueillir toute la famille. Le cadre de vie se caractérise par le calme et l'espace, offrant une véritable oasis de tranquillité. La proximité d'un environnement naturel préservé permet de se ressourcer facilement, que ce soit pour des balades à pied ou des moments de détente en plein air. Cette maison représente une opportunité rare de profiter d'un intérieur généreux, d'une terrasse accueillante et d'un cadre de vie serein, le tout à un loyer de 1700€/mois. Alors ne laissez personne s'installer chez vous, contactez nous pour une visite !",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.101101+00:00"
+      }
+    },
+    {
+      "event_id": 1539,
+      "listing_id": "fnaim:13062",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1539,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13062",
+        "title": "location appartement moufia 97490 5 pieces 1731€ GO IMMO MOUFIA",
+        "url": "https://www.fnaim.re/id-location-appartement-38318-moufia-5-pieces-13062/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 4,
+        "image_url": "thumbs/1ab2ddb76fabb682705a6567.jpg",
+        "description": "Annonce immobilière de location appartement 5 pieces de € sur moufia 97490 - avec GO IMMO MOUFIA",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583650+00:00"
+      }
+    },
+    {
+      "event_id": 1538,
+      "listing_id": "seloger:26CPKHZ1F3Q6",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1538,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26CPKHZ1F3Q6",
+        "title": "Location Appartement · 1 pièce(s) · 24.5 m² · Le Tampon",
+        "url": "https://www.seloger.com/annonces/locations/appartement/le-tampon-974/268485453.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D8#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/7893d0adde885d37bfef0eb5.webp",
+        "description": "Appartement · 1 pièce(s) · 24.5 m² · Le Tampon · 423 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1537,
+      "listing_id": "zimo:019eb05c-7b99-7dcf-ac52-c6a94cc3b86c",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1537,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eb05c-7b99-7dcf-ac52-c6a94cc3b86c",
+        "title": "T2Duplex LA SALINE LES BAINS- vue mer",
+        "url": "https://www.zimo.fr/annonce/t2duplex-la-saline-les-bains-vue-mer/019eb05c-7b99-7dcf-ac52-c6a94cc3b86c",
+        "source_site": "zimo",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/22b2eda01daef790eb9efb2e.webp",
+        "description": "Location d'un T2 Duplex entièrement rénové composé : - RDC: d'un salon /séjour avec un cuisine américaine ouverte de 30 m2 - étage : une chambre de 15 m2 donnant sur balcon et une salle de bains avec douche italienne . L'appartement est situé dans une résidence sécurisé avec piscine et une place de parking privative . Location saisonnière à partir de 500 euros la semaine ou location plus longue durée avec tarif dégressif . Location au mois envisageable à partir de 1500 euros ( eau et électricité comprise ) . Information complémentaire en message privé",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618115+00:00"
+      }
+    },
+    {
+      "event_id": 1536,
+      "listing_id": "seloger:261CBWRJ35VK",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1536,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:261CBWRJ35VK",
+        "title": "Location Appartement · 2 pièce(s) · 37 m²",
+        "url": "https://www.seloger.com/261cbwrj35vk/detail.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D4#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Région non précisée",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Région non précisée",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/a1ab0e9e367830de8d7d9f14.webp",
+        "description": "Appartement · 2 pièce(s) · 37.0 m² · Non précisée · 1320 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1535,
+      "listing_id": "zimo:019eb13e-f1ab-71b5-b211-3dd7892d6a8b",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1535,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eb13e-f1ab-71b5-b211-3dd7892d6a8b",
+        "title": "Appartement 2 pièces 34 m²",
+        "url": "https://www.zimo.fr/annonce/appartement-2-pieces-34-m2/019eb13e-f1ab-71b5-b211-3dd7892d6a8b",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/101c3acb1b030d5efc9033aa.webp",
+        "description": "À LOUER : Bienvenue dans votre futur cocon à Sainte Suzanne, un appartement récent T2 dans la résidence prisée des Cormorans. Imaginez-vous vivre dans un espace où chaque mètre carré est optimisé pour votre confort. Avec une superficie de 33 m², cet appartement est le parfait équilibre entre espace et praticité. Dès que vous franchirez la porte, vous serez accueilli par un salon lumineux, idéal pour des soirées détente ou des moments de convivialité. Avec une chambre confortable, cet appartement devance les attentes pour un sommeil réparateur et des rêves paisibles. La salle de bain, élégamment conçue, vous offre un espace intime pour vos routines quotidiennes. De plus, un patio attenant vous permettra de profiter de l'air frais et de la douceur du climat tout en savourant votre café du matin ou en lisant un bon livre. La climatisation électrique est un véritable atout, vous garantissant un confort optimal toute l'année. Situé dans un environnement calme, cet appartement vous offre la tranquillité d'esprit tout en étant à proximité des commodités de la ville. Ne laissez pas passer cette occasion d'emménager dans un lieu qui respire le modernisme et la fonctionnalité. Prenez votre envol vers une nouvelle vie aux Cormorans, où chaque jour est une promesse de sérénité et de bien-être. Venez visiter cet appartement qui pourrait bien devenir votre nouveau chez-vous !. Loyer de 539,00 euros par mois charges comprises dont 32,00 euros par mois de provision pour charges (soumis à la régularisation annuelle). Soit avec Assurance Habitation et Assistance* ( 21.00 euros ) : 560,00 euros. Les honoraires charge locataire sont de 375,29 euros ( soit 11,10 euros/m² ) dont 102,44 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618062+00:00"
+      }
+    },
+    {
+      "event_id": 1534,
+      "listing_id": "ofim_rss:73074",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1534,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "ofim_rss:73074",
+        "title": "Location Maison / Villa SAINT LOUIS - LA RIVIERE - Île de la Réunion - A louer maison f3 meublée",
+        "url": "https://www.ofim.fr/73074/Location-Maison-Villa-SAINT-LOUIS-LA-RIVIERE-ile-de-la-Reunion-A-louer-maison-f3-meublee.html",
+        "source_site": "ofim_rss",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/8f54d221ed7a9f2d297df296.jpg",
+        "description": "a louer a la rivière saint louis , très bellemaison f3 meublé de 41,10m² cette villa comprend un séjour avec 1 cuisine , 1chambres climatisée , 1wc et une salle de bains douche italienne , une varangue calme .vue imprenable océan montagne, beau jardin .au fond d'une impasse tres belle vue montagne . Loyer 755,84€ mensuelPour tout renseignement ou visite veuillez contacter Jean Marie Agent Commercial au 0692655555",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:28:33.906419+00:00"
+      }
+    },
+    {
+      "event_id": 1533,
+      "listing_id": "zimo:019eaf5c-c33c-7b4b-9008-fea5fd24e985",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1533,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eaf5c-c33c-7b4b-9008-fea5fd24e985",
+        "title": "APT T1 MEUBLE STE CLOTILDE proche fac",
+        "url": "https://www.zimo.fr/annonce/apt-t1-meuble-ste-clotilde-proche-fac/019eaf5c-c33c-7b4b-9008-fea5fd24e985",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/ea7772983c64d96cd3ecd4f7.webp",
+        "description": "Appartement T1 de 20 m2 habitable + terrasse couverte au rdc comprenant une entrée avec placard, une salle d'eau avec wc, un séjour avec coin cuisine équipé d'une machine à laver, plaques de cuisson, rangements, réfrigérateur Appartement situé à 5 min de l'université, commodités et transports en commun à proximité pas de place de parking loyer mensuel TCC : 590 € depot de garantie 1180 € honoraires d'agence TTC 258 € les risques auxquels ce bien est soumis sont disponibles sur georisques.gouv.fr Détails : Nombre de pièces : 1 Nombre de niveaux : 1 Nb de salle d'eau : 1 Cuisine : Kitchenette -Equipee Terrasse : 1 Nombre de wc : 1",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618127+00:00"
+      }
+    },
+    {
+      "event_id": 1532,
+      "listing_id": "zimo:019eac0f-4abf-7f00-8dc2-37e5deda51f7",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1532,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eac0f-4abf-7f00-8dc2-37e5deda51f7",
+        "title": "Studio meublé Sainte-Clotilde",
+        "url": "https://www.zimo.fr/annonce/studio-meuble-sainte-clotilde/019eac0f-4abf-7f00-8dc2-37e5deda51f7",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/ef13b8fdeee9592e82af10d4.webp",
+        "description": "Situé à Sainte-Clotilde, ce studio meublé de 20 m2 dispose d'une pièce principale, un coin cuisine avec plaque, frigo, hotte et placards, une salle de bains avec douche + WC et meuble vasque ainsi qu'un parking sécurisé en sous/sol. Disponible fin juin 2026. Loyer mensuel TCC : 485,00 EUR Honoraires en zone tendue : 261,00 EUR dont 60,15 EUR pour l'état des lieux. Dépôt de garantie : un mois et demi de loyer HC soit 727,50 EUR HERREN Immobilier 02 62 20 01 62/ 0692 42 71 13",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618221+00:00"
+      }
+    },
+    {
+      "event_id": 1531,
+      "listing_id": "alter:a-louer-villa-f5-plateau-cailloux",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1531,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "alter:a-louer-villa-f5-plateau-cailloux",
+        "title": "A LOUER - VILLA F5 - PLATEAU CAILLOUX - Alter Immobilier",
+        "url": "https://alter-immobilier.re/post_type_annonces/a-louer-villa-f5-plateau-cailloux/",
+        "source_site": "alter",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/13befff46b66cbe59c23e6c2.jpg",
+        "description": "A LOUER – VILLA F5 – PLATEAU CAILLOUX 2137€ PRÉSENTATION Alter Immobilier vous propose à la location : un bien idéalement placé a Plateau Caillou dans un lotissement calme : Se dresse une Villa duplex de Type 5 Cette Villa, répartie sur deux étages, se compose d’une entrée, communiquant sur un séjour, lui même ouvert […]",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:12.783845+00:00"
+      }
+    },
+    {
+      "event_id": 1530,
+      "listing_id": "immo974:745089",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1530,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745089",
+        "title": "Maison / Villa 102 m2",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/entre-deux-97414/villa-f4-proche-de-toutes-commodites-745089.html",
+        "source_site": "immo974",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/aa5aaa314b65f030778a882c.jpg",
+        "description": "Dans le quartier du Bras long, à louer Villa F4 à étage de 102 m2 habitable sur environ 400 m2 de terrain. Au rez-de-chaussée, un salon/séjour/cuisine, un cellier. et un WC A l'étage vous y trouverez 3 chambres, une salle…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377306+00:00"
+      }
+    },
+    {
+      "event_id": 1529,
+      "listing_id": "seloger:2619DVVYCJUJ",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1529,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:2619DVVYCJUJ",
+        "title": "Location Appartement · 1 pièce(s) · 36.7 m²",
+        "url": "https://www.seloger.com/269002097/detail.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D8#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+        "source_site": "seloger",
+        "region": "Région non précisée",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Région non précisée",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/7893d0adde885d37bfef0eb5.webp",
+        "description": "Appartement · 1 pièce(s) · 36.7 m² · Non précisée · 780 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1528,
+      "listing_id": "fnaim:13026",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1528,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13026",
+        "title": "location appartement la saline les bains 97434 1 pieces 770€ CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "url": "https://www.fnaim.re/id-location-appartement-38298-la-saline-les-bains-1-piece-13026/",
+        "source_site": "fnaim",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/02bf4e28ec74587d86319d30.jpg",
+        "description": "Annonce immobilière de location appartement 1 pieces de € sur la saline les bains 97434 - avec CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583740+00:00"
+      }
+    },
+    {
+      "event_id": 1527,
+      "listing_id": "seloger:25QNS6UEISRD",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1527,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:25QNS6UEISRD",
+        "title": "Location Appartement · 1 pièce(s) · 23 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-pierre-974/251092019.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D8#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/657aae45f8d445f288a72a56.webp",
+        "description": "Appartement · 1 pièce(s) · 23.0 m² · Saint-Pierre · 690 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1526,
+      "listing_id": "fnaim:13024",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1526,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13024",
+        "title": "location appartement st denis 97400 1 pieces 547€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-1-piece-13024/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/4aa9d8be8a6e719cca72acc3.jpg",
+        "description": "Annonce immobilière de location appartement 1 pieces de € sur st denis 97400 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583699+00:00"
+      }
+    },
+    {
+      "event_id": 1525,
+      "listing_id": "fnaim:13019",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1525,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13019",
+        "title": "location appartement st denis 97400 1 pieces 438€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38244-st-denis-1-piece-13019/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/1897d95aa862803f0616441c.jpg",
+        "description": "Annonce immobilière de location appartement 1 pieces de € sur st denis 97400 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583665+00:00"
+      }
+    },
+    {
+      "event_id": 1524,
+      "listing_id": "97immo:G123_1482",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1524,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "97immo:G123_1482",
+        "title": "T1 Agréable à 5 min du CHU - Bellepierre",
+        "url": "https://www.97immo.com/immobilier-annonce/location/appartement/saint-denis/la-r%C3%A9union/G123/1482",
+        "source_site": "97immo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/a1eedef1597fc6a1569a2b87.jpg",
+        "description": "Immobilier La Réunion LNA vous propose, à 5 min du CHU, en impasse, cet agréable appartement de 27m2 dont varangue fermée de 5m2, avec climatisation, rangements, cuisine agréable avec nombreux rangements, plaque vitro 3",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:21.511186+00:00"
+      }
+    },
+    {
+      "event_id": 1523,
+      "listing_id": "immo974:745071",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1523,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745071",
+        "title": "Maison / Villa Plus de 5 pièces 160 m ...",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/saint-pierre-97410/maison-meublee-6-pieces-avec-piscine-a-louer-a-saint-pierre-secteur-conde-concession-ideale-colocation-745071.html",
+        "source_site": "immo974",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 4,
+        "image_url": "thumbs/b51d37834d1ed0b3808b91f3.jpg",
+        "description": "L'agence LOGER de Saint-Pierre vous propose à la location cette agréable maison meublée de 160 m² située dans le secteur recherché de Condé Concession, offrant un cadre de vie confortable. Dès l'entrée, vous découvrirez une maison aux volumes généreux comprenant…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377500+00:00"
+      }
+    },
+    {
+      "event_id": 1522,
+      "listing_id": "domimmo:266194732153316",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1522,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "domimmo:266194732153316",
+        "title": "Appartement T3 MEUBLÉ Centre Ville St Pierre",
+        "url": "https://www.domimmo.com/reunion/immobilier/266194732153316/",
+        "source_site": "domimmo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/9c61b7ce38bf5c396f8104be.jpg",
+        "description": "*** Confort, luminosité et emplacement idéal au coeur de Saint-Pierre *** L'agence LOGER vous propose en exclusivité un superbe appartement meublé de type T3, idéalement situé au coeur de Saint-Pierre, dans la résidence sécurisée Les Francolins, à deux pas du front de mer. Situé au 3eme étage avec ascenseur, ce logement de 66 m² offre un cadre de vie agréable et fonctionnel : Un hall d'entrée avec WC indépendant, Une cuisine entièrement équipée, Un séjour lumineux ouvrant sur une varangue avec aperçu mer, Deux chambres avec placards intégrés, Une salle d'eau moderne. Confort garanti grâce à la climatisation dans le séjour et les chambres. Un double box fermé ainsi qu'une cave complètent ce bien rare à la location. Informations sur les risques naturels et technologiques disponibles sur : www.georisques.gouv.fr Laurent FAUCHON (EI) Agent Commercial - Numéro RSAC :",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.246115+00:00"
+      }
+    },
+    {
+      "event_id": 1521,
+      "listing_id": "bienici:apimo-87083892",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1521,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:apimo-87083892",
+        "title": "À LOUER – MAISON MEUBLÉE DE TYPE T4 DE 115 M² ENVIRON – SAINT-JOSEPH - 1 140€",
+        "url": "https://www.bienici.com/annonce/apimo-87083892",
+        "source_site": "bienici",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/9103c6c3b0f285c34afe9c17.jpg",
+        "description": "LES CLÉS DU SUD vous propose en exclusivité à la location cette agréable maison de type T4, entièrement meublée, d’une superficie d’environ 115 m², édifiée sur une parcelle d’environ 404 m², idéalement située en plein centre-ville de Saint-Joseph. Ce bien offre un cadre de vie confortable et fonctionnel, parfait pour une famille à la recherche de proximité et de praticité au quotidien. La maison se compose d’un séjour lumineux ouvert sur une cuisine équipée, de trois chambres, d’une salle d’eau ainsi que d’un WC. L’ensemble propose des volumes agréables et une organisation simple et efficace des espaces de vie. À l’extérieur, vous bénéficierez d’un espace permettant le stationnement de plusieurs véhicules, ainsi que d’un petit jardin idéal pour aménager un potager ou profiter d’un espace de détente. Son emplacement privilégié vous permet de profiter de toutes les commodités à proximité immédiate : commerces, écoles, services de santé, transports en commun et accès rapide aux principaux axes routiers. Conditions locatives : Loyer mensuel : 1 140 € Dépôt de garantie : 2 200 € (soit deux mois de loyer) Honoraires de location à la charge du locataire : 1140 €, dont 346,14 € pour l’état des lieux d’entrée. Pour toute information complémentaire ou pour organiser une visite, contactez dès à présent l’agence Les Clés du Sud. N'hésitez pas à nous contacter pour tout renseignement au 06 92 84 08 48 ou au 06 93 63 23 44 Carte professionnelle de transactions immobilières No CPI 97422016000010427 délivrée par la CCI de la Réunion. Siret: 51528459400022 -- Non soumis au DPE. *Les honoraires sont à la charge du vendeur. Nos tarifs sont consultables sur notre site www.lesclesdusud.re Conseil, estimation, vente, location LES CLES DU SUD 66 route de la Grande Corniche 97480 Saint Joseph Île de la Réunion. Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : www.georisques.gouv.fr. Annonce proposée par un agent commercial",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.101383+00:00"
+      }
+    },
+    {
+      "event_id": 1520,
+      "listing_id": "zimo:019eb089-9e4b-7d2a-9329-f3223e0d8eac",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1520,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eb089-9e4b-7d2a-9329-f3223e0d8eac",
+        "title": "Chambre meublée étudiante",
+        "url": "https://www.zimo.fr/annonce/chambre-meublee-etudiante/019eb089-9e4b-7d2a-9329-f3223e0d8eac",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 5,
+        "bedrooms": 4,
+        "image_url": "thumbs/2945b08584f07ed9bb950170.webp",
+        "description": "Loue petite chambre meublée climatisée située à proximité, à pied ,soit entre 5 à 10 mn à pied de IUT,CHU,Lycées,Centre ville,Plages,Commerces,Services médicaux ,etc....... On se situe dans la Rue Pavé. Toutes les charges sont comprises (eau,electricité,wifi et taxes ordures ménagères).Chambre disponible à partir du 10 Août. Chambre faisant partie d'une grande villa de 200 m2. Repas du soir en supplément. Nos contacter de préférence par téléphone.Nous prenons que des étudiants(es)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618100+00:00"
+      }
+    },
+    {
+      "event_id": 1519,
+      "listing_id": "domimmo:266194732153265",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1519,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "domimmo:266194732153265",
+        "title": "T2 Meublé - Front de mer - Saint Pierre",
+        "url": "https://www.domimmo.com/reunion/immobilier/266194732153265/",
+        "source_site": "domimmo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/2e63d1a7e64a4e10468bd726.jpg",
+        "description": "L'agence LOGER SAINT PIERRE vous propose à la location ce beau 2 pièces meublé situé dans la Résidence PORTES DU LAGON Idéalement situé sur le front de Mer de Saint Pierre, cet appartement entièrement meublé dispose d'un séjour climatisé, un coin cuisine entièrement équipé et aménagé, une chambre avec brasseur d'air et salle d'eau attenante, une varangue de 9 m² avec vue sur la montagne. Une place de parking en sous-sol",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.246129+00:00"
+      }
+    },
+    {
+      "event_id": 1518,
+      "listing_id": "immo974:745081",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1518,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745081",
+        "title": "Maison / Villa 4 pièce(s) 78 m2",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/saint-leu-97436/maison-f3-4-etang-saint-leu-745081.html",
+        "source_site": "immo974",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/f5e2691ace76f3f4c7a8ae1f.jpg",
+        "description": "ADOM IMMOBILIER -ETANG SAINT-LEU 1.650€/mois Dans un secteur recherché, venez découvrir cette villa de type F3/4 d'environ 80m², sur deux niveaux. Elle est édifiée sur une parcelle de terrain d'environ 400m² avec une magnifique vue mer. Elle est composée :…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377366+00:00"
+      }
+    },
+    {
+      "event_id": 1517,
+      "listing_id": "seloger:26GAAEDHBYGX",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1517,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26GAAEDHBYGX",
+        "title": "Location Maison · 4 pièce(s) · 118 m² · Bras-Panon",
+        "url": "https://www.seloger.com/annonces/locations/maison/bras-panon-974/269707171.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D7#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+        "source_site": "seloger",
+        "region": "Est",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Est",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/2a85cd2a537b68eb2524de67.webp",
+        "description": "Maison · 4 pièce(s) · 118.0 m² · Bras-Panon · 1290 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1516,
+      "listing_id": "immo974:745085",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1516,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745085",
+        "title": "Maison / Villa 4 pièce(s) 124 m2",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/saint-andre-97440/maison-745085.html",
+        "source_site": "immo974",
+        "region": "Est",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Est",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/1a400645ceeb5d0780f65849.jpg",
+        "description": "L'Agence Immobilière AIB vous propose à la location une grande maison familiale de plain-pied située à Saint-André, ruelle Esparon. D'une surface habitable de 124,75 m², cette maison spacieuse et confortable se compose de : Un grand séjour climatisé de 38,29…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377350+00:00"
+      }
+    },
+    {
+      "event_id": 1515,
+      "listing_id": "immo974:745119",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1515,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "immo974:745119",
+        "title": "Maison / Villa 4 pièce(s) 83 m2",
+        "url": "https://www.immo974.com/annonce/locations/maison-villa/saint-louis-97450/maison-t4-83m2-saint-louis-745119.html",
+        "source_site": "immo974",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/60ed4b8ded0553f0fe2d3767.jpg",
+        "description": "Maison T4 83m2 Saint-Louis *** SAINT-LOUIS *** SAM IMMOBILIER vous propose à la location une maison de plain pied type T4. Maison individuelle de 83m2 environ comprenant une entrée sur séjour/salle à manger, une cuisine, 3 chambres, une salle de…",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:26:36.377286+00:00"
+      }
+    },
+    {
+      "event_id": 1514,
+      "listing_id": "seloger:266E6DDZFYQH",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1514,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:266E6DDZFYQH",
+        "title": "Location Appartement · 4 pièce(s) · 96 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-pierre-974/271375615.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D6#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/f8ada4b5d44fbff4b6c3e6cf.webp",
+        "description": "Appartement · 4 pièce(s) · 96.0 m² · Saint-Pierre · 1140 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1513,
+      "listing_id": "zimo:019eac85-bae1-766b-83fe-d84486c32d90",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1513,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eac85-bae1-766b-83fe-d84486c32d90",
+        "title": "Maison 118 m² Saint Joseph",
+        "url": "https://www.zimo.fr/annonce/maison-118-m2-saint-joseph/019eac85-bae1-766b-83fe-d84486c32d90",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/7ed093bd7410985ea3f1b2d9.webp",
+        "description": "Située dans le quartier de Vincendo à Saint-Joseph, MAXImmo vous propose cette charmante maison de plain-pied d'environ 118 m² habitables qui offre un cadre de vie agréable et fonctionnel. Elle se compose de trois chambres confortables, d'une grande pièce de vie lumineuse avec cuisine ouverte sur le salon et la salle à manger, d'une spacieuse salle d'eau équipée de deux douches et d'une double vasque, ainsi que d'un wc séparé. À l'extérieur, vous profiterez d'une vaste terrasse couverte, idéale pour les moments de détente et de convivialité, agrémentée d'une cuisine au feu de bois. Deux places de stationnement sont également à disposition pour vos véhicules. Cette maison réunit tous les atouts pour accueillir une famille à la recherche de confort et de tranquillité dans un secteur apprécié de Saint-Joseph. Contactez-nous dès aujourd'hui pour organiser une visite. Loyer : 1100.00 € * - Honoraires charge locataire : 1298 € TTC - Dépôt de garantie : 1070 € Mandat n° 13769 Réseau MAXImmo - Plus d'informations et consultation de nos tarifs sur ' Honoraires de 1 298 € TTC à la charge du locataire comprenant 354 € TTC pour l'état des lieux. Loyer de base 1070 € / mois. Provision sur charges 30 € / mois, régularisation annuelle. Dépôt de garantie 1 070 €. Non soumis au DPE. Votre conseiller MAXImmo : Florian MANDIN Agent commercial (Entreprise individuelle)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618160+00:00"
+      }
+    },
+    {
+      "event_id": 1512,
+      "listing_id": "seloger:26AMZ4H6L2GC",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1512,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26AMZ4H6L2GC",
+        "title": "Location Villa · 3 pièce(s) · 65 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/maison/saint-pierre-974/269447009.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D9#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/bd4e880f58f2e984074ae5d3.webp",
+        "description": "Maison · 3 pièce(s) · 65.0 m² · Saint-Pierre · 1083 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1511,
+      "listing_id": "seloger:26KLHBHJXT54",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1511,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26KLHBHJXT54",
+        "title": "Location Maison · 4 pièce(s) · 76 m² · Saint-André",
+        "url": "https://www.seloger.com/annonces/locations/maison/saint-andre-974/266614615.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D3#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Est",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Est",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/6f5b0e478d1f9fd5a9d9ce7f.webp",
+        "description": "Maison · 4 pièce(s) · 76.0 m² · Saint-André · 1067 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1510,
+      "listing_id": "seloger:26CB2IU1NY31",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 1,
+        "recent_status_events": [
+          {
+            "event_id": 1510,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [
+          {
+            "event_id": 751,
+            "event_type": "price_changed",
+            "event_at": "2026-06-24T16:45:28.903965+00:00",
+            "old_value": 1050,
+            "new_value": 995
+          }
+        ],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null,
+        "nearby_price_change": {
+          "event_id": 751,
+          "event_type": "price_changed",
+          "event_at": "2026-06-24T16:45:28.903965+00:00",
+          "old_value": 1050,
+          "new_value": 995,
+          "delta_eur": -55,
+          "direction": "down"
+        }
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26CB2IU1NY31",
+        "title": "Location Appartement · 2 pièce(s) · 52 m² · Saint-Denis",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-denis-974/269002099.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D6#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+        "source_site": "seloger",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/7893d0adde885d37bfef0eb5.webp",
+        "description": "Appartement · 2 pièce(s) · 52.0 m² · Saint-Denis · 995 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1509,
+      "listing_id": "locamoi:pb36be3",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 3,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1042,
+            "event_type": "disappeared",
+            "event_at": "2026-06-24T16:45:28.903965+00:00",
+            "old_value": 1,
+            "new_value": 0
+          },
+          {
+            "event_id": 1229,
+            "event_type": "reappeared",
+            "event_at": "2026-06-24T22:54:06.722718+00:00",
+            "old_value": 0,
+            "new_value": 1
+          },
+          {
+            "event_id": 1509,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": "2026-06-24T22:54:06.722718+00:00",
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "locamoi:pb36be3",
+        "title": "location appartement saint-pierre 2 pièces 46 m2 reunion (97410) - 915 € / mois",
+        "url": "https://locamoi.fr/listings/location-appartement-saint-pierre-2-pieces-46-m2-reunion-97410-915-mois-pb36be3",
+        "source_site": "locamoi",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/f0eba2eba54b6cdd77abe3cf.jpg",
+        "description": "KOYTCHA Immo vous propose cet appartement T2 meublé, situé au rez-de-chaussée, dans le centre ville de la Ravine des Cabris. Vous profiterez d'un appartement bien équipé, climatisé et meublé avec goût. D'une surface habitable de 46m², ce bien est doté de : - Une chambre - Un séjour / cuisine - Une salle d'eau - Un WC - Une terrasse de 14m² - Une place de parking Loyer hors charges : 830 E Loyer charges comprises : 915 E/mois (EDF + TEOM) Dépôt de garantie : 1 660 E Honoraires d'agence : 603.52 E TTC Bail de 1 an renouvelable Disponible à partir du 22 juillet 2026 Pour plus d'informations, contactez Hugo LALOS au 0693 91 25 19 « Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : » Etages : 0Nombre de places de parking VL : 1ClimatisationTerrasseNombre de pièces : 2 Informations complémentaires sur informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques :",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:50.721400+00:00"
+      }
+    },
+    {
+      "event_id": 1508,
+      "listing_id": "fnaim:13030",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1508,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13030",
+        "title": "location appartement la possession 97419 2 pieces 850€ CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "url": "https://www.fnaim.re/id-location-appartement-38241-la-possession-2-pieces-13030/",
+        "source_site": "fnaim",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/e74a62d25d341c0d65cb0998.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur la possession 97419 - avec CITYA FRANCE IMMOBILIER LA-SALINE-LES-BAINS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583777+00:00"
+      }
+    },
+    {
+      "event_id": 1507,
+      "listing_id": "zimo:019ecb76-ddf8-7334-80ab-039a678cb248",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1507,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ecb76-ddf8-7334-80ab-039a678cb248",
+        "title": "Appartement 2 pièces 43 m²",
+        "url": "https://www.zimo.fr/annonce/appartement-2-pieces-43-m2/019ecb76-ddf8-7334-80ab-039a678cb248",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/af8467c42f0328a89b34f5b7.webp",
+        "description": "L'agence PRO G IMMO vous propose à la location un appartement de type T2 entièrement meublé sur le tampon. ? Découvrez cet agréable appartement de 42,87m2 habitable et un jardin de 40m2, idéalement situé dans un environnement calme et proche des commerces ( supermarché, fac, pizzeria, restaurants...) ** Caractéristiques principales : -1 chambre avec rangement placard -Salon lumineux avec belles ouvertures et accès au jardin privatif -Cuisine équipée et aménagée -Salle d'eau fonctionnelle -Place de parking privative L'appartement bénéficie d'une belle luminosité naturelle tout au long de la journée et offre de beaux volumes pour un confort optimal au quotidien. ** Conditions financières : -Loyer mensuel : 890 € / Mois, comprenant 20€ d'acompte pour la taxe d'ordures ménagères ( L'eau et l'électricité du logement restent à la charge du locataire ) -Dépôt de garantie : 800€ ( appartement meublé ) -Honoraires : 471,57€ TTC ( dont 128,61€ d'état des lieux INCLUS dans les 471,57€ ) **Une éventuelle visite ? Contactez directement Florian LANDON de l'agence PRO G IMMO - - - - - - - - - - - - - - - - - - - - - - - - - - - Agent inscrit au RSAC de Saint-Pierre Honoraires de 472 € TTC à la charge du locataire comprenant 129 € TTC pour l'état des lieux. Loyer de base 780 €/mois. Provision sur charges 20 €/mois, régularisation annuelle. Dépôt de garantie 870 €. Non soumis au DPE. Votre conseiller PRO G IMMO : Florian LANDON Agent commercial (Entreprise individuelle) RSAC 952602233",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.617646+00:00"
+      }
+    },
+    {
+      "event_id": 1506,
+      "listing_id": "seloger:26P7J3XBL92Y",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1506,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26P7J3XBL92Y",
+        "title": "Location Duplex · 2 pièce(s) · 35 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-pierre-974/270911935.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D3#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/72ad3b76c704e47d94b7d1ce.webp",
+        "description": "Appartement · 2 pièce(s) · 35.0 m² · Saint-Pierre · 784 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1505,
+      "listing_id": "bienici:netty-company38833fgt-appt-2272",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1505,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:netty-company38833fgt-appt-2272",
+        "title": "Appartement à louer Saint-Pierre",
+        "url": "https://www.bienici.com/annonce/netty-company38833fgt-appt-2272",
+        "source_site": "bienici",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/dd5bf4acaa2792d081e32b1a.jpg",
+        "description": "À LOUER – Superbe T2 Duplex de 35 m² en plein centre-ville de Saint-Pierre Idéalement situé au coeur de Saint-Pierre, dans une résidence sécurisée, ce charmant T2 duplex de 35 m² vous offre un cadre de vie pratique et agréable, à proximité immédiate de toutes les commodités. Ses atouts : ? Appartement en duplex, fonctionnel et lumineux ? Balcon, permettant de profiter de l'extérieur ? Résidence sécurisée ? Centre-ville accessible à pied ? Arrêt de bus juste à côté ? Plage à seulement 5 minutes à pied ? Super U à seulement 2 minutes à pied ? Place du centre-ville à 5 minutes à pied ? École, garderie, commerces et services à proximité immédiate ? Aucun besoin de voiture au quotidien Loyer : 779 € / mois + 5 € de charges d'immeuble / mois Total = 784 euros par mois Honoraires de location : 385€ dont 105€ d'état des lieux inclus dans les 385€ Dépôt de garantie : 779€ Ce bien bénéficie d'un emplacement très recherché et offre un excellent confort de vie grâce à sa proximité avec toutes les infrastructures essentielles. Appartement disponible immédiatement. Les biens de ce type se louent très rapidement, alors ne tardez pas ! Pour plus d'informations ou pour organiser une visite, contactez-moi Bilkisse GOGUILLON. Honoraires de 385 € TTC à la charge du locataire comprenant 105 € TTC pour l'état des lieux. Zone soumise à encadrement des loyers. Loyer de référence majoré (loyer de base à ne pas dépasser) 784 €/mois. Loyer de base 779 €/mois. 5 €/mois de charges forfaitaires. Dépôt de garantie 779 €. Non soumis au DPE. Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : georisques.gouv.fr. Votre conseiller PRO G IMMO : Bilkisse GOGUILLON Agent commercial (Entreprise individuelle)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.101445+00:00"
+      }
+    },
+    {
+      "event_id": 1504,
+      "listing_id": "seloger:26EG3EI5V36N",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 1,
+        "recent_status_events": [
+          {
+            "event_id": 1504,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [
+          {
+            "event_id": 786,
+            "event_type": "price_changed",
+            "event_at": "2026-06-24T16:45:28.903965+00:00",
+            "old_value": 720,
+            "new_value": 690
+          }
+        ],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null,
+        "nearby_price_change": {
+          "event_id": 786,
+          "event_type": "price_changed",
+          "event_at": "2026-06-24T16:45:28.903965+00:00",
+          "old_value": 720,
+          "new_value": 690,
+          "delta_eur": -30,
+          "direction": "down"
+        }
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26EG3EI5V36N",
+        "title": "Location Appartement · 2 pièce(s) · 40 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-pierre-974/267458447.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D9#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/ff2f6661f2108126dac70bc6.webp",
+        "description": "Appartement · 2 pièce(s) · 40.0 m² · Saint-Pierre · 690 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1503,
+      "listing_id": "fnaim:13039",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1503,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13039",
+        "title": "location appartement l etang sale 97427 2 pieces 700€ DELMONTE IMMOBILIER (D.I.) ST-PIERRE",
+        "url": "https://www.fnaim.re/id-location-appartement-38237-l-etang-sale-2-pieces-13039/",
+        "source_site": "fnaim",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/8a03210f3d628752f5779a4f.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur l etang sale 97427 - avec DELMONTE IMMOBILIER (D.I.) ST-PIERRE",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583715+00:00"
+      }
+    },
+    {
+      "event_id": 1502,
+      "listing_id": "bienici:citya-immobilier-12-GES10120010-35",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1502,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:citya-immobilier-12-GES10120010-35",
+        "title": "À LOUER : Appartement T2 situé à L'Étang-Salé les hauts, offrant un cadre de vie agréable et pratique. Ce bien immobilie",
+        "url": "https://www.bienici.com/annonce/citya-immobilier-12-GES10120010-35",
+        "source_site": "bienici",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/eff87055f6a8da2d39c79f26.jpg",
+        "description": "À LOUER : Appartement T2 situé à L'Étang-Salé les hauts, offrant un cadre de vie agréable et pratique. Ce bien immobilier se trouve au premier étage d'une résidence avec ascenseur, facilitant l'accès pour tous les résidents. Ce logement, récent, dispose d'une superficie de 42 m²+ varangue, idéal pour un couple ou une personne seule. Il se compose d'un séjour lumineux avec cuisine ouverte, d'une chambre confortable, ainsi que d'une salle d'eau. Une place de parking. Disponible début septembre 2026 La résidence est bien entretenue et sécurisée, offrant un cadre de vie serein. De plus, la proximité des commodités telles que les commerces, les écoles et les transports en commun facilite le quotidien des résidents. Cet appartement T2 est une opportunité à ne pas manquer pour ceux qui recherchent un logement fonctionnel et bien situé à L'Étang-Salé. N'hésitez pas à nous contacter pour plus d'informations ou pour organiser une visite. CITYA ST PIERRE - TEL 02.62.253.250 . Le bien est soumis au statut de la copropriété. Loyer de 700,00 euros par mois charges comprises dont 50,00 euros par mois de provision pour charges (soumis à la régularisation annuelle). Soit avec Assurance Habitation et Assistance* ( 21.00 euros ) : 721,00 euros. Les honoraires charge locataire sont de 472,86 euros ( soit 11,10 euros/m² ) dont 129,08 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.101324+00:00"
+      }
+    },
+    {
+      "event_id": 1501,
+      "listing_id": "seloger:26Z623PAVXRZ",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1501,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26Z623PAVXRZ",
+        "title": "Location Appartement · 2 pièce(s) · 30 m² · Saint-Pierre",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-pierre-974/270764497.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D4#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/72ad3b76c704e47d94b7d1ce.webp",
+        "description": "Appartement · 2 pièce(s) · 30.0 m² · Saint-Pierre · 680 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1500,
+      "listing_id": "bienici:netty-company38833fgt-appt-2265",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1500,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:netty-company38833fgt-appt-2265",
+        "title": "Appartement à louer Saint-Pierre",
+        "url": "https://www.bienici.com/annonce/netty-company38833fgt-appt-2265",
+        "source_site": "bienici",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/005f2b2db2d3ede28f788471.jpg",
+        "description": "À LOUER – Charmant T2 de 30 m² en plein centre-ville de Saint-Pierre Idéalement situé au coeur de Saint-Pierre, ce joli appartement T2 de 30 m² bénéficie d'un emplacement privilégié à proximité immédiate de toutes les commodités : commerces, transports, restaurants, services, écoles et espaces de loisirs. Caractéristiques du logement : - Appartement T2 de 30 m² - Pièce de vie lumineuse - Chambre confortable - Cuisine fonctionnelle - Salle de bain - WC indépendant - Situation centrale et pratique Profitez d'un cadre de vie agréable avec tout accessible à pied, dans l'un des secteurs les plus dynamiques de Saint-Pierre. Loyer mensuel : 675 € Charges mensuelles : 5 € Soit un total de 680 € par mois charges comprises. Disponible dès maintenant. Pour plus d'informations ou pour organiser une visite, n'hésitez pas à contacter Bilkisse GOGUILLON. Une belle opportunité à saisir pour vivre en centre-ville dans un logement pratique et confortable ! Honoraires de 675 € TTC à la charge du locataire comprenant 101 € TTC pour l'état des lieux. Zone soumise à encadrement des loyers. Loyer de référence majoré (loyer de base à ne pas dépasser) 675 €/mois. Loyer de base 675 €/mois. 5 €/mois de charges forfaitaires. Dépôt de garantie 675 €. Non soumis au DPE. Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : georisques.gouv.fr. Votre conseiller PRO G IMMO : Bilkisse GOGUILLON Agent commercial (Entreprise individuelle)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.101463+00:00"
+      }
+    },
+    {
+      "event_id": 1499,
+      "listing_id": "locamoi:pebae6a",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 3,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1030,
+            "event_type": "disappeared",
+            "event_at": "2026-06-24T16:45:28.903965+00:00",
+            "old_value": 1,
+            "new_value": 0
+          },
+          {
+            "event_id": 1228,
+            "event_type": "reappeared",
+            "event_at": "2026-06-24T22:54:06.722718+00:00",
+            "old_value": 0,
+            "new_value": 1
+          },
+          {
+            "event_id": 1499,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": "2026-06-24T22:54:06.722718+00:00",
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "locamoi:pebae6a",
+        "title": "location appartement saint-pierre 2 pièces 35 m2 reunion (97410) - 679 € / mois",
+        "url": "https://locamoi.fr/listings/location-appartement-saint-pierre-2-pieces-35-m2-reunion-97410-679-mois-pebae6a",
+        "source_site": "locamoi",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/637cdc8df339b81f3ba0ceba.jpg",
+        "description": "SAINT-PIERRE - rue du Four à Chaux - Appt F2 de 35 m², situé au 1er étage. Il comprend une pièce avec l'espace cuisine équipé d'une plaque de cuisson au gaz, une mezzanine (chambre), une salle de bain et un wc séparé. Pas de place de parking, stationnement dans la rue. Loyer HC de 674 euros Provisions pour charges : 5 euros Dépôt de garantie : 674 euros 339.50 euros TTC d'honoraires à la charge du locataire au titre des honoraires de visite, de constitution de dossier, de rédaction du bail ainsi que pour l'état des lieux d'entrée. Pour tous renseignements, contactez-nous au 0262 490 490",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:50.721317+00:00"
+      }
+    },
+    {
+      "event_id": 1498,
+      "listing_id": "seloger:26HQPJLL45JR",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1498,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26HQPJLL45JR",
+        "title": "Location Appartement · 1 pièce(s) · 34.9 m² · Le Tampon",
+        "url": "https://www.seloger.com/annonces/locations/appartement/le-tampon-974/266694269.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D6#ln=classified_search_results&m=classified_search_results_classified_classified_detail_L",
+        "source_site": "seloger",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 1,
+        "image_url": "thumbs/7893d0adde885d37bfef0eb5.webp",
+        "description": "Appartement · 1 pièce(s) · 34.9 m² · Le Tampon · 665 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1497,
+      "listing_id": "zimo:019ea64f-fd5d-79fd-9080-77285a8398d5",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1497,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ea64f-fd5d-79fd-9080-77285a8398d5",
+        "title": "Appartement 2 pièces 43 m²",
+        "url": "https://www.zimo.fr/annonce/appartement-2-pieces-43-m2/019ea64f-fd5d-79fd-9080-77285a8398d5",
+        "source_site": "zimo",
+        "region": "Sud",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "non_meuble",
+        "location_label": "Sud",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/a84f63202e757401843d7e5f.webp",
+        "description": "Mon Agence Immobilière vous propose à la location cet appartement non meublé de type T2 situé au Tampon. D'une surface habitable de 43m², ce Type 2 offre dès l'entrée un espace de vie dégagé attenant à une cuisine. Du côté nuit, vous découvrirez une chambre, ainsi qu'une salle d'eau équipée. À l'extérieur, vous profiterez d'une terrasse de 10 m² Idéalement situé à Trois Marres, sa proximité avec les grands axes routiers lui confère un emplacement de qualité. Les infrastructures scolaires (école, collège, lycée et université), les commerces et grandes surfaces se trouvent à moins de 10 minutes en voiture. Loyer : 600 € Provision pour charges : 50 € Dépôt de garantie : 600 € Honoraires d'agence à la charge du locataire : 564.16 € dont 130.29 € de frais d'état des lieux Information d'affichage énergétique sur ce bien : Non soumis au DPE. Pour plus d'informations, merci de nous contacter via le [Coordonnées masquées] ou le [Coordonnées masquées] via [Coordonnées masquées]",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618307+00:00"
+      }
+    },
+    {
+      "event_id": 1496,
+      "listing_id": "seloger:26S89CT5V8QA",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1496,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "seloger:26S89CT5V8QA",
+        "title": "Location Appartement · 1 pièce(s) · 28 m² · Saint-Denis",
+        "url": "https://www.seloger.com/annonces/locations/appartement/saint-denis-974/270051703.htm?serp_view=list&search=distributionTypes%3DRent%26estateTypes%3DHouse%2CApartment%26locations%3DAD04RE1%26page%3D4#ln=classified_search_results&m=classified_search_results_classified_classified_detail_M",
+        "source_site": "seloger",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 1,
+        "bedrooms": 0,
+        "image_url": "thumbs/d220006e2cf6ceec4d515ef5.webp",
+        "description": "Appartement · 1 pièce(s) · 28.0 m² · Saint-Denis · 650 €/mois",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:30:44.021224+00:00"
+      }
+    },
+    {
+      "event_id": 1495,
+      "listing_id": "bienici:citya-immobilier-12453256-GES12560014-495",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1495,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "bienici:citya-immobilier-12453256-GES12560014-495",
+        "title": "EN EXCLUSIVITE - A LOUER MAISON 4 PIECES A PETITE ILE - DISPONIBLE DEBUT JUIN 2026. Située à Petite Île, cette maison d",
+        "url": "https://www.bienici.com/annonce/citya-immobilier-12453256-GES12560014-495",
+        "source_site": "bienici",
+        "region": "Ouest",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "non_meuble",
+        "location_label": "Ouest",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/64278948c1232c6aa3b60567.jpg",
+        "description": "EN EXCLUSIVITE - A LOUER MAISON 4 PIECES A PETITE ILE - DISPONIBLE DEBUT JUIN 2026. Située à Petite Île, cette maison de type T4 offre un cadre de vie agréable et fonctionnel. Avec une superficie habitable de 79 m², elle se compose de quatre pièces spacieuses, idéales pour accueillir une famille ou un groupe de colocataires. L'agencement de la maison permet de profiter d'un espace de vie lumineux et convivial. Les pièces sont bien proportionnées, offrant ainsi de nombreuses possibilités d'aménagement selon vos besoins. Bien que non meublée, cette maison vous permet de personnaliser chaque espace selon vos goûts et vos préférences. La maison ne dispose pas de sous-sol ni d'ascenseur, ce qui contribue à son charme et à son caractère authentique. Située dans un environnement calme, elle est parfaite pour ceux qui recherchent la tranquillité tout en étant à proximité des commodités locales. Le quartier de Petite Île est réputé pour sa convivialité et son ambiance paisible, tout en offrant un accès facile aux commerces, écoles et autres services essentiels. Cette maison représente une opportunité rare sur le marché locatif, alliant confort et praticité. Si vous êtes à la recherche d'un logement spacieux et bien situé, n'hésitez pas à nous contacter pour plus d'informations ou pour organiser une visite. CITYA FRANCE IMMOBILIER. Loyer de 1 000,00 euros par mois charges comprises Soit avec Assurance Habitation et Assistance* ( 31.00 euros ) : 1 031,00 euros. Les honoraires charge locataire sont de 878,01 euros ( soit 11,10 euros/m² ) dont 239,67 euros pour état des lieux ( soit 3,03 euros/m² ). Vous pouvez consulter les barèmes d'honoraires à l'adresse suivante : Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site Géorisques : *Service facultatif. Contribution annuelle \"attentats\" non comprise. Voir conditions en agence",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:24:36.100424+00:00"
+      }
+    },
+    {
+      "event_id": 1494,
+      "listing_id": "zimo:019ea954-c169-76cb-be69-1701c986cbfd",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1494,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ea954-c169-76cb-be69-1701c986cbfd",
+        "title": "Villa F4 à Sainte-Clotilde",
+        "url": "https://www.zimo.fr/annonce/villa-f4-a-sainte-clotilde/019ea954-c169-76cb-be69-1701c986cbfd",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/77cb3544d4fe6a7dd07cef15.webp",
+        "description": "Située dans le secteur du Moufia à Sainte Clotilde, cette villa F4 de 85 m2 dispose au rez-de-chaussée d'un séjour, d'une cuisine équipée avec plaque et hotte, une chambre, un WC indépendant et une terrasse. A l'étage, vous disposez de 2 chambres dont une climatisée, une salle de bains et un WC indépendant. Vous disposez également d'un garage et de 2 jardins (un avant et un arrière). Située à proximité du rectorat, d'établissements scolaire, de transports en commun et à 3 minutes en voiture du Boulevard Sud. Disponible à partir du 19 juin 2026. Montant du loyer 1300,00 €. Montant du dépôt de garantie un mois de loyer soit 1300,00 €. Montant des honoraires 1111,00 € dont 256,38 € pour l'état des lieux HERREN Immobilier / Détails : Nombre de chambre(s) : 3 Nombre de pièces : 4 Nombre de niveaux : 1 Nb de salle de bains : 1 Nombre de wc : 2",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618234+00:00"
+      }
+    },
+    {
+      "event_id": 1493,
+      "listing_id": "zimo:019ea8e4-e64e-7230-bb78-6e816d2485db",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1493,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ea8e4-e64e-7230-bb78-6e816d2485db",
+        "title": "A LOUER - T3 - D'ENVIRON 64 M2 - SAINT-DENIS - LOYER 1270 EUR",
+        "url": "https://www.zimo.fr/annonce/a-louer-t3-d-environ-64-m2-saint-denis-loyer-1270-eur/019ea8e4-e64e-7230-bb78-6e816d2485db",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/08862c2b231de460ab46a36d.webp",
+        "description": "À LOUER HABILIS Appartement T3 SAINT-DENIS Situé à Saint-Denis, cet appartement T3 de 64 m2, entièrement rénové, vous séduira par son confort et sa fonctionnalité. Il comprend un séjour lumineux offrant un agréable espace de vie, deux chambres, une cuisine ainsi qu'une salle d'eau avec WC. Idéalement situé à proximité des commerces, des services, des établissements scolaires et des transports en commun, ce logement bénéficie d'un emplacement pratique pour le quotidien. Loyer mensuel : 1270 EUR Dépôt de garantie : 1270 EUR Honoraires locataire : 832 EUR (dont 192 EUR pour l'état des lieux) Disponible immédiatement Vous pouvez consulter notre grille tarifaire en vigueur en cliquant sur le lien suivant Contactez votre agence immobilière, sous le numéro de carte professionnelle no CPI 97412022000000006 délivrée par : CCI de la Réunion au no 0693 226 226 ou au 0262 21 16 14 ou par mail sur s.randera@cabinet-habilis.com ou sur gestion.habilisimmobilier@cabinet-habilis.com",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618274+00:00"
+      }
+    },
+    {
+      "event_id": 1492,
+      "listing_id": "zimo:019eb0d0-9ca4-7b92-8d13-da9512767a90",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1492,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eb0d0-9ca4-7b92-8d13-da9512767a90",
+        "title": "Appartement 4 pièces 90 m²",
+        "url": "https://www.zimo.fr/annonce/appartement-4-pieces-90-m2/019eb0d0-9ca4-7b92-8d13-da9512767a90",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 4,
+        "bedrooms": 3,
+        "image_url": "thumbs/a6d40248a8e5e8c526d4682f.webp",
+        "description": "🏡 À LOUER - Appartement T4 - Sainte-Clotilde Idéalement situé rue des Écoliers à Sainte-Clotilde, découvrez cet agréable appartement T4 offrant un cadre de vie pratique et confortable, à proximité immédiate des commerces, écoles, services et des principaux axes routiers. L'appartement se compose de : ✔️ Un séjour lumineux ✔️ Une cuisine ✔️ Trois chambres ✔️ Une salle d'eau ✔️ Un WC indépendant Vous bénéficierez également de deux places de parking privatives, un véritable atout au quotidien. 📍 Emplacement recherché, proche de toutes les commodités et facilitant vos déplacements. 📅 Disponible immédiatement. 📞 Contactez-nous dès maintenant pour plus d'informations ou pour organiser une visite",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618081+00:00"
+      }
+    },
+    {
+      "event_id": 1491,
+      "listing_id": "fnaim:13018",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1491,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13018",
+        "title": "location appartement moufia 97490 2 pieces 543€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-appartement-38318-moufia-2-pieces-13018/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 2,
+        "bedrooms": 1,
+        "image_url": "thumbs/887c52d5f88e0b6ab15253eb.jpg",
+        "description": "Annonce immobilière de location appartement 2 pieces de € sur moufia 97490 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583683+00:00"
+      }
+    },
+    {
+      "event_id": 1490,
+      "listing_id": "zimo:019ea91f-d174-7eab-861e-63f25de3f203",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1490,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019ea91f-d174-7eab-861e-63f25de3f203",
+        "title": "Loft 568 m²",
+        "url": "https://www.zimo.fr/annonce/loft-568-m2/019ea91f-d174-7eab-861e-63f25de3f203",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/3d4eb30e33f5365f1ac518ef.webp",
+        "description": "Bernadette DE LAUNAY 0692 25 66 69 b.delaunay@outre-mer-immobilier.re LOCAL de 568 m² PAE LA MARE - SAINTE MARIE A 1 minute de la zone aéroportuaire, ZONE DE LA MARE, local d'activité /entrepôt. Surface d'exploitation en RDC et bureau en mezzanine 6 places de parking USAGE MIXTE : production, transformation, stockage, showroom Provisions pour charges : 0,21 € HT/HC/m²/mois Provisions mensuelle taxe foncière : 342,50 € Honoraires : 15% du loyer annuel HT HC à la charge du preneur Fiscal : TVA 8,5% Paiement loyer : mensuel d'avance Dépôt de garantie : 2 mois de loyer HT HCPlus d'informations et des vidéos ? Venez consulter notre site internet outre-mer-immobilier ou contactez moi : Bernadette DE LAUNAY Négociateur(trice) Immobilier au 0692 25 66 69 - Vous avez également un bien à vendre ? Appelez-moi au 0692 25 66 69 pour une estimation gratuite !------------------------------------------Les informations sur les risques auxquels ce bien est exposé sont disponibles sur le site www.georisques.gouv.fr",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618258+00:00"
+      }
+    },
+    {
+      "event_id": 1489,
+      "listing_id": "ofim_rss:73061",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1489,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "ofim_rss:73061",
+        "title": "Location Appartement SAINT DENIS - LA MONTAGNE - Île de la Réunion - A louer T3 avec belle varangue, residence Piton trésor, chemin Bailly à La Montagne",
+        "url": "https://www.ofim.fr/73061/Location-Appartement-SAINT-DENIS-LA-MONTAGNE-ile-de-la-Reunion-A-louer-T3-avec-belle-varangue-residence-Piton-tresor-chemin-Bailly-a-La-Montagne.html",
+        "source_site": "ofim_rss",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": null,
+        "bedrooms": null,
+        "image_url": "thumbs/8d12b6e296cbdd0f7818c42e.jpg",
+        "description": "T3 à louer chemin Bailly à La Montagne, proche de toutes les commodités, à pieds.Cet appartement de 65m2 se compose d'un sejour avec cuisine ouverte, d'une belle varangue de 14m2, de 2 chambres avec placards, d'un cellier, d'une salle de bain, wc séparés. . Une place de parking est attribuée au logement en sous sol. . Loyer: 708€+ 77€ de ch = 785€ mensuel. .Disponible de suite .Honoraires agence: 785€ ( dont 198,89€ pour l'etat des lieux) .Conditions de location: cdi avec salaire minimum de 2200€. .Soumis au plafond des ressources du locataire:revenu fiscal de référence à ne pas dépasser: 1 personne = 34233€; 1 couple= 45 712€; avec 1 enfant = 54 972€ .POUR INFOS ET VISITE E CONTACTER AU 0692 25 87 45 (KARINE)",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:28:33.906524+00:00"
+      }
+    },
+    {
+      "event_id": 1488,
+      "listing_id": "fnaim:13022",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1488,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "fnaim:13022",
+        "title": "location maison st andre 97440 3 pieces 808€ CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "url": "https://www.fnaim.re/id-location-maison-38242-st-andre-3-pieces-13022/",
+        "source_site": "fnaim",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/1f2fe2199d8918a90aa55e06.jpg",
+        "description": "Annonce immobilière de location maison 3 pieces de € sur st andre 97440 - avec CITYA SAINT DENIS - CITYA AUSTRAL ST-DENIS",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:27:11.583754+00:00"
+      }
+    },
+    {
+      "event_id": 1487,
+      "listing_id": "zimo:019eb4f3-ccdd-783e-a5c0-686ee65e1aae",
+      "event_type": "disappeared",
+      "event_at": "2026-06-27T16:45:10.048678+00:00",
+      "old_value": 1,
+      "new_value": 0,
+      "delta_eur": null,
+      "direction": null,
+      "severity": "watch",
+      "lifecycle": {
+        "status_event_count": 1,
+        "price_event_count": 0,
+        "recent_status_events": [
+          {
+            "event_id": 1487,
+            "event_type": "disappeared",
+            "event_at": "2026-06-27T16:45:10.048678+00:00",
+            "old_value": 1,
+            "new_value": 0
+          }
+        ],
+        "recent_price_events": [],
+        "last_reappeared_at": null,
+        "next_reappeared_at": null,
+        "offline_days_until_next_reappearance": null
+      },
+      "classification_note": null,
+      "item": {
+        "id": "zimo:019eb4f3-ccdd-783e-a5c0-686ee65e1aae",
+        "title": "Appartement Saint Denis 3 pièce(s) 65 m2",
+        "url": "https://www.zimo.fr/annonce/appartement-saint-denis-3-piece-s-65-m2/019eb4f3-ccdd-783e-a5c0-686ee65e1aae",
+        "source_site": "zimo",
+        "region": "Nord",
+        "commune": null,
+        "primary_zone": null,
+        "zones": [],
+        "property_type": null,
+        "furnished": "Non précisé",
+        "location_label": "Nord",
+        "rent_eur": null,
+        "surface_m2": null,
+        "rooms": 3,
+        "bedrooms": 2,
+        "image_url": "thumbs/5d015c0f2a57d048647c0dd3.webp",
+        "description": "Appartement type 3 d'environ 65 m², situé au 1er étage par escalier uniquement, comprenant 1 séjour avec loggia, 2 chambre, 1 salle d'eau, 1 WC, offrant une belle vue mer, et petit cellier . 1 place de parking. Résidence 'Bellevue' - Secteur Providence 97400 SAINT-DENIS - libre de suite - commercial 06 93 10 46 06",
+        "decision_summary": null,
+        "seen_last_at": "2026-06-25T17:29:48.618293+00:00"
+      }
+    }
+  ]
+}

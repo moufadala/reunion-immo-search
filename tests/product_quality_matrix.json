@@ -1,0 +1,379 @@
+{
+  "schema_version": 1,
+  "project": "Immo Réunion",
+  "description": "Matrice QA produit unifiée: gates existants classés par famille et criticité P0/P1/P2.",
+  "levels": {
+    "P0": "Bloque publication",
+    "P1": "Bloque release",
+    "P2": "Rapport / surveillance"
+  },
+  "families": {
+    "search_oracle": "Recherche naturelle, oracle d'acceptation et contrats de parsing.",
+    "semantic_truth": "Vérité métier des annonces, descriptions et données affichables.",
+    "source_pipeline": "Santé sources et contrats pipeline non destructifs.",
+    "display_public": "Affichage public, mobile, changements et parité visible.",
+    "geo_photo_quality": "Qualité géolocalisation, prudence détail et photos.",
+    "dedup_ops_alerts": "Opportunités, déduplication, alertes sauvegardées et cockpit ops."
+  },
+  "gates": [
+    {
+      "id": "search_oracle_v2",
+      "family": "search_oracle",
+      "level": "P0",
+      "role": "Oracle large de recherche publique: requêtes naturelles, chips, budget et non-régression UX.",
+      "scope": "URL publique via IMMO_PUBLIC_BASE; cas acceptance_search_oracle_v2.json.",
+      "prerequisites": [
+        "Serveur public accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_search_oracle_v2.py"
+      ],
+      "timeout_seconds": 420
+    },
+    {
+      "id": "user_search_cases",
+      "family": "search_oracle",
+      "level": "P0",
+      "role": "Cas de recherche utilisateur signalés: quartiers, accents, budgets, meublé/non meublé.",
+      "scope": "URL publique via IMMO_PUBLIC_URL.",
+      "prerequisites": [
+        "Serveur public accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_user_search_cases.py"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "natural_search_contract",
+      "family": "search_oracle",
+      "level": "P1",
+      "role": "Contrat statique de parsing/recherche naturelle embarqué dans l'app.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/index.html et données associées"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_natural_search_contract.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "reunion_geo_search_contract",
+      "family": "search_oracle",
+      "level": "P1",
+      "phase": "parallel",
+      "role": "Contrat partagé géo/recherche Réunion: aliases communes, lieux métier sensibles, variantes utilisateur et oracle generator.",
+      "scope": "Code local + génération oracle/inventory en répertoire temporaire; pas de publication.",
+      "prerequisites": [
+        "src/reunion_geo_search_contract.py",
+        "scripts/generate_domain_inventory_and_oracle_v2.py",
+        "{app}/listings.json",
+        "{app}/changes.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_reunion_geo_search_contract.py"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "data_truth_public",
+      "family": "semantic_truth",
+      "level": "P0",
+      "role": "Vérifie que les données publiques visibles sont justifiées par listings.json.",
+      "scope": "URL publique via IMMO_PUBLIC_BASE.",
+      "prerequisites": [
+        "Serveur public accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_data_truth_public.py"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "listing_semantic_truth",
+      "family": "semantic_truth",
+      "level": "P0",
+      "role": "Audit sémantique local: champs obligatoires, données incertaines, leaks techniques.",
+      "scope": "{app}/listings.json; écrit un rapport sous artifacts/.",
+      "prerequisites": [
+        "Artefact app local construit"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_listing_semantic_truth.py"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "description_quality",
+      "family": "semantic_truth",
+      "level": "P1",
+      "role": "Qualité des descriptions: fallback, longueur, contenu exploitable.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_description_quality.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "source_health",
+      "family": "source_pipeline",
+      "level": "P0",
+      "role": "Smoke reproductible de génération source_health.json/html et classification fraîcheur.",
+      "scope": "Fixture temporaire sans secret ni écriture publique.",
+      "prerequisites": [
+        "src/source_health.py présent"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_source_health.py"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "pipeline_script_contracts",
+      "family": "source_pipeline",
+      "level": "P0",
+      "role": "Contrats scripts daily/sprint: stage, gates, promotion, rollback non destructifs.",
+      "scope": "Lecture scripts pipeline uniquement.",
+      "prerequisites": [
+        "scripts/immo_daily_public_refresh.sh",
+        "scripts/run_product_v2_sprint.sh"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_pipeline_script_contracts.py"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "qa_readonly_defaults",
+      "family": "source_pipeline",
+      "level": "P0",
+      "role": "Contrat anti-side-effect: les audits QA doivent écrire par défaut hors repo, sauf sortie explicite.",
+      "scope": "Lecture/import des scripts QA et validation de leurs chemins de sortie par défaut.",
+      "prerequisites": [
+        "tests/run_product_quality_matrix.py",
+        "tests/audit_semantic_source_quality_matrix.py",
+        "scripts/audit_dedup_public.py"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_qa_readonly_defaults.py"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "mobile_public",
+      "family": "display_public",
+      "level": "P0",
+      "role": "Smoke UX mobile public: overflow, boutons budget, synchronisation requête.",
+      "scope": "URL publique via IMMO_PUBLIC_BASE.",
+      "prerequisites": [
+        "Serveur public accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_mobile_public.py"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "public_deep_user_quality",
+      "family": "display_public",
+      "level": "P0",
+      "role": "QA navigateur publique profonde: recherches, cartes, modale, leaks, changes.",
+      "scope": "URL publique via IMMO_PUBLIC_BASE.",
+      "prerequisites": [
+        "Serveur public accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_public_deep_user_quality.py"
+      ],
+      "timeout_seconds": 420
+    },
+    {
+      "id": "changes_decision_public",
+      "family": "display_public",
+      "level": "P1",
+      "role": "Page changements publique orientée décision utilisateur.",
+      "scope": "URL publique via IMMO_PUBLIC_BASE.",
+      "prerequisites": [
+        "Serveur public accessible"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_changes_decision_public.py"
+      ],
+      "timeout_seconds": 180
+    },
+    {
+      "id": "geo_photo_quality",
+      "family": "geo_photo_quality",
+      "level": "P1",
+      "role": "Qualité géo/photo locale: coordonnées, images, prudence d'affichage.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_geo_photo_quality.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "location_fine_district_priority",
+      "family": "geo_photo_quality",
+      "level": "P1",
+      "role": "Non-régression localisation fine: Moufia/Camélias/Domenjod doivent gagner sur Sainte-Clotilde sans casser Bois de Nèfles Saint-Paul.",
+      "scope": "Logique locale src/immo_intelligence_layers.py.",
+      "prerequisites": [
+        "src/immo_intelligence_layers.py"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_location_fine_district_priority.py"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "opportunity_v2",
+      "family": "dedup_ops_alerts",
+      "level": "P1",
+      "role": "Cohérence opportunités/scoring et explications produit.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_opportunity_v2.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "dedup_display",
+      "family": "dedup_ops_alerts",
+      "level": "P1",
+      "role": "Déduplication d'affichage: prudence, originaux conservés, mentions sûres.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_dedup_display.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "saved_search_admin",
+      "family": "dedup_ops_alerts",
+      "level": "P2",
+      "role": "Smoke admin recherches sauvegardées sur fixtures synthétiques.",
+      "scope": "Fixture temporaire sans publication.",
+      "prerequisites": [
+        "src/saved_search_admin.py",
+        "config/saved_searches.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_saved_search_admin.py"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "search_alerts",
+      "family": "dedup_ops_alerts",
+      "level": "P1",
+      "role": "Alertes recherches: smoke synthétique sans envoi externe.",
+      "scope": "Fixtures temporaires et dry-run local.",
+      "prerequisites": [
+        "src/search_alerts.py",
+        "config/saved_searches.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_search_alerts.py"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "ops_cockpit",
+      "family": "dedup_ops_alerts",
+      "level": "P2",
+      "role": "Cockpit ops public: noindex, données sûres, pas de leak secret/interne.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/ops.html",
+        "{app}/ops_status.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_ops_cockpit.py",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    },
+    {
+      "id": "public_dom_json_parity",
+      "family": "display_public",
+      "level": "P0",
+      "role": "Parité public/local: listings.json, changes.json, changes.html, DOM navigateur si Playwright disponible.",
+      "scope": "Artefact app local + URL publique; mode strict utilise Playwright via venv.",
+      "prerequisites": [
+        "{app}/listings.json",
+        "URL publique accessible",
+        "Playwright installé"
+      ],
+      "command": [
+        "{playwright_python}",
+        "tests/audit_public_dom_json_parity.py",
+        "--app",
+        "{app}",
+        "--public",
+        "{public}"
+      ],
+      "timeout_seconds": 240
+    },
+    {
+      "id": "semantic_source_quality_matrix",
+      "family": "semantic_truth",
+      "level": "P0",
+      "role": "Gate consolidé qualité sémantique/source: couverture champs, descriptions, photos, localisation, anomalies.",
+      "scope": "Artefact app local; écrit ses rapports par défaut dans un répertoire temporaire run-scoped.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_semantic_source_quality_matrix.py",
+        "--app",
+        "{app}"
+      ],
+      "timeout_seconds": 120
+    }
+  ]
+}

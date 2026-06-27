@@ -1,0 +1,251 @@
+{
+  "version": "opportunity_dedup_calibration_v1",
+  "score_version": "opportunity-v2-explainable-2026-06-25",
+  "listings": 561,
+  "score_buckets": {
+    "strong_75_plus": 128,
+    "medium_55_74": 255,
+    "low_under_55": 178
+  },
+  "top_count": 80,
+  "top_examples": [
+    {
+      "id": "bienici:citya-immobilier-501991-GES54780002-34",
+      "title": "EXCLUSIVITÉ - APPARTEMENT 3 PIÈCES NEUF À louer : Citya Saint-Denis vous propose cet appartement de 3 pièces de 63 m² ha",
+      "source": "bienici",
+      "score": 94,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 29% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES04890008-495",
+      "title": "EXCLUSIVITE À LOUER - LOGEMENT NEUF - DISPONIBLE DE SUITE - HONORAIRE DE LOCATION OFFERTE - SOUS CONDITIONS DE RESSOURCE",
+      "source": "bienici",
+      "score": 94,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 40% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "bienici:citya-immobilier-12453256-GES04890018-495",
+      "title": "EXCLUSIVITE À LOUER - LOGEMENT NEUF - LIBRE LE 28/06/26 - SOUS CONDITIONS DE RESSOURCE : Appartement T3 situé à BOIS DE",
+      "source": "bienici",
+      "score": 94,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 39% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "bienici:ag190517-530905661",
+      "title": "Maison",
+      "source": "bienici",
+      "score": 94,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 35% sous la référence observée (commune+type, n=17)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "locamoi:pd937dc",
+      "title": "A LOUER T3 DUPLEX ST DENIS, RUE MONTHYON, 764€/MOIS, ILE DE LA REUNION",
+      "source": "locamoi",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 39% sous la référence observée (commune+type, n=145)",
+        "galerie locale 5 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "domimmo:266234301855008",
+      "title": "GRAND APPARTEMENT F2 MEUBLE A LOUER ST DENIS - CHAMP FLEURI",
+      "source": "domimmo",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 34% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "locamoi:pf4f1b9",
+      "title": "A LOUER APPT T2 STE CLOTILDE AVEC VARANGUE",
+      "source": "locamoi",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 34% sous la référence observée (commune+type, n=145)",
+        "galerie locale 6 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "bienici:citya-immobilier-501991-GES03310233-34",
+      "title": "CITYA SAINT DENIS, vous propose à la location magnifique appartement de type 4 (3 chambres) idéalement situé entre la st",
+      "source": "bienici",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 38% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "bienici:citya-immobilier-501991-GES03310263-34",
+      "title": "CITYA A LOUER T5 Duplex Résidence Jardins aux Camélias, Rue Gustave Flaubert: Au Rdc : Une entrée, un séjour, deux chamb",
+      "source": "bienici",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 38% sous la référence observée (commune+type, n=145)",
+        "galerie locale 8 photos",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    },
+    {
+      "id": "zimo:019ecdfc-9427-7b45-bb22-499137b58a0a",
+      "title": "Sainte-Clotilde : T3 MEUBLE à louer LIBRE A COMPTER DU 13 J",
+      "source": "zimo",
+      "score": 91,
+      "label": "opportunité forte",
+      "confidence": "haute",
+      "reasons": [
+        "prix/m² 21% sous la référence observée (commune+type, n=145)",
+        "photo principale locale disponible",
+        "description source détaillée",
+        "surface/pièce confortable",
+        "localisation inférée avec confiance haute"
+      ]
+    }
+  ],
+  "dedup": {
+    "groups_count": 95,
+    "auto_duplicate": 30,
+    "needs_review": 65,
+    "inter_source": 84,
+    "annotated_seen_also_on": 228,
+    "hidden_from_default_grid": 34
+  },
+  "commune_price_m2": {
+    "Bras-Panon": {
+      "n": 6,
+      "median_price_m2": 15.22
+    },
+    "Entre-Deux": {
+      "n": 3,
+      "median_price_m2": 14.58
+    },
+    "La Possession": {
+      "n": 13,
+      "median_price_m2": 16.37
+    },
+    "Le Tampon": {
+      "n": 59,
+      "median_price_m2": 17.0
+    },
+    "Non précisée": {
+      "n": 21,
+      "median_price_m2": 20.88
+    },
+    "Petite-Île": {
+      "n": 9,
+      "median_price_m2": 12.7
+    },
+    "Saint-André": {
+      "n": 17,
+      "median_price_m2": 12.74
+    },
+    "Saint-Benoît": {
+      "n": 4,
+      "median_price_m2": 14.55
+    },
+    "Saint-Denis": {
+      "n": 171,
+      "median_price_m2": 19.05
+    },
+    "Saint-Joseph": {
+      "n": 11,
+      "median_price_m2": 14.25
+    },
+    "Saint-Leu": {
+      "n": 18,
+      "median_price_m2": 17.25
+    },
+    "Saint-Louis": {
+      "n": 18,
+      "median_price_m2": 12.09
+    },
+    "Saint-Paul": {
+      "n": 69,
+      "median_price_m2": 21.04
+    },
+    "Saint-Philippe": {
+      "n": 3,
+      "median_price_m2": 10.76
+    },
+    "Saint-Pierre": {
+      "n": 98,
+      "median_price_m2": 16.63
+    },
+    "Sainte-Marie": {
+      "n": 14,
+      "median_price_m2": 17.39
+    },
+    "Trois-Bassins": {
+      "n": 5,
+      "median_price_m2": 16.04
+    },
+    "Étang-Salé": {
+      "n": 12,
+      "median_price_m2": 18.51
+    }
+  },
+  "contract": [
+    "opportunité forte = score >=75 avec raisons et confiance",
+    "dédup non destructive: aucune suppression automatique",
+    "vu aussi sur = signal produit, pas fusion cachée",
+    "score calibré par prix/m² communal quand échantillon suffisant"
+  ]
+}

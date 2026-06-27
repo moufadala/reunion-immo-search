@@ -1,0 +1,43 @@
+{
+  "version": "natural_search_v2",
+  "commune_aliases": {
+    "Saint-Denis": [
+      "saint denis",
+      "st denis",
+      "sainte clotilde"
+    ],
+    "Sainte-Marie": [
+      "sainte marie",
+      "ste marie",
+      "beausejour",
+      "grande montée",
+      "les cafés"
+    ],
+    "Saint-Paul": [
+      "saint paul",
+      "st paul",
+      "bois de nèfles saint-paul"
+    ],
+    "Saint-Pierre": [
+      "saint pierre",
+      "st pierre"
+    ]
+  },
+  "amenity_aliases": {
+    "Meublé": [
+      "meublé",
+      "meublee",
+      "meuble"
+    ],
+    "Parking": [
+      "parking",
+      "garage",
+      "stationnement"
+    ],
+    "Varangue / terrasse": [
+      "varangue",
+      "terrasse",
+      "balcon"
+    ]
+  }
+}

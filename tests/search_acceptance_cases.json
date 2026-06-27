@@ -1,0 +1,55 @@
+{
+  "version": "search_acceptance_cases_v1_20260626",
+  "purpose": "Banque initiale de cas métier + métamorphiques pour tester la recherche immo RUN au navigateur, au-delà des exemples ponctuels de Moufadal.",
+  "rules": {
+    "never_full_base_for_recognized_specific_location": true,
+    "accent_dash_case_variants_same_intent": true,
+    "t_and_f_room_synonyms": true,
+    "bare_number_requires_operator_choice": true,
+    "non_meuble_excludes_explicit_meuble": true,
+    "explicit_budget_operators_are_strict": true,
+    "chips_must_match_applied_criteria": true
+  },
+  "p0_cases": [
+    {"q":"rivière des pluies","kind":"location","expect":"not_full_base; count>=1; relevant_location_contains=rivière des pluies|sainte-marie"},
+    {"q":"riviere des pluies","kind":"location_variant","expect":"same_intent_as=rivière des pluies"},
+    {"q":"rivieres des pluies","kind":"location_variant_plural","expect":"same_intent_as=rivière des pluies"},
+    {"q":"beauséjour","kind":"location","expect":"not_full_base; count>=1; relevant_location_contains=beauséjour|sainte-marie"},
+    {"q":"beausejour","kind":"location_variant","expect":"same_intent_as=beauséjour"},
+    {"q":"grande montée","kind":"location","expect":"not_full_base; count>=1; relevant_location_contains=grande montée|sainte-marie"},
+    {"q":"grande montee","kind":"location_variant","expect":"same_intent_as=grande montée"},
+    {"q":"duparc","kind":"location","expect":"not_full_base; if_zero_show_relax_to_sainte_marie"},
+    {"q":"bretagne","kind":"location","expect":"not_full_base; if_zero_show_relax_to_saint_denis"},
+    {"q":"la bretagne","kind":"location_variant","expect":"same_intent_as=bretagne"},
+    {"q":"T4","kind":"rooms","expect":"rooms=4"},
+    {"q":"F4","kind":"rooms_synonym","expect":"same_as=T4; rooms=4"},
+    {"q":"T3","kind":"rooms","expect":"rooms=3"},
+    {"q":"F3","kind":"rooms_synonym","expect":"same_as=T3; rooms=3"},
+    {"q":"studio","kind":"rooms","expect":"rooms=1"},
+    {"q":"meublé","kind":"amenity_include","expect":"chip=Meublé; furnished_ranked_or_filtered"},
+    {"q":"non meublé","kind":"amenity_exclude","expect":"chip=Non meublé; no_explicit_meublé_in_first_cards"},
+    {"q":"pas meublé","kind":"amenity_exclude_variant","expect":"same_as=non meublé"},
+    {"q":"900","kind":"budget_ambiguous","expect":"operator_choice_visible; no_silent_<="},
+    {"q":"moins 900","kind":"budget_max","expect":"chip=≤ 900 €; all_prices<=900"},
+    {"q":"plus 900","kind":"budget_min","expect":"chip=≥ 900 €; all_prices>=900"},
+    {"q":"=900","kind":"budget_equal","expect":"chip== 900 € or Autour de 900 €; contract_visible"},
+    {"q":"entre 800 et 1000","kind":"budget_range","expect":"chip=800-1000; all_prices_between"}
+  ],
+  "combination_cases": [
+    {"q":"T2 Saint-Denis moins 900 meublé parking","expect":"chips_include=T2,Saint-Denis,≤900,Meublé,Parking; strict_criteria_respected"},
+    {"q":"F4 Sainte-Marie plus 1000 non meublé","expect":"chips_include=4 pièces,Sainte-Marie,≥1000,Non meublé; no_explicit_meublé_first_cards"},
+    {"q":"beausejour T2 moins 900","expect":"chips_include=Beauséjour,2 pièces,≤900; not_full_base"},
+    {"q":"grande montée maison","expect":"chips_include=Grande Montée,Maison; not_full_base"},
+    {"q":"rivière des pluies T5","expect":"chips_include=Rivière des Pluies,5 pièces; not_full_base"},
+    {"q":"bretagne T3","expect":"chips_include=Bretagne,3 pièces; not_full_base_or_useful_empty"},
+    {"q":"duparc appartement","expect":"chips_include=Duparc,Appartement; not_full_base_or_useful_empty"}
+  ],
+  "metamorphic_properties": [
+    {"name":"accent_insensitive","examples":[["beauséjour","beausejour"],["grande montée","grande montee"],["rivière des pluies","riviere des pluies"]]},
+    {"name":"room_synonyms","examples":[["T4","F4"],["T3","F3"],["T2","F2"]]},
+    {"name":"budget_monotonicity","examples":["moins 900 must not have more results than no budget for same other criteria", "plus 900 must not include price<900"]},
+    {"name":"negation_not_include","examples":[["meublé","non meublé"],["parking","sans parking"]]},
+    {"name":"specific_location_not_full_base","examples":["duparc","beausejour","grande montée","rivière des pluies","bretagne"]}
+  ],
+  "generated_profile": "artifacts/search_acceptance_profile_20260626.json"
+}

@@ -7,13 +7,17 @@ Default behavior is cron-safe:
 - If the state file does not exist, bootstraps it silently so the first cron run does not spam.
 - Prints a Telegram-ready digest only when new matching listing IDs appear.
 
-Use --dry-run to inspect matches without writing state.
+Use --dry-run/--preview to inspect matches without writing state.
+Use --bootstrap-silent to explicitly create/refresh the baseline without emitting.
+Use --live for a capped one-shot digest suitable for an external notifier.
 Use --notify-initial to emit current matches on the first run.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import re
+import shutil
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -22,7 +26,10 @@ from typing import Any
 from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
 DEFAULT_CONFIG = ROOT / "config" / "saved_searches.json"
+
+from src.reunion_geo_search_contract import BUSINESS_LOCATIONS, COMMUNE_ALIASES, NEGATIVE_LOCATION_CONTEXT, norm as geo_norm
 
 ARRAY_URL_KEYS = {
     "region": "r",
@@ -33,11 +40,46 @@ ARRAY_URL_KEYS = {
     "source_site": "src",
 }
 NUM_URL_KEYS = ["rentMin", "rentMax", "surfaceMin", "roomsMin", "bedroomsMin", "minScore"]
+SEARCH_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{1,63}$")
 
 
 def load_json(path: Path) -> Any:
     with path.open(encoding="utf-8") as f:
         return json.load(f)
+
+
+def validate_config(cfg: dict[str, Any]) -> list[str]:
+    """Return operator-facing config errors before any state mutation."""
+    errors: list[str] = []
+    searches = cfg.get("searches")
+    if not isinstance(searches, list):
+        return ["config.searches must be a list"]
+    seen: set[str] = set()
+    for i, search in enumerate(searches):
+        if not isinstance(search, dict):
+            errors.append(f"search[{i}] must be an object")
+            continue
+        sid = str(search.get("id") or "")
+        if not SEARCH_ID_RE.match(sid):
+            errors.append(f"search[{i}].id invalid: {sid!r} (use lowercase slug, 2-64 chars)")
+        elif sid in seen:
+            errors.append(f"duplicate search id: {sid}")
+        seen.add(sid)
+        filters = search.get("filters") or {}
+        if not isinstance(filters, dict):
+            errors.append(f"search[{sid or i}].filters must be an object")
+            continue
+        for key in ("rentMin", "rentMax", "surfaceMin", "roomsMin", "bedroomsMin", "minScore"):
+            val = filters.get(key)
+            if val is not None and not isinstance(val, (int, float)):
+                errors.append(f"search[{sid or i}].filters.{key} must be numeric")
+    try:
+        max_items = int(cfg.get("max_items_per_search") or 6)
+        if max_items < 1 or max_items > 20:
+            errors.append("max_items_per_search must be between 1 and 20")
+    except Exception:
+        errors.append("max_items_per_search must be numeric")
+    return errors
 
 
 def norm(text: Any) -> str:
@@ -85,6 +127,10 @@ def item_source(item: dict[str, Any]) -> str | None:
 
 
 def item_commune(item: dict[str, Any]) -> str | None:
+    loc = item.get("location_intelligence") or {}
+    inferred = loc.get("commune_inferred") if isinstance(loc, dict) else None
+    if inferred and inferred != "Non précisée":
+        return inferred
     return item.get("commune") or item.get("city")
 
 
@@ -105,6 +151,62 @@ def searchable(item: dict[str, Any]) -> str:
         " ".join(item.get("trust_flags") or []),
     ]
     return norm(" ".join(str(p or "") for p in parts))
+
+
+def explicit_location_text(item: dict[str, Any]) -> str:
+    """Source-facing location evidence, excluding derived intelligence fields."""
+    return norm(" ".join(str(item.get(k) or "") for k in ["title", "description", "url"]))
+
+
+COMMUNE_NEGATIVE_LOCATION_CONTEXT: dict[str, list[str]] = {
+    "Sainte-Marie": ["saint paul", "st paul", "saint-gilles", "saint gilles", "st gilles", "saint-pierre", "saint pierre", "le tampon"],
+    "Ste Marie": ["saint paul", "st paul", "saint-gilles", "saint gilles", "st gilles", "saint-pierre", "saint pierre", "le tampon"],
+}
+
+
+def zone_aliases(zone: str) -> list[str]:
+    """Expand a saved-search zone through the shared Réunion geo/search contract."""
+    zn = geo_norm(zone)
+    out: list[str] = [zone]
+    for commune, aliases in COMMUNE_ALIASES.items():
+        candidates = [commune, *aliases]
+        if zn in {geo_norm(x) for x in candidates}:
+            out.extend(candidates)
+    for label, spec in BUSINESS_LOCATIONS.items():
+        candidates = [label, *spec["aliases"]]
+        if zn in {geo_norm(x) for x in candidates}:
+            out.extend(candidates)
+    return list(dict.fromkeys(x for x in out if x))
+
+
+def negative_context_for_zone(zone: str) -> list[str]:
+    """Return source-facing contexts that veto stale/derived zone matches."""
+    zn = geo_norm(zone)
+    out: list[str] = []
+    for commune, aliases in COMMUNE_ALIASES.items():
+        candidates = [commune, *aliases]
+        if zn in {geo_norm(x) for x in candidates}:
+            out.extend(COMMUNE_NEGATIVE_LOCATION_CONTEXT.get(commune, []))
+            out.extend(COMMUNE_NEGATIVE_LOCATION_CONTEXT.get(str(zone), []))
+    out.extend(COMMUNE_NEGATIVE_LOCATION_CONTEXT.get(str(zone), []))
+    for label, spec in BUSINESS_LOCATIONS.items():
+        candidates = [label, *spec["aliases"]]
+        if zn in {geo_norm(x) for x in candidates}:
+            out.extend(NEGATIVE_LOCATION_CONTEXT.get(label, []))
+    return list(dict.fromkeys(out))
+
+
+def has_conflicting_location_evidence(item: dict[str, Any], zones: list[str]) -> bool:
+    text = " " + explicit_location_text(item).replace("-", " ") + " "
+    wanted = [norm(a).replace("-", " ") for z in zones for a in zone_aliases(str(z))]
+    # If source text itself contains a requested zone, keep it even if an agency
+    # URL mentions another town. Otherwise veto obvious conflicting communes.
+    if any(re.search(rf"\b{re.escape(w)}\b", text) for w in wanted if w):
+        return False
+    conflicts: list[str] = []
+    for z in zones:
+        conflicts.extend(negative_context_for_zone(str(z)))
+    return any(re.search(rf"\b{re.escape(norm(c).replace('-', ' '))}\b", text) for c in conflicts if c)
 
 
 def list_intersects(values: list[str] | None, item_values: list[str]) -> bool:
@@ -134,6 +236,8 @@ def matches(item: dict[str, Any], filters: dict[str, Any]) -> bool:
         return False
     zones = filters.get("zones") or []
     if zones:
+        if has_conflicting_location_evidence(item, zones):
+            return False
         item_zones = list(item.get("zones") or [])
         for k in ("primary_zone", "district", "location", "city", "commune", "location_label", "title", "description"):
             if item.get(k):
@@ -143,7 +247,7 @@ def matches(item: dict[str, Any], filters: dict[str, Any]) -> bool:
         # than a normalized zones[] field. Keep exact matching, but add a
         # conservative normalized contains check so "Rivière des Pluies" or
         # "Beauséjour" can match text exports without broadening to all Nord.
-        wanted = [norm(z).replace("-", " ") for z in zones]
+        wanted = [norm(a).replace("-", " ") for z in zones for a in zone_aliases(str(z))]
         haystacks = [norm(z).replace("-", " ") for z in item_zones]
         if not any(w == h or w in h for w in wanted for h in haystacks):
             return False
@@ -197,7 +301,7 @@ def item_line(item: dict[str, Any]) -> str:
     price_txt = f"{p}€" if p else "prix n.c."
     surface_txt = f"{round(s)}m²" if s else "surface n.c."
     rooms = f"{item.get('rooms')}p" if item.get("rooms") else "?p"
-    loc = item.get("location_label") or item.get("commune") or item.get("city") or item.get("region") or "secteur n.c."
+    loc = item.get("location_label") or item.get("location") or item.get("district") or item_commune(item) or item.get("city") or item.get("region") or "secteur n.c."
     title = (item.get("title") or "Annonce").strip()
     if len(title) > 92:
         title = title[:89] + "…"
@@ -214,7 +318,7 @@ def event_line(ev: dict[str, Any]) -> str:
     title = (item.get("title") or ev.get("title") or "Annonce").strip()
     if len(title) > 86:
         title = title[:83] + "…"
-    loc = item.get("location_label") or item.get("commune") or item.get("city") or item.get("region") or "secteur n.c."
+    loc = item.get("location_label") or item.get("location") or item.get("district") or item_commune(item) or item.get("city") or item.get("region") or "secteur n.c."
     url = item.get("url") or ev.get("url") or ""
     typ = ev.get("event_type")
     if typ == "price_changed":
@@ -307,6 +411,40 @@ def load_history_events(db_path: Path, since_by_search: dict[str, str | None], s
     return out
 
 
+def dedupe_new_by_listing(new_by_search: list[tuple[dict[str, Any], list[dict[str, Any]], int]]) -> list[tuple[dict[str, Any], list[dict[str, Any]], int]]:
+    """Avoid digest spam when one listing matches several saved searches."""
+    seen: set[str] = set()
+    out: list[tuple[dict[str, Any], list[dict[str, Any]], int]] = []
+    for search, items, total_matches in new_by_search:
+        kept: list[dict[str, Any]] = []
+        for item in items:
+            iid = str(item.get("id") or "")
+            if iid and iid in seen:
+                continue
+            if iid:
+                seen.add(iid)
+            kept.append(item)
+        if kept:
+            out.append((search, kept, total_matches))
+    return out
+
+
+def dedupe_events_by_id(event_by_search: list[tuple[dict[str, Any], list[dict[str, Any]]]]) -> list[tuple[dict[str, Any], list[dict[str, Any]]]]:
+    seen: set[str] = set()
+    out: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
+    for search, events in event_by_search:
+        kept: list[dict[str, Any]] = []
+        for ev in events:
+            key = str(ev.get("event_id") or f"{ev.get('listing_id')}:{ev.get('event_type')}:{ev.get('event_at')}")
+            if key in seen:
+                continue
+            seen.add(key)
+            kept.append(ev)
+        if kept:
+            out.append((search, kept))
+    return out
+
+
 def effective_url_filters(search: dict[str, Any]) -> dict[str, Any]:
     filters = dict(search.get("filters") or {})
     min_score = search.get("min_score")
@@ -346,24 +484,156 @@ def build_digest(new_by_search: list[tuple[dict[str, Any], list[dict[str, Any]],
     return "\n".join(lines).strip() + "\n"
 
 
+def output_summary(
+    *,
+    dry_run: bool,
+    source: Path,
+    history_db: Path,
+    state_path: Path,
+    state_exists: bool,
+    bootstrap_silent: bool,
+    summaries: list[dict[str, Any]],
+    event_by_search: list[tuple[dict[str, Any], list[dict[str, Any]]]],
+    digest: str,
+    fmt: str,
+) -> None:
+    new_total = sum(int(s.get("new") or 0) for s in summaries)
+    event_total = sum(len(evs) for _, evs in event_by_search)
+    payload = {
+        "ok": True,
+        "dry_run": dry_run,
+        "source": str(source),
+        "history_db": str(history_db),
+        "state_path": str(state_path),
+        "state_exists": state_exists,
+        "bootstrap_silent": bootstrap_silent,
+        "would_emit": bool(digest),
+        "new_total": new_total,
+        "event_total": event_total,
+        "searches": summaries,
+        "event_searches": [{"id": s.get("id"), "events": len(evs)} for s, evs in event_by_search],
+        "message": digest,
+    }
+    if fmt == "json":
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    print("Alertes sauvegardées — preview")
+    print(f"- Source: {source}")
+    print(f"- État: {state_path} ({'existe' if state_exists else 'absent'})")
+    print(f"- Bootstrap silencieux: {'oui' if bootstrap_silent else 'non'}")
+    print(f"- Émission potentielle: {'oui' if digest else 'non'} ({new_total} nouvelle(s), {event_total} événement(s))")
+    for s in summaries:
+        print(f"- {s['name']} [{s['id']}]: {s['matches']} match(s), {s['new']} nouvelle(s)")
+        print(f"  URL: {s['search_url']}")
+        top_ids = s.get("top_ids") or []
+        if top_ids:
+            print(f"  Top IDs: {', '.join(map(str, top_ids))}")
+    if digest:
+        print("\n--- Digest qui serait produit ---")
+        print(digest, end="")
+
+
+def status_report(*, cfg: dict[str, Any], source: Path, state_path: Path, history_db: Path, searches: list[dict[str, Any]], fmt: str) -> None:
+    payload: dict[str, Any] = {
+        "ok": True,
+        "source": str(source),
+        "source_exists": source.exists(),
+        "state_path": str(state_path),
+        "state_exists": state_path.exists(),
+        "history_db": str(history_db),
+        "history_db_exists": history_db.exists(),
+        "enabled_searches": len(searches),
+        "configured_searches": len(cfg.get("searches", []) or []),
+        "searches": [],
+    }
+    state: dict[str, Any] = {}
+    if state_path.exists():
+        try:
+            state = load_json(state_path)
+            payload["updated_at"] = state.get("updated_at")
+        except Exception as exc:
+            payload["state_error"] = str(exc)
+    state_searches = state.get("searches", {}) if isinstance(state, dict) else {}
+    for s in searches:
+        sid = s["id"]
+        st = state_searches.get(sid) or {}
+        payload["searches"].append({
+            "id": sid,
+            "name": s.get("name") or sid,
+            "enabled": s.get("enabled", True),
+            "last_checked_at": st.get("last_checked_at"),
+            "last_match_count": st.get("last_match_count"),
+            "seen_count": len(st.get("seen_ids") or []),
+            "search_url": st.get("search_url"),
+        })
+    if fmt == "json":
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    print("Alertes sauvegardées — état")
+    print(f"- Source: {payload['source']} ({'ok' if payload['source_exists'] else 'absente'})")
+    print(f"- État: {payload['state_path']} ({'ok' if payload['state_exists'] else 'absent'})")
+    print(f"- Historique: {payload['history_db']} ({'ok' if payload['history_db_exists'] else 'absent'})")
+    print(f"- Recherches actives/configurées: {payload['enabled_searches']}/{payload['configured_searches']}")
+    if payload.get("updated_at"):
+        print(f"- Dernière mise à jour état: {payload['updated_at']}")
+    if payload.get("state_error"):
+        print(f"- ERREUR état: {payload['state_error']}")
+    for s in payload["searches"]:
+        print(f"- {s['name']} [{s['id']}]: checked={s['last_checked_at'] or 'jamais'}, seen={s['seen_count']}, last_match_count={s['last_match_count']}")
+
+
+def write_state_with_backup(state_path: Path, state: dict[str, Any], *, backup: bool = True) -> Path | None:
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+    backup_path: Path | None = None
+    if backup and state_path.exists():
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        backup_path = state_path.with_name(f"{state_path.name}.bak-{stamp}")
+        shutil.copy2(state_path, backup_path)
+    tmp = state_path.with_name(f".{state_path.name}.tmp")
+    tmp.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(state_path)
+    return backup_path
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", default=str(DEFAULT_CONFIG))
     ap.add_argument("--dry-run", action="store_true", help="Do not write seen state; print JSON summary.")
+    ap.add_argument("--preview", action="store_true", help="Human-readable dry preview; never writes state.")
+    ap.add_argument("--status", action="store_true", help="Print configured search/state status; never writes state.")
+    ap.add_argument("--bootstrap-silent", action="store_true", help="Explicitly create/refresh baseline without emitting a digest.")
+    ap.add_argument("--live", action="store_true", help="Controlled one-shot live run: requires existing state and caps emissions.")
+    ap.add_argument("--max-emit-total", type=int, default=10, help="Maximum new+event entries allowed in --live before refusing to write/emit.")
+    ap.add_argument("--format", choices=["json", "text"], default=None, help="Output format for preview/status/bootstrap summaries.")
     ap.add_argument("--notify-initial", action="store_true", help="On first run, emit all current matches instead of bootstrapping silently.")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args()
 
+    if sum(bool(x) for x in (args.preview, args.status, args.bootstrap_silent, args.live)) > 1:
+        ap.error("--preview, --status, --bootstrap-silent and --live are mutually exclusive")
+    if args.bootstrap_silent and args.notify_initial:
+        ap.error("--bootstrap-silent cannot be combined with --notify-initial")
+
     cfg_path = Path(args.config)
     cfg = load_json(cfg_path)
+    config_errors = validate_config(cfg if isinstance(cfg, dict) else {})
+    if config_errors:
+        print(json.dumps({"ok": False, "error": "invalid_saved_search_config", "errors": config_errors}, ensure_ascii=False, indent=2), file=sys.stderr)
+        return 64
     source = Path(cfg.get("source_json") or ROOT / "artifacts" / "app" / "listings.json")
     state_path = Path(cfg.get("state_path") or "/opt/data/artifacts/immo-alerts/seen.json")
     history_db = Path(cfg.get("history_db") or "/opt/data/artifacts/immo-alerts/history.sqlite")
-    payload = load_json(source)
-    listings = payload.get("listings") or []
     searches = [s for s in cfg.get("searches", []) if s.get("enabled", True)]
     max_items = int(cfg.get("max_items_per_search") or 6)
     base_url = cfg.get("public_base_url") or "https://immo.148.230.103.174.sslip.io/"
+
+    fmt = args.format or ("json" if args.dry_run else "text")
+    if args.status:
+        status_report(cfg=cfg, source=source, state_path=state_path, history_db=history_db, searches=searches, fmt=fmt)
+        return 0
+
+    payload = load_json(source)
+    listings = payload.get("listings") or []
 
     state_exists = state_path.exists()
     state = load_json(state_path) if state_exists else {"version": 1, "searches": {}}
@@ -383,7 +653,7 @@ def main() -> int:
             matched = [x for x in matched if (item_score(x) or 0) >= int(min_score)]
         matched_ids = [x["id"] for x in matched]
         prev = set((state["searches"].get(sid) or {}).get("seen_ids") or [])
-        if not state_exists and not args.notify_initial:
+        if args.bootstrap_silent or (not state_exists and not args.notify_initial):
             new_items: list[dict[str, Any]] = []
         else:
             new_items = [x for x in matched if x["id"] not in prev]
@@ -405,19 +675,82 @@ def main() -> int:
         if new_items:
             new_by_search.append((search, new_items, len(matched)))
 
-    event_by_search = load_history_events(history_db, since_by_search, searches, max_items)
+    raw_new_total = sum(len(items) for _, items, _ in new_by_search)
+    new_by_search = dedupe_new_by_listing(new_by_search)
+    event_by_search = [] if args.bootstrap_silent else load_history_events(history_db, since_by_search, searches, max_items)
+    raw_event_total = sum(len(evs) for _, evs in event_by_search)
+    event_by_search = dedupe_events_by_id(event_by_search)
+    deduped_new = raw_new_total - sum(len(items) for _, items, _ in new_by_search)
+    deduped_events = raw_event_total - sum(len(evs) for _, evs in event_by_search)
+    for s in summaries:
+        s["dedupe_policy"] = "first_matching_search_wins"
+    if deduped_new or deduped_events:
+        summaries.append({
+            "id": "_anti_spam",
+            "name": "Anti-spam dédoublonnage",
+            "matches": 0,
+            "new": 0,
+            "search_url": "",
+            "top_ids": [],
+            "deduped_new": deduped_new,
+            "deduped_events": deduped_events,
+        })
 
     state["updated_at"] = now
-    if args.dry_run:
-        print(json.dumps({"ok": True, "dry_run": True, "source": str(source), "history_db": str(history_db), "state_exists": state_exists, "searches": summaries, "event_searches": [{"id": s.get("id"), "events": len(evs)} for s, evs in event_by_search]}, ensure_ascii=False, indent=2))
+    digest = build_digest(new_by_search, event_by_search, base_url, max_items) if (new_by_search or event_by_search) else ""
+    if args.dry_run or args.preview:
+        output_summary(
+            dry_run=True,
+            source=source,
+            history_db=history_db,
+            state_path=state_path,
+            state_exists=state_exists,
+            bootstrap_silent=(not state_exists and not args.notify_initial) or args.bootstrap_silent,
+            summaries=summaries,
+            event_by_search=event_by_search,
+            digest=digest,
+            fmt=fmt,
+        )
         return 0
 
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    if new_by_search or event_by_search:
-        print(build_digest(new_by_search, event_by_search, base_url, max_items), end="")
+    if args.live and not state_exists:
+        print(json.dumps({
+            "ok": False,
+            "error": "live_requires_existing_state",
+            "hint": "Run --bootstrap-silent first, then retry --live.",
+            "state_path": str(state_path),
+        }, ensure_ascii=False), file=sys.stderr)
+        return 2
+    emit_total = sum(len(items) for _, items, _ in new_by_search) + sum(len(evs) for _, evs in event_by_search)
+    if args.live and emit_total > args.max_emit_total:
+        print(json.dumps({
+            "ok": False,
+            "error": "live_emit_cap_exceeded",
+            "emit_total": emit_total,
+            "max_emit_total": args.max_emit_total,
+            "state_written": False,
+        }, ensure_ascii=False), file=sys.stderr)
+        return 2
+
+    backup_path = write_state_with_backup(state_path, state, backup=state_exists)
+    if args.bootstrap_silent:
+        payload = {
+            "ok": True,
+            "bootstrap_silent": True,
+            "state_path": str(state_path),
+            "backup_path": str(backup_path) if backup_path else None,
+            "searches": summaries,
+        }
+        if fmt == "json":
+            print(json.dumps(payload, ensure_ascii=False, indent=2))
+        elif args.verbose:
+            print(f"Bootstrap silencieux OK: {state_path}" + (f" (backup: {backup_path})" if backup_path else ""))
+        return 0
+
+    if digest:
+        print(digest, end="")
     elif args.verbose:
-        print(json.dumps({"ok": True, "new": 0, "searches": summaries}, ensure_ascii=False, indent=2))
+        print(json.dumps({"ok": True, "new": 0, "backup_path": str(backup_path) if backup_path else None, "searches": summaries}, ensure_ascii=False, indent=2))
     return 0
 
 

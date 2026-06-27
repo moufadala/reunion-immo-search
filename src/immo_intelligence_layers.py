@@ -32,12 +32,12 @@ COMMUNES: dict[str, dict[str, Any]] = {
     "Saint-Benoît": {"region": "Est", "interco": "CIREST", "aliases": ["st benoit", "saint benoit", "bras fusil", "beaulieu", "sainte anne"]},
     "Sainte-Rose": {"region": "Est", "interco": "CIREST", "aliases": ["ste rose", "sainte rose"]},
     "Salazie": {"region": "Est", "interco": "CIREST", "aliases": ["salazie", "hell bourg", "hell-bourg"]},
-    "Saint-Paul": {"region": "Ouest", "interco": "TCO", "aliases": ["st paul", "saint paul", "plateau caillou", "boucan canot", "saint gilles", "st gilles", "la saline", "l'ermitage", "hermitage", "bois de nefles saint paul"]},
+    "Saint-Paul": {"region": "Ouest", "interco": "TCO", "aliases": ["st paul", "saint paul", "plateau caillou", "boucan canot", "saint gilles", "st gilles", "la saline", "l'ermitage", "hermitage", "bois de nefles saint paul", "la saline les bains", "saline les bains", "97434", "trou d'eau", "trou deau", "cambaie"]},
     "Le Port": {"region": "Ouest", "interco": "TCO", "aliases": ["le port", "port"]},
-    "La Possession": {"region": "Ouest", "interco": "TCO", "aliases": ["la possession", "possession", "ravine a malheur", "dos d'ane"]},
+    "La Possession": {"region": "Ouest", "interco": "TCO", "aliases": ["la possession", "possession", "ravine a malheur", "dos d'ane", "moulin joli"]},
     "Trois-Bassins": {"region": "Ouest", "interco": "TCO", "aliases": ["trois bassins", "3 bassins"]},
     "Saint-Leu": {"region": "Ouest", "interco": "TCO", "aliases": ["st leu", "saint leu", "piton saint leu", "la fontaine", "etang saint leu"]},
-    "Saint-Pierre": {"region": "Sud", "interco": "CIVIS", "aliases": ["st pierre", "saint pierre", "terre sainte", "ravine blanche", "bois d'olives", "ligne paradis", "grands bois"]},
+    "Saint-Pierre": {"region": "Sud", "interco": "CIVIS", "aliases": ["st pierre", "saint pierre", "terre sainte", "ravine blanche", "bois d'olives", "ligne paradis", "grands bois", "ravine des cabris", "ligne des bambous", "bassin plat", "conde concession", "condé concession"]},
     "Le Tampon": {"region": "Sud", "interco": "CASUD", "aliases": ["le tampon", "tampon", "trois mares", "la plaine des cafres", "bourg murat", "bras creux", "la chatoire"]},
     "Saint-Louis": {"region": "Sud", "interco": "CIVIS", "aliases": ["st louis", "saint louis", "la riviere saint louis", "riviere saint louis", "makes"]},
     "Étang-Salé": {"region": "Sud", "interco": "CIVIS", "aliases": ["etang sale", "étang salé", "l'etang sale", "etang-salé", "etang-sale"]},
@@ -65,6 +65,7 @@ def norm(s: Any) -> str:
 DISTRICTS: dict[str, dict[str, Any]] = {
     "La Bretagne": {"commune": "Saint-Denis", "lat": -20.9239013, "lon": 55.5049113, "aliases": ["la bretagne", "bretagne"]},
     "Rivière des Pluies": {"commune": "Sainte-Marie", "lat": -20.9105920, "lon": 55.5096169, "aliases": ["rivière des pluies", "riviere des pluies", "rivières des pluies", "rivieres des pluies", "rdp"]},
+    "Bois de Nèfles Sainte-Clotilde": {"commune": "Saint-Denis", "lat": -20.9024, "lon": 55.5010, "aliases": ["bois de nèfles sainte clotilde", "bois de nefles sainte clotilde", "bois de nèfles ste clotilde", "bois de nefles ste clotilde", "sainte clotilde bois de nèfles", "sainte clotilde bois de nefles", "ste clotilde bois de nèfles", "ste clotilde bois de nefles", "quartier bois de nèfles", "quartier bois de nefles"]},
     "Sainte-Clotilde": {"commune": "Saint-Denis", "lat": -20.8993896, "lon": 55.4765669, "aliases": ["sainte clotilde", "ste clotilde", "sainte-clotilde", "sainte coltilde", "ste coltilde"]},
     "Moufia": {"commune": "Saint-Denis", "lat": -20.9049830, "lon": 55.4841971, "aliases": ["moufia", "universite du moufia", "université du moufia"]},
     "Domenjod": {"commune": "Saint-Denis", "lat": -20.9156324, "lon": 55.5066020, "aliases": ["domenjod"]},
@@ -77,14 +78,27 @@ DISTRICTS: dict[str, dict[str, Any]] = {
     "La Source": {"commune": "Saint-Denis", "lat": -20.8909, "lon": 55.4533, "aliases": ["quartier la source", "secteur la source"]},
     "Providence": {"commune": "Saint-Denis", "lat": -20.8964, "lon": 55.4517, "aliases": ["providence"]},
     "Bas de la Rivière": {"commune": "Saint-Denis", "lat": -20.8748, "lon": 55.4434, "aliases": ["bas de la rivière", "bas de la riviere"]},
-    "La Montagne": {"commune": "Saint-Denis", "lat": -20.8980, "lon": 55.4030, "aliases": ["la montagne", "montagne"]},
+    "La Montagne": {"commune": "Saint-Denis", "lat": -20.8980, "lon": 55.4030, "aliases": ["la montagne", "saint-denis la montagne", "saint denis la montagne"]},
     "Duparc": {"commune": "Sainte-Marie", "lat": -20.8990033, "lon": 55.5210549, "aliases": ["duparc", "du parc", "centre commercial duparc", "cc duparc"]},
+    "Les Cafés": {"commune": "Sainte-Marie", "lat": -20.9017842, "lon": 55.5681864, "aliases": ["les cafés", "les cafes", "quartier les cafés", "quartier les cafes"]},
     "La Grande Montée": {"commune": "Sainte-Marie", "lat": -20.9235086, "lon": 55.5188513, "aliases": ["la grande montée", "grande montée", "la grande montee", "grande montee"]},
-    "Beauséjour": {"commune": "Sainte-Marie", "lat": -20.9208911, "lon": 55.5289973, "aliases": ["beauséjour", "beausejour", "beau sejour"]},
+    # Keep aliases to proper toponyms only. The generic phrase "beau séjour"
+    # appears in many descriptions as a nice living room and previously caused
+    # false Beauséjour/Sainte-Marie matches (e.g. Saint-Gilles listings).
+    "Beauséjour": {"commune": "Sainte-Marie", "lat": -20.9208911, "lon": 55.5289973, "aliases": ["beauséjour", "beausejour"]},
     "La Convenance": {"commune": "Sainte-Marie", "lat": -20.8953854, "lon": 55.5683080, "aliases": ["la convenance", "convenance"]},
     "La Ressource": {"commune": "Sainte-Marie", "lat": -20.9168, "lon": 55.5312, "aliases": ["la ressource", "ressource"]},
     "Ravine des Chèvres": {"commune": "Sainte-Marie", "lat": -20.9180, "lon": 55.5500, "aliases": ["ravine des chèvres", "ravine des chevres"]},
     "Gillot": {"commune": "Sainte-Marie", "lat": -20.8910, "lon": 55.5165, "aliases": ["gillot", "aeroport gillot", "aéroport gillot"]},
+    "La Saline les Bains": {"commune": "Saint-Paul", "lat": -21.0940, "lon": 55.2385, "aliases": ["la saline les bains", "saline les bains", "la-saline-les-bains", "97434"]},
+    "Trou d'Eau": {"commune": "Saint-Paul", "lat": -21.1045, "lon": 55.2450, "aliases": ["trou d'eau", "trou deau", "trou-d-eau", "trou-d'eau"]},
+    "Cambaie": {"commune": "Saint-Paul", "lat": -20.9745, "lon": 55.2960, "aliases": ["cambaie", "secteur de cambaie"]},
+    "Bois de Nèfles Saint-Paul": {"commune": "Saint-Paul", "lat": -21.0080, "lon": 55.3300, "aliases": ["bois de nefles saint paul", "bois de nèfles saint paul", "bois de nefles st paul", "bdn st paul", "bdn saint paul"]},
+    "Ravine des Cabris": {"commune": "Saint-Pierre", "lat": -21.2770, "lon": 55.4780, "aliases": ["ravine des cabris", "quartier de la ravine des cabris", "concession ravine des cabris"]},
+    "Ligne des Bambous": {"commune": "Saint-Pierre", "lat": -21.3020, "lon": 55.4690, "aliases": ["ligne des bambous", "saint-pierre ligne des bambous", "quartier de la ligne des bambous"]},
+    "Bassin Plat": {"commune": "Saint-Pierre", "lat": -21.3050, "lon": 55.5150, "aliases": ["bassin plat", "quartier de bassin plat", "secteur de bassin plat", "b.plat", "b plat"]},
+    "Condé-Concession": {"commune": "Saint-Pierre", "lat": -21.2960, "lon": 55.4860, "aliases": ["conde concession", "condé concession", "condé-concession", "conde-concession"]},
+    "Moulin Joli": {"commune": "La Possession", "lat": -20.9320, "lon": 55.3420, "aliases": ["moulin joli"]},
 }
 
 ALIAS_TO_COMMUNE: list[tuple[str, str]] = []
@@ -125,11 +139,47 @@ def surface(it: dict[str, Any]) -> float | None:
 
 
 def text_blob(it: dict[str, Any]) -> str:
-    return norm(" ".join(str(it.get(k) or "") for k in ["title", "city", "commune", "district", "location", "location_label", "primary_zone", "description", "region"]))
+    # Use source-facing text only. `district`/`location`/`city` may already be
+    # derived by a previous intelligence pass; feeding them back into inference
+    # makes bad geocoding self-reinforcing.
+    return norm(" ".join(str(it.get(k) or "") for k in ["title", "description", "url", "commune", "region"]))
+
+
+def title_location_blob(it: dict[str, Any]) -> str:
+    """High-confidence source location hints: title and source URL."""
+    return norm(" ".join(str(it.get(k) or "") for k in ["title", "url"]))
+
+
+def first_commune_alias(blob: str) -> tuple[str, str] | None:
+    for alias, commune in ALIAS_TO_COMMUNE:
+        if alias and re.search(rf"(^|\b){re.escape(alias)}(\b|$)", blob):
+            return (alias, commune)
+    return None
+
+
+def alias_in_blob(alias: str, blob: str) -> bool:
+    return bool(alias and re.search(rf"(^|\b){re.escape(alias)}(\b|$)", blob))
+
+
+def la_montagne_alias_allowed(alias: str, blob: str, strong_blob: str, declared_norm: str) -> bool:
+    if alias != "la montagne":
+        return True
+    if re.search(r"\b(vue|vues|mer|ocean|oc[eé]an|panorama|panoramique|route|routes|chemin|sur)\b(?:\s+\w+){0,4}\s+la montagne\b", blob):
+        return False
+    if alias_in_blob(alias, strong_blob):
+        return True
+    return declared_norm in {"saint denis", "st denis"}
+
+
+def district_alias_allowed(name: str, alias: str, blob: str, strong_blob: str, declared_norm: str) -> bool:
+    if name == "La Montagne":
+        return la_montagne_alias_allowed(alias, blob, strong_blob, declared_norm)
+    return True
 
 
 def infer_location(it: dict[str, Any]) -> dict[str, Any]:
     blob = text_blob(it)
+    strong_blob = title_location_blob(it)
     declared = it.get("commune") or it.get("city")
     declared_norm = norm(declared)
 
@@ -138,11 +188,39 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
     # Some listings mention both a broad sector (Sainte-Clotilde) and a finer
     # lieu-dit/quartier (e.g. "Sainte Clotilde LA BRETAGNE"). Prefer the finer
     # signal so the public card/modal does not downgrade Bretagne to Sainte-Clotilde.
-    fine_priority = ["La Bretagne", "Rivière des Pluies", "La Grande Montée", "Duparc", "Beauséjour", "La Convenance"]
+    fine_priority = [
+        "Bois de Nèfles Sainte-Clotilde",
+        # Prefer fine Saint-Denis districts over the broad Sainte-Clotilde sector
+        # when both appear in the same source text (e.g. "Sainte-Clotilde Moufia").
+        "Moufia",
+        "Les Camélias",
+        "Domenjod",
+        "Champ Fleuri",
+        "Providence",
+        "Bas de la Rivière",
+        "Montgaillard",
+        "Bellepierre",
+        "La Bretagne",
+        "Rivière des Pluies",
+        "La Grande Montée",
+        "Duparc",
+        "Les Cafés",
+        "Beauséjour",
+        "La Convenance",
+        "La Saline les Bains",
+        "Trou d'Eau",
+        "Cambaie",
+        "Bois de Nèfles Saint-Paul",
+        "Ravine des Cabris",
+        "Ligne des Bambous",
+        "Bassin Plat",
+        "Condé-Concession",
+        "Moulin Joli",
+    ]
     for fine_name in fine_priority:
         for alias in [fine_name] + DISTRICTS[fine_name]["aliases"]:
             alias_n = norm(alias)
-            if alias_n and re.search(rf"(^|\b){re.escape(alias_n)}(\b|$)", blob):
+            if alias_in_blob(alias_n, blob) and district_alias_allowed(fine_name, alias_n, blob, strong_blob, declared_norm):
                 district_name = fine_name
                 district_alias = alias_n
                 break
@@ -150,7 +228,7 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
             break
     if not district_name:
         for alias, name in DISTRICT_ALIAS_TO_NAME:
-            if alias and re.search(rf"(^|\b){re.escape(alias)}(\b|$)", blob):
+            if alias_in_blob(alias, blob) and district_alias_allowed(name, alias, blob, strong_blob, declared_norm):
                 district_name = name
                 district_alias = alias
                 break
@@ -159,12 +237,13 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
     if district_name:
         hits.append((district_alias or norm(district_name), DISTRICTS[district_name]["commune"]))
     else:
-        for alias, commune in ALIAS_TO_COMMUNE:
-            if not alias:
-                continue
-            if re.search(rf"(^|\b){re.escape(alias)}(\b|$)", blob):
-                hits.append((alias, commune))
-                break
+        # Title/URL wins over a longer description. Agency descriptions may
+        # mention nearby schools/towns; the source title normally carries the
+        # actual advertised commune (e.g. "T2 à Sainte Marie" despite a later
+        # paragraph mentioning Sainte-Suzanne).
+        hit = first_commune_alias(strong_blob) or first_commune_alias(blob)
+        if hit:
+            hits.append(hit)
     if declared_norm:
         for alias, commune_declared in ALIAS_TO_COMMUNE:
             if declared_norm == alias:
@@ -201,6 +280,7 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
             if an and an != norm(commune) and re.search(rf"(^|\b){re.escape(an)}(\b|$)", blob):
                 district_hits.append(a)
     quality = "haute" if confidence >= .85 else "moyenne" if confidence >= .65 else "faible"
+    display_district = "Bois de Nèfles" if district_name == "Bois de Nèfles Sainte-Clotilde" else district_name
     map_point = None
     if district_name:
         d = DISTRICTS[district_name]
@@ -208,11 +288,11 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
             "lat": d["lat"],
             "lon": d["lon"],
             "zoom": 15,
-            "label": f"{district_name} · {d['commune']}",
+            "label": f"{display_district} · {d['commune']}",
             "precision": "quartier/lieu-dit approximatif, pas adresse exacte",
             "osm_url": f"https://www.openstreetmap.org/?mlat={d['lat']}&mlon={d['lon']}#map=15/{d['lat']}/{d['lon']}",
         }
-    precise_label = f"{district_name} · {commune}" if district_name and commune else (commune or "Non précisée")
+    precise_label = f"{display_district} · {commune}" if display_district and commune else (commune or "Non précisée")
     return {
         "commune_inferred": commune or "Non précisée",
         "region_inferred": meta.get("region") or it.get("region") or "Région non précisée",
@@ -225,6 +305,145 @@ def infer_location(it: dict[str, Any]) -> dict[str, Any]:
         "confidence": round(confidence, 2),
         "quality": quality,
         "method": method,
+    }
+
+
+def normalized_url(it: dict[str, Any]) -> str:
+    """Stable source URL for exact duplicate evidence.
+
+    Strip volatile tracking/query/fragment while keeping the real path. Empty URLs
+    are never treated as evidence.
+    """
+    raw = str(it.get("canonical_url") or it.get("url") or "").strip()
+    if not raw:
+        return ""
+    raw = raw.split("#", 1)[0].split("?", 1)[0].rstrip("/")
+    return norm(raw)
+
+
+def property_family(it: dict[str, Any]) -> str:
+    text = norm(" ".join(str(it.get(k) or "") for k in ["property_type", "type", "title"]))
+    if any(w in text for w in ["maison", "villa"]):
+        return "maison"
+    if any(w in text for w in ["appartement", "studio", "duplex", "t1", "t2", "t3", "t4", "t5", "chambre"]):
+        return "appartement"
+    return "unknown"
+
+
+DEDUP_STOPWORDS = {
+    "location", "appartement", "maison", "villa", "pieces", "piece", "saint", "sainte",
+    "denis", "marie", "reunion", "974", "louer", "annonce", "immobilier", "m2", "dans",
+    "avec", "pour", "une", "des", "les", "studio", "type", "appart", "centre", "ville",
+}
+
+
+def title_tokens(it: dict[str, Any]) -> set[str]:
+    words = re.findall(r"[a-z0-9]{3,}", norm(it.get("title")))
+    return {w for w in words if w not in DEDUP_STOPWORDS and not w.isdigit()}
+
+
+def token_overlap(a: dict[str, Any], b: dict[str, Any]) -> float:
+    ta, tb = title_tokens(a), title_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / max(1, min(len(ta), len(tb)))
+
+
+def rel_close(x: float | int | None, y: float | int | None, pct: float, abs_tol: float) -> bool:
+    if x is None or y is None:
+        return False
+    return abs(float(x) - float(y)) <= max(abs_tol, pct * max(abs(float(x)), abs(float(y)), 1.0))
+
+
+def pair_dedup_decision(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
+    """Classify a pair with explicit evidence and conservative auto-hide rules.
+
+    The old score alone was too permissive: generic titles like "Location
+    Appartement · 1 pièce" can make distinct flats look identical. Auto-duplicate
+    now requires exact URL evidence or a strong bundle of price/surface/rooms/type
+    + title/token evidence. Otherwise the pair is kept as needs_review.
+    """
+    details = similarity_details(a, b)
+    pa, pb = price(a), price(b)
+    sa, sb = surface(a), surface(b)
+    la = a.get("location_intelligence", {}).get("commune_inferred") or a.get("city")
+    lb = b.get("location_intelligence", {}).get("commune_inferred") or b.get("city")
+    same_commune = bool(la and lb and norm(la) == norm(lb))
+    same_rooms = bool(a.get("rooms") and b.get("rooms") and a.get("rooms") == b.get("rooms"))
+    same_family = property_family(a) == property_family(b) or "unknown" in {property_family(a), property_family(b)}
+    same_source = str(a.get("source") or a.get("source_site") or "") == str(b.get("source") or b.get("source_site") or "")
+    url_a, url_b = normalized_url(a), normalized_url(b)
+    exact_url = bool(url_a and url_b and url_a == url_b)
+    title_ratio = float(details.get("title_ratio") or 0)
+    overlap = token_overlap(a, b)
+    price_tight = rel_close(pa, pb, 0.03, 35)
+    price_close = rel_close(pa, pb, 0.07, 70)
+    surface_tight = rel_close(sa, sb, 0.04, 3)
+    surface_close = rel_close(sa, sb, 0.10, 8)
+    evidence: list[str] = []
+    veto: list[str] = list(details.get("veto") or [])
+    if exact_url:
+        evidence.append("même URL source normalisée")
+    if same_commune:
+        evidence.append("même commune")
+    else:
+        veto.append("commune différente ou incertaine")
+    if same_family:
+        evidence.append("même famille de bien")
+    else:
+        veto.append("type de bien différent")
+    if same_rooms:
+        evidence.append("même nombre de pièces")
+    elif a.get("rooms") and b.get("rooms"):
+        veto.append("nombre de pièces différent")
+    if price_tight:
+        evidence.append("loyer très proche")
+    elif price_close:
+        evidence.append("loyer proche")
+    if surface_tight:
+        evidence.append("surface très proche")
+    elif surface_close:
+        evidence.append("surface proche")
+    if title_ratio >= 0.88:
+        evidence.append("titre très proche")
+    elif title_ratio >= 0.70 or overlap >= 0.60:
+        evidence.append("titre/tokens proches")
+
+    # Exact URL is enough: mirrors OFIM RSS + OFIM and similar source aliases.
+    if exact_url and same_commune:
+        decision = "auto_duplicate"
+        confidence = max(0.95, float(details["score"]))
+        reason = "exact_url"
+    # Strong fingerprint: conservative enough to hide from default grid.
+    elif same_commune and same_family and same_rooms and price_tight and surface_tight and (title_ratio >= 0.82 or overlap >= 0.75) and not veto:
+        decision = "auto_duplicate"
+        confidence = max(0.88, float(details["score"]))
+        reason = "strong_fingerprint"
+    # Same-source generic near-matches are dangerous: keep review unless nearly exact.
+    elif same_source and same_commune and same_rooms and price_tight and surface_tight and title_ratio >= 0.94 and not veto:
+        decision = "auto_duplicate"
+        confidence = max(0.86, float(details["score"]))
+        reason = "same_source_near_exact"
+    elif same_commune and same_family and price_close and surface_close and (same_rooms or not (a.get("rooms") and b.get("rooms"))) and float(details["score"]) >= 0.76 and not any(v.startswith("commune") for v in veto):
+        decision = "needs_review"
+        confidence = float(details["score"])
+        reason = "similar_but_not_enough_for_auto_hide"
+    else:
+        decision = "distinct"
+        confidence = float(details["score"])
+        reason = "insufficient_evidence"
+    return {
+        "decision": decision,
+        "confidence": round(min(confidence, 1.0), 3),
+        "reason": reason,
+        "score": details["score"],
+        "reasons": evidence[:8] or list(details.get("reasons") or [])[:6],
+        "veto": sorted(set(veto))[:6],
+        "title_ratio": round(title_ratio, 3),
+        "token_overlap": round(overlap, 3),
+        "same_source": same_source,
+        "price_delta": abs(pa - pb) if pa is not None and pb is not None else None,
+        "surface_delta": round(abs(sa - sb), 2) if sa is not None and sb is not None else None,
     }
 
 
@@ -274,63 +493,147 @@ def similarity(a: dict[str, Any], b: dict[str, Any]) -> float:
     return float(similarity_details(a, b)["score"])
 
 
+def choose_public_canonical(members: list[dict[str, Any]]) -> dict[str, Any]:
+    def rank(x: dict[str, Any]) -> tuple[int, int, int, int, str]:
+        return (
+            int(x.get("db_is_canonical") is not False),
+            1 if x.get("local_image_url") else 0,
+            len(str(x.get("description") or "")),
+            int(x.get("score") or x.get("db_quality_score") or 0),
+            str(x.get("id") or ""),
+        )
+    return sorted(members, key=rank, reverse=True)[0]
+
+
 def build_dedup(items: list[dict[str, Any]]) -> dict[str, Any]:
-    buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    # Reset stale annotations so re-runs are deterministic.
+    for it in items:
+        for k in ["dedup_group_id", "dedup_sources", "dedup_decision", "dedup_confidence", "dedup_role", "dedup_reason"]:
+            it.pop(k, None)
+
+    candidate_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    exact_url_buckets: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for it in items:
         p = price(it); s = surface(it)
-        if not p or not s:
-            continue
         loc = norm(it.get("location_intelligence", {}).get("commune_inferred") or it.get("city"))
-        buckets[f"{loc}|{round(p/100)*100}|{round(s/10)*10}|{it.get('rooms') or ''}"].append(it)
-    groups=[]; group_id=1
-    for bucket_items in buckets.values():
-        if len(bucket_items) < 2: continue
-        used=set()
-        for i,a in enumerate(bucket_items):
-            if a.get("id") in used: continue
-            members=[a]
-            pair_details=[]
+        if p and s:
+            # Wide bucket: pair classifier performs the conservative decision.
+            candidate_buckets[f"{loc}|{property_family(it)}|{round(p/100)*100}|{round(s/10)*10}|{it.get('rooms') or ''}"].append(it)
+        u = normalized_url(it)
+        if u:
+            exact_url_buckets[u].append(it)
+
+    edges: dict[tuple[str, str], dict[str, Any]] = {}
+    by_id = {str(it.get("id")): it for it in items if it.get("id")}
+
+    def add_edge(a: dict[str, Any], b: dict[str, Any], d: dict[str, Any]) -> None:
+        ia, ib = str(a.get("id")), str(b.get("id"))
+        if not ia or not ib or ia == ib:
+            return
+        key = (ia, ib) if ia < ib else (ib, ia)
+        old = edges.get(key)
+        if old is None or (d["decision"] == "auto_duplicate" and old.get("decision") != "auto_duplicate") or d.get("confidence", 0) > old.get("confidence", 0):
+            edges[key] = {"a": key[0], "b": key[1], **d}
+
+    exact_duplicate_ids: set[str] = set()
+    for group in exact_url_buckets.values():
+        if len(group) >= 2:
+            exact_duplicate_ids.update(str(x.get("id")) for x in group if x.get("id"))
+
+    # Exact URL groups first, independent from rounded price/surface buckets.
+    for group in exact_url_buckets.values():
+        if len(group) < 2:
+            continue
+        for i, a in enumerate(group):
+            for b in group[i+1:]:
+                d = pair_dedup_decision(a, b)
+                d["decision"] = "auto_duplicate"
+                d["confidence"] = max(0.95, float(d.get("confidence") or 0))
+                d["reason"] = "exact_url"
+                add_edge(a, b, d)
+
+    for bucket_items in candidate_buckets.values():
+        if len(bucket_items) < 2:
+            continue
+        for i, a in enumerate(bucket_items):
             for b in bucket_items[i+1:]:
-                if b.get("id") in used: continue
-                details=similarity_details(a,b)
-                sim=float(details["score"])
-                if sim >= 0.78 and (a.get("url") != b.get("url") or a.get("source") != b.get("source")):
-                    members.append(b)
-                    pair_details.append({"a": a.get("id"), "b": b.get("id"), **details})
-                    used.add(b.get("id"))
-            if len(members) >= 2:
-                sources=sorted(set(str(m.get("source") or m.get("source_site") or "?") for m in members))
-                canonical=max(members, key=lambda x: ((1 if x.get("local_image_url") else 0), len(str(x.get("description") or "")), x.get("score") or 0))
-                gid=f"D{group_id:04d}"; group_id+=1
-                confidence=max(similarity(members[0], m) for m in members[1:])
-                explanations=[]
-                for d in pair_details[:4]:
-                    if d.get("reasons"):
-                        explanations.append("; ".join(d["reasons"][:4]))
-                groups.append({
-                    "group_id": gid,
-                    "confidence": confidence,
-                    "decision": "auto_duplicate" if confidence >= 0.85 else "needs_review",
-                    "canonical_id": canonical.get("id"),
-                    "member_ids": [m.get("id") for m in members],
-                    "sources": sources,
-                    "links": [{"source": m.get("source") or m.get("source_site"), "url": m.get("url"), "id": m.get("id"), "price": price(m), "surface": surface(m)} for m in members],
-                    "title": canonical.get("title"),
-                    "price": price(canonical),
-                    "surface": surface(canonical),
-                    "location": canonical.get("location") or canonical.get("city"),
-                    "explanations": explanations[:4] or ["prix/surface/localisation proches dans le même bucket"],
-                    "pair_details": pair_details[:8],
-                    "policy": "fusion douce: on conserve toutes les annonces et liens; aucun écrasement de champ source; aucune suppression DB",
-                })
-                for m in members: used.add(m.get("id"))
-    by_id={mid:g for g in groups for mid in g["member_ids"]}
+                # If an item already belongs to an exact same-URL duplicate set,
+                # keep that strong source-alias group isolated. Otherwise one
+                # ambiguous near-match to a third listing can downgrade the whole
+                # connected component to needs_review and leak the exact duplicate
+                # back into the default UI.
+                if str(a.get("id")) in exact_duplicate_ids or str(b.get("id")) in exact_duplicate_ids:
+                    continue
+                d = pair_dedup_decision(a, b)
+                if d["decision"] != "distinct":
+                    add_edge(a, b, d)
+
+    graph: dict[str, set[str]] = defaultdict(set)
+    for (a, b), d in edges.items():
+        graph[a].add(b); graph[b].add(a)
+    seen: set[str] = set()
+    groups=[]; group_id=1
+    for node in sorted(graph):
+        if node in seen:
+            continue
+        stack=[node]; comp=[]; seen.add(node)
+        while stack:
+            cur=stack.pop(); comp.append(cur)
+            for nb in graph[cur]:
+                if nb not in seen:
+                    seen.add(nb); stack.append(nb)
+        if len(comp) < 2:
+            continue
+        members=[by_id[mid] for mid in comp if mid in by_id]
+        comp_edges=[d for key,d in edges.items() if key[0] in comp and key[1] in comp]
+        auto_edges=[d for d in comp_edges if d.get("decision") == "auto_duplicate"]
+        # Hide only groups whose connected evidence is all/mostly strong. Mixed
+        # components remain reviewable to avoid losing distinct flats in same residence.
+        decision = "auto_duplicate" if auto_edges and len(auto_edges) == len(comp_edges) else "needs_review"
+        confidence = max(float(d.get("confidence") or 0) for d in comp_edges)
+        canonical=choose_public_canonical(members)
+        gid=f"D{group_id:04d}"; group_id+=1
+        sources=sorted(set(str(m.get("source") or m.get("source_site") or "?") for m in members))
+        explanations=[]
+        for d in sorted(comp_edges, key=lambda x: float(x.get("confidence") or 0), reverse=True)[:6]:
+            reasons = d.get("reasons") or []
+            explanations.append(f"{d.get('a')} ↔ {d.get('b')}: {d.get('reason')} — " + "; ".join(reasons[:4]))
+        groups.append({
+            "group_id": gid,
+            "confidence": round(confidence, 3),
+            "decision": decision,
+            "canonical_id": canonical.get("id"),
+            "member_ids": sorted([m.get("id") for m in members if m.get("id")]),
+            "sources": sources,
+            "links": [{"source": m.get("source") or m.get("source_site"), "url": m.get("url"), "id": m.get("id"), "price": price(m), "surface": surface(m), "rooms": m.get("rooms"), "title": m.get("title")} for m in sorted(members, key=lambda x: str(x.get("id") or ""))],
+            "title": canonical.get("title"),
+            "price": price(canonical),
+            "surface": surface(canonical),
+            "location": canonical.get("location") or canonical.get("city"),
+            "explanations": explanations[:6] or ["prix/surface/localisation proches dans le même bucket"],
+            "pair_details": sorted(comp_edges, key=lambda x: float(x.get("confidence") or 0), reverse=True)[:12],
+            "policy": "fusion douce: on conserve toutes les annonces et liens; aucune suppression DB; auto_duplicate seul est masqué de la grille par défaut; needs_review reste visible et traçable",
+        })
+    groups.sort(key=lambda g: (g["decision"] != "auto_duplicate", -float(g["confidence"]), g["group_id"]))
+    by_member={mid:g for g in groups for mid in g["member_ids"]}
     for it in items:
-        g=by_id.get(it.get("id"))
+        g=by_member.get(it.get("id"))
         if g:
             it["dedup_group_id"]=g["group_id"]
             it["dedup_sources"]=g["sources"]
-    return {"generated_at": now(), "groups_count": len(groups), "groups": groups}
+            it["dedup_decision"]=g["decision"]
+            it["dedup_confidence"]=g["confidence"]
+            it["dedup_role"]="canonical" if it.get("id") == g.get("canonical_id") else "duplicate_or_variant"
+            it["dedup_reason"]=g.get("explanations", [""])[0]
+    return {
+        "generated_at": now(),
+        "version": "dedup-deep-v2-conservative-nondestructive",
+        "groups_count": len(groups),
+        "auto_duplicate_count": sum(1 for g in groups if g.get("decision") == "auto_duplicate"),
+        "needs_review_count": sum(1 for g in groups if g.get("decision") == "needs_review"),
+        "policy": "non destructive: raw listings stay in DB/listings.json; exact/strong auto duplicates are hidden only from default grid; ambiguous near matches remain visible as needs_review",
+        "groups": groups,
+    }
 
 
 def now() -> str:
@@ -485,8 +788,8 @@ def opportunity(items: list[dict[str, Any]]) -> dict[str, Any]:
 
 def render_page(title: str, subtitle: str, body: str) -> str:
     return f"""<!doctype html><html lang='fr'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{html.escape(title)}</title><style>
-:root{{--bg:#f6f3ee;--paper:#fffdf8;--ink:#20201d;--muted:#6f6a61;--line:#e6dfd3;--brand:#0f766e;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5}}main{{max-width:1120px;margin:auto;padding:24px 16px 70px}}a{{color:var(--brand)}}.top{{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:22px}}.btn{{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:10px 14px;text-decoration:none;background:#fff}}.hero,.card{{background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:0 16px 40px rgba(55,45,30,.08)}}.hero{{padding:26px;margin-bottom:18px}}h1{{font-size:clamp(28px,5vw,52px);line-height:1;letter-spacing:-.06em;margin:0 0 10px}}h2{{letter-spacing:-.03em}}.muted{{color:var(--muted)}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}}.card{{padding:16px;min-width:0}}.pill{{display:inline-block;border-radius:999px;padding:5px 9px;margin:3px;background:#eef7f5;color:#115e59;font-size:12px;font-weight:750}}.bad{{color:var(--bad)}}.ok{{color:var(--ok)}}.warn{{color:var(--warn)}}pre{{white-space:pre-wrap;background:#151515;color:#fafafa;border-radius:16px;padding:14px;overflow:auto}}table{{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden}}td,th{{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}}@media(max-width:650px){{.top{{display:block}}}}
-</style></head><body><main><div class='top'><a class='btn' href='index.html'>← Portail</a><div><a class='btn' href='changes.html'>Veille</a> <a class='btn' href='source_health.html'>Sources</a> <a class='btn' href='dedup.html'>Doublons</a> <a class='btn' href='locations.html'>Localisation</a></div></div><section class='hero'><h1>{html.escape(title)}</h1><p class='muted'>{html.escape(subtitle)}</p></section>{body}</main></body></html>"""
+:root{{--bg:#f6f3ee;--paper:#fffdf8;--ink:#20201d;--muted:#6f6a61;--line:#e6dfd3;--brand:#0f766e;--ok:#15803d;--warn:#b45309;--bad:#b91c1c}}*{{box-sizing:border-box}}body{{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5}}main{{max-width:1120px;margin:auto;padding:16px 16px 70px}}a{{color:var(--brand)}}.top{{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:space-between;margin:0 -16px 14px;padding:10px 16px;background:rgba(246,243,238,.94);border-bottom:1px solid var(--line);backdrop-filter:blur(12px)}}.top div{{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}}.btn{{display:inline-flex;align-items:center;min-height:40px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;text-decoration:none;background:#fff;font-weight:750}}.hero,.card,.sideFilters{{background:var(--paper);border:1px solid var(--line);border-radius:18px;box-shadow:0 10px 28px rgba(55,45,30,.07)}}.hero{{padding:18px;margin-bottom:12px}}h1{{font-size:clamp(26px,5vw,44px);line-height:1;letter-spacing:-.04em;margin:0 0 8px}}h2{{letter-spacing:-.03em}}.muted{{color:var(--muted)}}.sideFilters{{display:flex;gap:8px;align-items:center;margin-bottom:12px;padding:10px}}.sideFilters input{{flex:1;min-width:0;border:1px solid var(--line);border-radius:999px;background:#fff;min-height:44px;padding:10px 13px;font:inherit}}.sideFilters span{{color:var(--muted);font-size:13px;white-space:nowrap}}.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}}.card{{padding:13px;min-width:0}}.pill{{display:inline-block;border-radius:999px;padding:5px 9px;margin:3px;background:#eef7f5;color:#115e59;font-size:12px;font-weight:750}}.bad{{color:var(--bad)}}.ok{{color:var(--ok)}}.warn{{color:var(--warn)}}pre{{white-space:pre-wrap;background:#151515;color:#fafafa;border-radius:16px;padding:14px;overflow:auto}}table{{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden}}td,th{{border-bottom:1px solid var(--line);padding:10px;text-align:left;vertical-align:top}}[hidden]{{display:none!important}}@media(max-width:650px){{main{{padding:0 10px 56px}}.top{{margin:0 -10px 10px;padding:8px 10px;align-items:flex-start}}.top div{{justify-content:flex-start;overflow:auto;flex-wrap:nowrap;padding-bottom:2px}}.btn{{white-space:nowrap;min-height:44px;padding:8px 11px}}.hero{{padding:13px;margin-bottom:9px}}h1{{font-size:24px;letter-spacing:-.03em}}.hero p{{font-size:13px;margin:0}}.sideFilters{{position:sticky;top:58px;z-index:4;margin-bottom:9px;padding:8px;border-radius:14px}}.sideFilters span{{display:none}}.grid{{grid-template-columns:1fr;gap:8px}}.card{{padding:11px;border-radius:14px}}.card h2{{font-size:16px;margin:3px 0 6px}}.card p,.card li{{font-size:13px}}td,th{{padding:8px;font-size:12px}}}}
+</style></head><body><main><div class='top'><a class='btn' href='index.html'>← Portail</a><div><a class='btn' href='changes.html'>Veille</a> <a class='btn' href='source_health.html'>Sources</a> <a class='btn' href='dedup.html'>Doublons</a> <a class='btn' href='locations.html'>Localisation</a></div></div><section class='hero'><h1>{html.escape(title)}</h1><p class='muted'>{html.escape(subtitle)}</p></section><section class='sideFilters' aria-label='Filtrer cette page'><input id='sideQ' placeholder='Filtrer cette page…'><span id='sideCount'></span></section>{body}</main><script>const q=document.getElementById('sideQ'), cards=[...document.querySelectorAll('.card')], count=document.getElementById('sideCount');function n(s){{return String(s||'').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').toLowerCase()}}function applySideFilter(){{const v=n(q?.value);let shown=0;cards.forEach(c=>{{const ok=!v||n(c.textContent).includes(v);c.hidden=!ok;if(ok)shown++;}});if(count)count.textContent=shown+' bloc(s)';}}q?.addEventListener('input',applySideFilter);applySideFilter();</script></body></html>"""
 
 
 def write_outputs(payload: dict[str, Any], dedup: dict[str, Any], opp: dict[str, Any]) -> None:
@@ -552,6 +855,16 @@ def main() -> int:
         it.pop("dedup_alternative_links", None)
         it.pop("photo_status", None)
         it["location_intelligence"]=infer_location(it)
+        loc_intel = it.get("location_intelligence") or {}
+        commune = loc_intel.get("commune_inferred")
+        precise = loc_intel.get("precise_location_label")
+        if commune and commune != "Non précisée":
+            # Keep public filters/cards aligned with the latest inference. This
+            # also clears stale city values from older intelligence passes.
+            it["city"] = commune
+        if precise and precise != "Non précisée":
+            it["location"] = precise
+            it["district"] = loc_intel.get("district_best") or commune or it.get("district")
         # Gallery/photo readiness is already represented by local_image_url/local_image_urls/image_urls.
         # Do not duplicate it into listings.json: the public payload has a strict mobile budget.
     dedup=build_dedup(items)

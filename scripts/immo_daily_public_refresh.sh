@@ -8,6 +8,8 @@ umask 077
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
 
 PROJECT="/opt/data/projects/reunion-immo-search"
+PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
+if [ ! -x "$PY" ]; then PY=python3; fi
 CLEAN_PROJECT="/opt/data/projects/reunion-immo-clean-app"
 ROOT="/opt/data"
 STAMP="${IMMO_REFRESH_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
@@ -80,6 +82,11 @@ restore_on_failure() {
     rm -rf "$PROJECT/artifacts/app"
     cp -a "$BACKUP_APP" "$PROJECT/artifacts/app"
     chmod -R a+rX "$PROJECT/artifacts/app"
+    # Recreate nginx after replacing the bind-mounted directory. Otherwise
+    # Docker can keep serving the removed inode and public checks see an empty
+    # /usr/share/nginx/html (403 on /, 404 on files) until a manual publish.
+    # Best-effort only: keep the original failure as the script exit code.
+    bash "$PROJECT/deploy/publish-traefik.sh" >&2 || true
   fi
   exit "$rc"
 }
@@ -145,6 +152,16 @@ run_step seed_photo_cache bash -lc 'set -euo pipefail; project="$1"; stage="$2";
 run_step photo_cache bash -lc 'cd "$0" && IMMO_APP_PATH="$1" PHOTO_WORKERS=8 PHOTO_TIMEOUT=18 python3 scripts/cache_listing_images.py' "$PROJECT" "$TECH_STAGE"
 run_step intelligence_layers bash -lc 'cd "$0" && IMMO_DB_PATH="$1" IMMO_APP_PATH="$2" python3 src/immo_intelligence_layers.py' "$PROJECT" "$DB" "$TECH_STAGE"
 run_step build_clean_portal bash -lc 'cd "$0" && IMMO_APP_PATH="$1" IMMO_OUT_PATH="$2" python3 scripts/build_clean_portal_v1.py' "$PROJECT" "$TECH_STAGE" "$CLEAN_STAGE"
+run_step p0_product_polish bash -lc 'cd "$0" && python3 scripts/p0_product_polish.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
+run_step product_hardening_v5 bash -lc 'cd "$0" && python3 scripts/patch_product_hardening_v5.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
+run_step domain_inventory_oracle_v2 python3 "$PROJECT/scripts/generate_domain_inventory_and_oracle_v2.py" --app "$CLEAN_STAGE"
+run_step slim_public_listings python3 "$PROJECT/scripts/slim_public_listings.py" "$CLEAN_STAGE"
+run_step listing_changes python3 "$PROJECT/src/listing_changes.py" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$CLEAN_STAGE/changes.html"
+run_step enhance_changes_decision python3 "$PROJECT/scripts/enhance_changes_decision_view.py" --app "$CLEAN_STAGE"
+run_step wave2_detail_geo_photo python3 "$PROJECT/scripts/patch_wave2_lot_c_detail_geo_photo.py" --app "$CLEAN_STAGE"
+run_step opportunity_dedup_calibration python3 "$PROJECT/scripts/generate_opportunity_calibration.py" --app "$CLEAN_STAGE"
+run_step ops_cockpit_stage python3 "$PROJECT/scripts/generate_ops_cockpit.py" --app "$CLEAN_STAGE" --run-dir "$RUN_DIR"
+run_step saved_search_admin_stage python3 "$PROJECT/src/saved_search_admin.py" --listings "$CLEAN_STAGE/listings.json" --out "$CLEAN_STAGE/saved_searches_admin.json" --html-out "$CLEAN_STAGE/saved_searches.html"
 
 # Keep files readable by nginx despite this wrapper's restrictive umask, and guard against homepage regressions.
 run_step clean_stage_gate bash -lc '
@@ -152,7 +169,7 @@ run_step clean_stage_gate bash -lc '
   stage="$1"
   test -s "$stage/index.html"
   test -s "$stage/listings.json"
-  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html changes.html source_health.html dedup.html opportunity.html locations.html alertes_cours.html; do
+  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html changes.html source_health.html dedup.html opportunity.html locations.html alertes_cours.html ops.html ops_status.json saved_searches.html saved_searches_admin.json; do
     test -s "$stage/$p"
   done
   chmod -R a+rX "$stage"
@@ -196,11 +213,20 @@ run_step public_perf_index_audit python3 "$PROJECT/tests/audit_public_perf_index
 run_step public_seo_audit python3 "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
+run_step public_user_search_audit python3 "$PROJECT/tests/audit_user_search_cases.py"
+run_step public_changes_filter_audit python3 "$PROJECT/tests/audit_changes_page_filters.py"
 run_step daily_summary python3 "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit python3 "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"
+run_step saved_search_admin python3 "$PROJECT/src/saved_search_admin.py"
 run_step ops_quality_audit python3 "$PROJECT/tests/audit_ops_cockpit.py" "$PROJECT/artifacts/app"
+run_step ops_browser_static_audit "$PY" "$PROJECT/tests/audit_ops_cockpit_browser_static.py" "$PROJECT/artifacts/app"
+run_step search_alerts_audit python3 "$PROJECT/tests/audit_search_alerts.py"
+run_step detail_geo_photo_prudent_audit python3 "$PROJECT/tests/audit_detail_geo_photo_prudent.py" "$PROJECT/artifacts/app"
 run_step opportunity_v2_audit python3 "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
 run_step dedup_display_audit python3 "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
+run_step public_dedup_canonical_display_audit python3 "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
+run_step build_manifest python3 "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
+run_step build_manifest_audit python3 "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1
