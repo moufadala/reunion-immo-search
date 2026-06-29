@@ -1,139 +1,179 @@
 {
   "version": "domain_inventory_v2",
-  "listing_count": 343,
+  "listing_count": 583,
   "cities": [
     [
       "Saint-Denis",
-      117
+      182
     ],
     [
       "Saint-Pierre",
-      57
+      97
     ],
     [
       "Saint-Paul",
-      51
+      66
     ],
     [
       "Le Tampon",
-      28
+      56
+    ],
+    [
+      "Non précisée",
+      24
     ],
     [
       "Saint-Leu",
-      13
-    ],
-    [
-      "Saint-André",
-      11
-    ],
-    [
-      "Étang-Salé",
-      9
-    ],
-    [
-      "Sainte-Marie",
-      8
-    ],
-    [
-      "Saint-Joseph",
-      7
-    ],
-    [
-      "La Possession",
-      7
+      23
     ],
     [
       "Saint-Louis",
+      17
+    ],
+    [
+      "Saint-Joseph",
+      16
+    ],
+    [
+      "Étang-Salé",
+      16
+    ],
+    [
+      "Saint-André",
+      15
+    ],
+    [
+      "La Possession",
+      14
+    ],
+    [
+      "Petite-Île",
+      13
+    ],
+    [
+      "Sainte-Marie",
+      12
+    ],
+    [
+      "Bras-Panon",
       7
+    ],
+    [
+      "Saint-Benoît",
+      6
     ],
     [
       "Trois-Bassins",
       6
     ],
     [
-      "Petite-Île",
-      5
-    ],
-    [
-      "Non précisée",
+      "Entre-Deux",
       4
     ],
     [
-      "Bras-Panon",
-      4
-    ],
-    [
-      "Saint-Benoît",
-      4
+      "Sainte-Rose",
+      2
     ],
     [
       "Sainte-Suzanne",
-      3
+      2
     ],
     [
-      "Le Port",
+      "Les Avirons",
+      2
+    ],
+    [
+      "Saint-Philippe",
       1
     ],
     [
-      "Entre-Deux",
+      "Plaine-des-Palmistes",
+      1
+    ],
+    [
+      "Cilaos",
       1
     ]
   ],
   "districts": [
     [
       "Saint-Denis",
-      57
+      118
     ],
     [
       "Saint-Pierre",
-      47
+      87
+    ],
+    [
+      "Le Tampon",
+      55
+    ],
+    [
+      "Saint-Paul",
+      45
     ],
     [
       "Sainte-Clotilde",
       31
     ],
     [
-      "Le Tampon",
-      28
-    ],
-    [
-      "Saint-Paul",
-      27
-    ],
-    [
-      "La Saline les Bains",
-      23
-    ],
-    [
-      "Moufia",
-      15
+      "Zone non précisée",
+      24
     ],
     [
       "Saint-Leu",
-      13
+      23
     ],
     [
-      "Saint-André",
-      9
+      "La Saline les Bains",
+      21
     ],
     [
-      "La Montagne",
-      7
+      "Moufia",
+      18
     ],
     [
       "Saint-Louis",
-      7
-    ],
-    [
-      "Bellepierre",
-      6
-    ],
-    [
-      "Ravine des Cabris",
-      6
+      17
     ],
     [
       "Saint-Joseph",
+      15
+    ],
+    [
+      "Saint-André",
+      13
+    ],
+    [
+      "Etang-Salé",
+      13
+    ],
+    [
+      "Sainte-Marie",
+      10
+    ],
+    [
+      "Petite Ile",
+      10
+    ],
+    [
+      "La Possession",
+      9
+    ],
+    [
+      "Bellepierre",
+      8
+    ],
+    [
+      "Ravine des Cabris",
+      7
+    ],
+    [
+      "Bras-Panon",
+      7
+    ],
+    [
+      "La Montagne",
       6
     ],
     [
@@ -141,23 +181,15 @@
       6
     ],
     [
-      "Etang-Salé",
-      6
-    ],
-    [
-      "Sainte-Marie",
-      5
-    ],
-    [
       "Sainte-Suzanne",
       5
     ],
     [
-      "Zone non précisée",
-      4
+      "Saint-Benoît",
+      5
     ],
     [
-      "Bras-Panon",
+      "Entre-Deux",
       4
     ],
     [
@@ -165,19 +197,11 @@
       4
     ],
     [
-      "Bois de Nèfles Sainte-Clotilde",
-      3
-    ],
-    [
-      "La Possession",
-      3
-    ],
-    [
-      "Saint-Benoît",
-      3
-    ],
-    [
       "Moulin Joli",
+      3
+    ],
+    [
+      "Bois de Nèfles Sainte-Clotilde",
       2
     ],
     [
@@ -185,7 +209,7 @@
       2
     ],
     [
-      "Petite Ile",
+      "Les Avirons",
       2
     ],
     [
@@ -195,10 +219,6 @@
     [
       "La Saline",
       2
-    ],
-    [
-      "Beauséjour",
-      1
     ],
     [
       "La Grande Montée",
@@ -213,7 +233,11 @@
       1
     ],
     [
-      "Le Port",
+      "Saint-Philippe",
+      1
+    ],
+    [
+      "Providence",
       1
     ],
     [
@@ -221,51 +245,59 @@
       1
     ],
     [
-      "Cambaie",
+      "Sainte Rose",
       1
     ],
     [
-      "Entre-Deux",
+      "La Plaine des Palmistes",
+      1
+    ],
+    [
+      "Cilaos",
       1
     ]
   ],
   "regions": [
     [
-      "Nord",
-      128
+      "Sud",
+      223
     ],
     [
-      "Sud",
-      114
+      "Nord",
+      196
     ],
     [
       "Ouest",
-      78
+      109
     ],
     [
       "Est",
-      19
+      31
     ],
     [
       "Région non précisée",
-      4
+      24
     ]
   ],
   "types": [
     [
       "Appartement",
-      253
+      352
     ],
     [
       "Maison",
-      82
+      201
     ],
     [
       "Appartement / maison",
-      8
+      30
     ]
   ],
   "sources": [
+    [
+      "seloger",
+      270
+    ],
     [
       "zimo",
       79
@@ -273,10 +305,6 @@
     [
       "bienici",
       47
-    ],
-    [
-      "seloger",
-      30
     ],
     [
       "citya",
@@ -322,19 +350,19 @@
   "features": [
     [
       "Varangue / terrasse",
-      160
+      161
     ],
     [
       "Parking",
-      134
+      135
     ],
     [
       "Meublé",
-      120
+      113
     ],
     [
       "Jardin",
-      47
+      46
     ],
     [
       "Piscine",
@@ -342,88 +370,100 @@
     ],
     [
       "Non meublé",
-      15
+      19
     ]
   ],
   "price_summary": {
-    "count": 321,
-    "min": 60,
+    "count": 557,
+    "min": 87,
     "max": 5540,
-    "p25": 612,
-    "median": 890,
-    "p75": 1325
+    "p25": 746,
+    "median": 1020,
+    "p75": 1450
   },
   "surface_summary": {
-    "count": 339,
+    "count": 580,
     "min": 9.7,
     "max": 400.0,
-    "median": 52.87
+    "median": 63.2
   },
   "rooms": [
     [
       2,
-      95
-    ],
-    [
-      1,
-      72
+      143
     ],
     [
       4,
-      66
+      134
     ],
     [
       3,
-      65
+      113
+    ],
+    [
+      1,
+      93
     ],
     [
       5,
-      25
+      58
     ],
     [
       6,
-      4
+      19
+    ],
+    [
+      8,
+      2
     ],
     [
       7,
+      2
+    ],
+    [
+      10,
+      1
+    ],
+    [
+      9,
       1
     ]
   ],
   "furnished": {
-    "yes": 135,
+    "yes": 132,
     "no_explicit": 0,
-    "unknown_or_not_furnished": 208
+    "unknown_or_not_furnished": 451
   },
   "missing_fields": [
     [
       "rooms",
-      44
+      47
     ],
     [
       "price",
-      22
-    ],
-    [
-      "surface",
-      4
+      26
     ],
     [
       "local_image_url",
+      3
+    ],
+    [
+      "surface",
       3
     ]
   ],
   "changes": [
     [
       "disappeared",
-      72
+      75
     ],
     [
       "price_changed",
-      5
+      4
     ],
     [
       "reappeared",
-      3
+      1
     ]
   ]
 }

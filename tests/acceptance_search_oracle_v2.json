@@ -307,6 +307,210 @@
       }
     },
     {
+      "id": "loc_saint_louis_0",
+      "query": "saint-louis",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Louis"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-louis",
+          "saint louis",
+          "st louis",
+          "st-louis"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_louis_1",
+      "query": "saint louis",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Louis"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-louis",
+          "saint louis",
+          "st louis",
+          "st-louis"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_louis_2",
+      "query": "st louis",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Louis"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-louis",
+          "saint louis",
+          "st louis",
+          "st-louis"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_louis_3",
+      "query": "st-louis",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Louis"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-louis",
+          "saint louis",
+          "st louis",
+          "st-louis"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_joseph_0",
+      "query": "saint-joseph",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Joseph"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-joseph",
+          "saint joseph",
+          "st joseph",
+          "st-joseph"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_joseph_1",
+      "query": "saint joseph",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Joseph"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-joseph",
+          "saint joseph",
+          "st joseph",
+          "st-joseph"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_joseph_2",
+      "query": "st joseph",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Joseph"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-joseph",
+          "saint joseph",
+          "st joseph",
+          "st-joseph"
+        ]
+      }
+    },
+    {
+      "id": "loc_saint_joseph_3",
+      "query": "st-joseph",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Saint-Joseph"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "saint-joseph",
+          "saint joseph",
+          "st joseph",
+          "st-joseph"
+        ]
+      }
+    },
+    {
+      "id": "loc_etang_sale_0",
+      "query": "étang-salé",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Étang-Salé"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "étang-salé",
+          "étang salé",
+          "etang sale",
+          "etang-sale"
+        ]
+      }
+    },
+    {
+      "id": "loc_etang_sale_1",
+      "query": "étang salé",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Étang-Salé"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "étang-salé",
+          "étang salé",
+          "etang sale",
+          "etang-sale"
+        ]
+      }
+    },
+    {
+      "id": "loc_etang_sale_2",
+      "query": "etang sale",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Étang-Salé"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "étang-salé",
+          "étang salé",
+          "etang sale",
+          "etang-sale"
+        ]
+      }
+    },
+    {
+      "id": "loc_etang_sale_3",
+      "query": "etang-sale",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Étang-Salé"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "étang-salé",
+          "étang salé",
+          "etang sale",
+          "etang-sale"
+        ]
+      }
+    },
+    {
       "id": "loc_saint_andre_0",
       "query": "saint-andré",
       "family": "location",
@@ -421,210 +625,6 @@
       }
     },
     {
-      "id": "loc_etang_sale_0",
-      "query": "étang-salé",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_1",
-      "query": "étang salé",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_2",
-      "query": "etang sale",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_3",
-      "query": "etang-sale",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_marie_0",
-      "query": "sainte-marie",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Marie"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-marie",
-          "sainte marie",
-          "ste marie",
-          "ste-marie"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_marie_1",
-      "query": "sainte marie",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Marie"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-marie",
-          "sainte marie",
-          "ste marie",
-          "ste-marie"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_marie_2",
-      "query": "ste marie",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Marie"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-marie",
-          "sainte marie",
-          "ste marie",
-          "ste-marie"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_marie_3",
-      "query": "ste-marie",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Marie"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-marie",
-          "sainte marie",
-          "ste marie",
-          "ste-marie"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_0",
-      "query": "saint-joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_1",
-      "query": "saint joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_2",
-      "query": "st joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_3",
-      "query": "st-joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
       "id": "loc_la_possession_0",
       "query": "la possession",
       "family": "location",
@@ -655,100 +655,70 @@
       }
     },
     {
-      "id": "loc_saint_louis_0",
-      "query": "saint-louis",
+      "id": "loc_petite_ile_0",
+      "query": "petite-île",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Louis"
+          "Petite-Île"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
+          "petite-île",
+          "petite île",
+          "petite ile",
+          "petite-ile"
         ]
       }
     },
     {
-      "id": "loc_saint_louis_1",
-      "query": "saint louis",
+      "id": "loc_petite_ile_1",
+      "query": "petite île",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Louis"
+          "Petite-Île"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
+          "petite-île",
+          "petite île",
+          "petite ile",
+          "petite-ile"
         ]
       }
     },
     {
-      "id": "loc_saint_louis_2",
-      "query": "st louis",
+      "id": "loc_petite_ile_2",
+      "query": "petite ile",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Louis"
+          "Petite-Île"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
+          "petite-île",
+          "petite île",
+          "petite ile",
+          "petite-ile"
         ]
       }
     },
     {
-      "id": "loc_saint_louis_3",
-      "query": "st-louis",
+      "id": "loc_petite_ile_3",
+      "query": "petite-ile",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Louis"
+          "Petite-Île"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
-        ]
-      }
-    },
-    {
-      "id": "loc_trois_bassins_0",
-      "query": "trois-bassins",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Trois-Bassins"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "trois-bassins",
-          "trois bassins"
-        ]
-      }
-    },
-    {
-      "id": "loc_trois_bassins_1",
-      "query": "trois bassins",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Trois-Bassins"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "trois-bassins",
-          "trois bassins"
+          "petite-île",
+          "petite île",
+          "petite ile",
+          "petite-ile"
         ]
       }
     },
@@ -821,6 +791,74 @@
       }
     },
     {
+      "id": "loc_zone_non_precisee_0",
+      "query": "zone non précisée",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Zone non précisée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "zone non précisée",
+          "zone-non-précisée",
+          "zone non precisee",
+          "zone-non-precisee"
+        ]
+      }
+    },
+    {
+      "id": "loc_zone_non_precisee_1",
+      "query": "zone-non-précisée",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Zone non précisée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "zone non précisée",
+          "zone-non-précisée",
+          "zone non precisee",
+          "zone-non-precisee"
+        ]
+      }
+    },
+    {
+      "id": "loc_zone_non_precisee_2",
+      "query": "zone non precisee",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Zone non précisée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "zone non précisée",
+          "zone-non-précisée",
+          "zone non precisee",
+          "zone-non-precisee"
+        ]
+      }
+    },
+    {
+      "id": "loc_zone_non_precisee_3",
+      "query": "zone-non-precisee",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Zone non précisée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "zone non précisée",
+          "zone-non-précisée",
+          "zone non precisee",
+          "zone-non-precisee"
+        ]
+      }
+    },
+    {
       "id": "loc_la_saline_les_bains_0",
       "query": "la saline les bains",
       "family": "location",
@@ -861,50 +899,6 @@
         "no_all_base": true,
         "result_hay_any": [
           "moufia"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_montagne_0",
-      "query": "la montagne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Montagne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la montagne",
-          "la-montagne"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_montagne_1",
-      "query": "la-montagne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Montagne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la montagne",
-          "la-montagne"
-        ]
-      }
-    },
-    {
-      "id": "loc_bellepierre_0",
-      "query": "bellepierre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Bellepierre"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "bellepierre"
         ]
       }
     },
@@ -1329,6 +1323,20 @@
       }
     },
     {
+      "id": "loc_bellepierre_0",
+      "query": "bellepierre",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Bellepierre"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "bellepierre"
+        ]
+      }
+    },
+    {
       "id": "loc_montgaillard_0",
       "query": "montgaillard",
       "family": "location",
@@ -1647,78 +1655,6 @@
       }
     },
     {
-      "id": "rooms_1_t1",
-      "query": "T1",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_1_f1",
-      "query": "F1",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_1_t_1",
-      "query": "T 1",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_1_f_1",
-      "query": "F 1",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_1_1_pieces",
-      "query": "1 pièces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_1_1_pieces",
-      "query": "1 pieces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F1",
-          "1"
-        ],
-        "no_zero": true
-      }
-    },
-    {
       "id": "rooms_4_t4",
       "query": "T4",
       "family": "rooms",
@@ -1858,6 +1794,78 @@
         "understood_any": [
           "T/F3",
           "3"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_t1",
+      "query": "T1",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_f1",
+      "query": "F1",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_t_1",
+      "query": "T 1",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_f_1",
+      "query": "F 1",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_1_pieces",
+      "query": "1 pièces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_1_1_pieces",
+      "query": "1 pieces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F1",
+          "1"
         ],
         "no_zero": true
       }
@@ -2128,70 +2136,6 @@
       }
     },
     {
-      "id": "budget_bare_890",
-      "query": "890",
-      "family": "budget_ambiguous",
-      "expect": {
-        "understood_any": [
-          "à préciser"
-        ],
-        "has_price_buttons": true
-      }
-    },
-    {
-      "id": "budget_max_890",
-      "query": "moins 890",
-      "family": "budget_max",
-      "expect": {
-        "understood_any": [
-          "≤ 890"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_under_890",
-      "query": "sous 890",
-      "family": "budget_max",
-      "expect": {
-        "understood_any": [
-          "≤ 890"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_min_890",
-      "query": "plus 890",
-      "family": "budget_min",
-      "expect": {
-        "understood_any": [
-          "≥ 890"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_equal_890",
-      "query": "exact 890",
-      "family": "budget_equal",
-      "expect": {
-        "understood_any": [
-          "= 890"
-        ]
-      }
-    },
-    {
-      "id": "budget_around_890",
-      "query": "autour de 890",
-      "family": "budget_around",
-      "expect": {
-        "understood_any": [
-          "autour"
-        ]
-      }
-    },
-    {
       "id": "budget_bare_900",
       "query": "900",
       "family": "budget_ambiguous",
@@ -2312,6 +2256,70 @@
     {
       "id": "budget_around_1000",
       "query": "autour de 1000",
+      "family": "budget_around",
+      "expect": {
+        "understood_any": [
+          "autour"
+        ]
+      }
+    },
+    {
+      "id": "budget_bare_1020",
+      "query": "1020",
+      "family": "budget_ambiguous",
+      "expect": {
+        "understood_any": [
+          "à préciser"
+        ],
+        "has_price_buttons": true
+      }
+    },
+    {
+      "id": "budget_max_1020",
+      "query": "moins 1020",
+      "family": "budget_max",
+      "expect": {
+        "understood_any": [
+          "≤ 1020"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_under_1020",
+      "query": "sous 1020",
+      "family": "budget_max",
+      "expect": {
+        "understood_any": [
+          "≤ 1020"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_min_1020",
+      "query": "plus 1020",
+      "family": "budget_min",
+      "expect": {
+        "understood_any": [
+          "≥ 1020"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_equal_1020",
+      "query": "exact 1020",
+      "family": "budget_equal",
+      "expect": {
+        "understood_any": [
+          "= 1020"
+        ]
+      }
+    },
+    {
+      "id": "budget_around_1020",
+      "query": "autour de 1020",
       "family": "budget_around",
       "expect": {
         "understood_any": [
