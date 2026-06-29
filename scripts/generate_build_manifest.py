@@ -60,7 +60,7 @@ def git_status_paths(status_short: str) -> tuple[list[str], list[str]]:
     source_dirty: list[str] = []
     generated_dirty: list[str] = []
     for line in status_short.splitlines():
-        rel = line[3:] if len(line) > 3 else line.strip()
+        rel = line[2:] if len(line) > 2 else line.strip()
         if " -> " in rel:
             rel = rel.rsplit(" -> ", 1)[-1]
         rel = rel.strip()
