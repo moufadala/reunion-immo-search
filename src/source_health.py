@@ -40,6 +40,15 @@ def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def parse_reference_time(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    dt = parse_dt(value)
+    if dt is None:
+        raise ValueError(f"Invalid --reference-time: {value!r}  (expected ISO-8601 with timezone)")
+    return dt
+
+
 def parse_dt(value: Any) -> datetime | None:
     if not value:
         return None
@@ -193,8 +202,8 @@ def public_smoke_summary(smoke: dict[str, Any], smoke_path: Path | None) -> dict
     }
 
 
-def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None) -> dict[str, Any]:
-    now = now_utc()
+def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None, reference_time: datetime | None = None) -> dict[str, Any]:
+    now = reference_time if reference_time is not None else now_utc()
     smoke_path = smoke_summary or find_latest_summary()
     smoke = load_smoke_summary(smoke_path)
     stats = db_source_stats(db_path)
@@ -252,8 +261,15 @@ def main() -> int:
     ap.add_argument("--smoke-summary", type=Path)
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--html-out", type=Path, default=DEFAULT_HTML_OUT)
+    ap.add_argument(
+        "--reference-time",
+        metavar="ISO8601",
+        help="Override the 'now' reference for freshness calculations (ISO-8601 with timezone). "
+             "Intended for tests and reproducible audits only.",
+    )
     args = ap.parse_args()
-    payload = build_payload(args.db, args.smoke_summary)
+    ref_time = parse_reference_time(args.reference_time)
+    payload = build_payload(args.db, args.smoke_summary, reference_time=ref_time)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     render_html(payload, args.html_out)

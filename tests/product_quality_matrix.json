@@ -179,6 +179,38 @@
       "timeout_seconds": 60
     },
     {
+      "id": "build_manifest",
+      "family": "source_pipeline",
+      "level": "P0",
+      "role": "Traçabilité publication: commit propre, run_dir, étapes rc=0, DB hashée, URL publique explicite.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/build_manifest.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_build_manifest.py",
+        "{app}"
+      ],
+      "timeout_seconds": 60
+    },
+    {
+      "id": "privacy_artifacts",
+      "family": "source_pipeline",
+      "level": "P0",
+      "role": "Confidentialité runtime: aucune recherche privée/saved-search admin dans l'artefact public.",
+      "scope": "Artefact app local.",
+      "prerequisites": [
+        "{app}/listings.json"
+      ],
+      "command": [
+        "python3",
+        "tests/audit_privacy_artifacts.py",
+        "{app}"
+      ],
+      "timeout_seconds": 60
+    },
+    {
       "id": "mobile_public",
       "family": "display_public",
       "level": "P0",

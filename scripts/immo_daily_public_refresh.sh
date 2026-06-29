@@ -161,7 +161,10 @@ run_step enhance_changes_decision python3 "$PROJECT/scripts/enhance_changes_deci
 run_step wave2_detail_geo_photo python3 "$PROJECT/scripts/patch_wave2_lot_c_detail_geo_photo.py" --app "$CLEAN_STAGE"
 run_step opportunity_dedup_calibration python3 "$PROJECT/scripts/generate_opportunity_calibration.py" --app "$CLEAN_STAGE"
 run_step ops_cockpit_stage python3 "$PROJECT/scripts/generate_ops_cockpit.py" --app "$CLEAN_STAGE" --run-dir "$RUN_DIR"
-run_step saved_search_admin_stage python3 "$PROJECT/src/saved_search_admin.py" --listings "$CLEAN_STAGE/listings.json" --out "$CLEAN_STAGE/saved_searches_admin.json" --html-out "$CLEAN_STAGE/saved_searches.html"
+# P0 Privacy: generate saved_searches output to run_dir only (never to the public-served stage).
+# The saved_searches_admin.json contains personal search criteria (name, budget, family).
+# It must NOT be promoted to artifacts/app or served by nginx.
+run_step saved_search_admin_stage python3 "$PROJECT/src/saved_search_admin.py" --listings "$CLEAN_STAGE/listings.json" --out "$RUN_DIR/saved_searches_admin.json" --html-out "$RUN_DIR/saved_searches.html"
 
 # Keep files readable by nginx despite this wrapper's restrictive umask, and guard against homepage regressions.
 run_step clean_stage_gate bash -lc '
@@ -169,7 +172,7 @@ run_step clean_stage_gate bash -lc '
   stage="$1"
   test -s "$stage/index.html"
   test -s "$stage/listings.json"
-  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html changes.html source_health.html dedup.html opportunity.html locations.html alertes_cours.html ops.html ops_status.json saved_searches.html saved_searches_admin.json; do
+  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html changes.html source_health.html dedup.html opportunity.html locations.html alertes_cours.html ops.html ops_status.json; do
     test -s "$stage/$p"
   done
   chmod -R a+rX "$stage"
@@ -211,13 +214,16 @@ run_step public_quality_budget_audit python3 "$PROJECT/tests/audit_public_qualit
 run_step public_storage_state_audit python3 "$PROJECT/tests/audit_public_storage_state.py" "$PROJECT/artifacts/app"
 run_step public_perf_index_audit python3 "$PROJECT/tests/audit_public_perf_index.py" "$PROJECT/artifacts/app"
 run_step public_seo_audit python3 "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
+run_step build_manifest python3 "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
+run_step build_manifest_audit python3 "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 run_step public_user_search_audit python3 "$PROJECT/tests/audit_user_search_cases.py"
 run_step public_changes_filter_audit python3 "$PROJECT/tests/audit_changes_page_filters.py"
 run_step daily_summary python3 "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit python3 "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"
-run_step saved_search_admin python3 "$PROJECT/src/saved_search_admin.py"
+# P0 Privacy: saved_search_admin writes to run_dir only; do not promote to public app.
+run_step saved_search_admin python3 "$PROJECT/src/saved_search_admin.py" --out "$RUN_DIR/saved_searches_admin_final.json" --html-out "$RUN_DIR/saved_searches_final.html"
 run_step ops_quality_audit python3 "$PROJECT/tests/audit_ops_cockpit.py" "$PROJECT/artifacts/app"
 run_step ops_browser_static_audit "$PY" "$PROJECT/tests/audit_ops_cockpit_browser_static.py" "$PROJECT/artifacts/app"
 run_step search_alerts_audit python3 "$PROJECT/tests/audit_search_alerts.py"
@@ -225,8 +231,6 @@ run_step detail_geo_photo_prudent_audit python3 "$PROJECT/tests/audit_detail_geo
 run_step opportunity_v2_audit python3 "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
 run_step dedup_display_audit python3 "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 run_step public_dedup_canonical_display_audit python3 "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
-run_step build_manifest python3 "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
-run_step build_manifest_audit python3 "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1
