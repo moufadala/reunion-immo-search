@@ -32,11 +32,43 @@ def sha256_file(path: Path) -> str | None:
     return h.hexdigest()
 
 
+MUTABLE_GENERATED_GIT_PATHS = {
+    # Daily refresh regenerates these lightweight evidence/oracle files from the
+    # current public dataset. They are useful to keep in the repo as baselines,
+    # but their run-to-run drift must not make the public build look as if it was
+    # produced from uncommitted source code.
+    "artifacts/domain_inventory_v2.json",
+    "artifacts/photo-cache-report.md",
+    "tests/acceptance_search_oracle_v2.json",
+}
+
+
 def git_value(args: list[str]) -> str:
     try:
         return subprocess.check_output(["git", *args], cwd=ROOT, text=True, stderr=subprocess.DEVNULL).strip()
     except Exception:
         return ""
+
+
+def git_status_paths(status_short: str) -> tuple[list[str], list[str]]:
+    """Split git status into source-affecting and allowed generated drift.
+
+    `git status --short` prefixes paths with XY status columns.  For rename lines
+    we keep the destination path after ` -> ` because that is what would remain
+    dirty in the working tree.
+    """
+    source_dirty: list[str] = []
+    generated_dirty: list[str] = []
+    for line in status_short.splitlines():
+        rel = line[3:] if len(line) > 3 else line.strip()
+        if " -> " in rel:
+            rel = rel.rsplit(" -> ", 1)[-1]
+        rel = rel.strip()
+        if rel in MUTABLE_GENERATED_GIT_PATHS:
+            generated_dirty.append(line)
+        else:
+            source_dirty.append(line)
+    return source_dirty, generated_dirty
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -101,6 +133,7 @@ def main() -> int:
     app = args.app
     out = args.out or (app / "build_manifest.json")
     dirty = git_value(["status", "--short"])
+    source_dirty, generated_dirty = git_status_paths(dirty)
     manifest: dict[str, Any] = {
         "schema_version": "immo_build_manifest_v1",
         "generated_at": utc_now(),
@@ -109,8 +142,12 @@ def main() -> int:
             "branch": git_value(["branch", "--show-current"]),
             "commit": git_value(["rev-parse", "HEAD"]),
             "commit_short": git_value(["rev-parse", "--short", "HEAD"]),
-            "dirty": bool(dirty),
+            "dirty": bool(source_dirty),
+            "source_dirty": bool(source_dirty),
             "status_short": dirty.splitlines(),
+            "source_dirty_status": source_dirty,
+            "generated_dirty_status": generated_dirty,
+            "generated_dirty_allowlist": sorted(MUTABLE_GENERATED_GIT_PATHS),
         },
         "app_summary": summarize_app(app),
         "run_dir": str(args.run_dir) if args.run_dir else None,

@@ -43,10 +43,12 @@ def main(argv: list[str]) -> int:
 
     # P0: git cleanliness — dirty or unknown builds must not be promoted.
     git = data.get("git") or {}
-    if git.get("dirty") is not False:
+    if git.get("source_dirty") is True or git.get("dirty") is not False:
+        source_dirty_status = git.get("source_dirty_status") or git.get("status_short") or []
         return fail(
-            "git.dirty is not exactly false — build was produced from an uncommitted "
-            "or unknown working tree; promote only from a clean commit"
+            "git.source_dirty is not false — build was produced from uncommitted "
+            "source/config/test code; promote only from a clean source commit. "
+            f"source_dirty_status={source_dirty_status[:5]}"
         )
     commit = str(git.get("commit") or "")
     commit_short = str(git.get("commit_short") or "")
