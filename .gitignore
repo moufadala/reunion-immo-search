@@ -19,6 +19,9 @@ node_modules/
 .DS_Store
 
 # bulky/transient media/cache
+# Real generated public app artifacts stay on VPS/runtime, not in public GitHub.
+# Keep only source, tests, docs, and explicit anonymized fixtures under tests/fixtures/.
+artifacts/app/
 artifacts/app.bak*/
 artifacts/app.backup*/
 artifacts/app_backup*/

@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://immo.148.230.103.174.sslip.io/sitemap.xml

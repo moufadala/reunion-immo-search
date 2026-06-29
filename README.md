@@ -16,9 +16,13 @@ IMMO_STAGE_DB=1 /opt/data/scripts/immo_daily_public_refresh.sh
 
 Le daily travaille sur une DB stage, applique les gates volume/source, promeut la DB puis l'app seulement après QA, et exécute des drills rollback DB/app.
 
-## Données
+## Données et GitHub public
 
 Les données réelles vivent hors dépôt sur le VPS (`/opt/data/data`, `/opt/data/artifacts`) et ne doivent pas être poussées sur GitHub.
+
+En particulier, `artifacts/app/` est un **résultat généré de production** servi par le VPS/Traefik, pas une source Git. Il est ignoré par `.gitignore` et bloqué par `tests/audit_github_public_safety.py` pour éviter de publier des contacts, exports scrape, bases, caches ou secrets dans le dépôt public.
+
+Le dépôt public doit rester limité à : code source, scripts, tests, documentation, configuration exemple et fixtures explicitement anonymisées.
 
 ## Monitoring
 
