@@ -6,6 +6,7 @@ set -euo pipefail
 
 umask 077
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
+export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/home/.cache/ms-playwright}"
 
 PROJECT="/opt/data/projects/reunion-immo-search"
 PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
