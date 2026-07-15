@@ -47,6 +47,18 @@ def connect(db_path: Path) -> sqlite3.Connection:
 def init_schema(con: sqlite3.Connection) -> None:
     con.executescript(
         """
+        CREATE TABLE IF NOT EXISTS runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL,
+            ran_at TEXT NOT NULL,
+            statut TEXT NOT NULL,
+            n_rows INTEGER NOT NULL DEFAULT 0,
+            structure_hash TEXT,
+            error TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_runs_source_ran_at ON runs(source, ran_at);
+        CREATE INDEX IF NOT EXISTS idx_runs_statut ON runs(statut);
+
         CREATE TABLE IF NOT EXISTS listings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             source TEXT NOT NULL,
@@ -83,6 +95,25 @@ def load_listings(path: Path) -> list[dict[str, Any]]:
     if isinstance(data, list):
         return [x for x in data if isinstance(x, dict)]
     return [x for x in data.get("listings") or [] if isinstance(x, dict)]
+
+
+def structure_hash(listings: list[dict[str, Any]]) -> str:
+    keys: dict[str, str] = {}
+    sample = listings[:50]
+    for item in sample:
+        for key, value in item.items():
+            keys[key] = type(value).__name__
+    payload = json.dumps(keys, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def record_run(con: sqlite3.Connection, *, source: str, ran_at: str, statut: str, n_rows: int, structure: str | None, error: str | None = None) -> int:
+    cur = con.execute(
+        """INSERT INTO runs(source, ran_at, statut, n_rows, structure_hash, error)
+        VALUES (?, ?, ?, ?, ?, ?)""",
+        (source, ran_at, statut, int(n_rows), structure, (error or None)),
+    )
+    return int(cur.lastrowid or 0)
 
 
 def native_source(item: dict[str, Any]) -> str | None:
@@ -236,13 +267,27 @@ def upsert_listing(con: sqlite3.Connection, item: dict[str, Any], now: str) -> t
     return int(row["id"]), "updated" if existed else "inserted"
 
 
-def ingest(source: Path = DEFAULT_SOURCE, db_path: Path = DEFAULT_DB, now: str | None = None) -> dict[str, Any]:
+def ingest(source: Path = DEFAULT_SOURCE, db_path: Path = DEFAULT_DB, now: str | None = None, source_name: str | None = None) -> dict[str, Any]:
     timestamp = now or utcnow()
-    listings = load_listings(source)
+    run_source = source_name or "immo_listings"
     con = connect(db_path)
     init_schema(con)
+    try:
+        listings = load_listings(source)
+    except Exception as exc:
+        with con:
+            run_id = record_run(con, source=run_source, ran_at=timestamp, statut="error", n_rows=0, structure=None, error=str(exc)[:500])
+        con.close()
+        return {
+            "ok": False,
+            "source": str(source),
+            "db": str(db_path),
+            "run": {"id": run_id, "source": run_source, "ran_at": timestamp, "statut": "error", "n_rows": 0, "structure_hash": None, "error": str(exc)[:500]},
+        }
     counts = {"processed": 0, "inserted": 0, "updated": 0, "skipped_missing_native_id": 0, "photos_inserted": 0}
     app_root = source.parent
+    stat = "ok" if listings else "empty"
+    shash = structure_hash(listings) if listings else None
     with con:
         for item in listings:
             counts["processed"] += 1
@@ -265,16 +310,18 @@ def ingest(source: Path = DEFAULT_SOURCE, db_path: Path = DEFAULT_DB, now: str |
                 )
                 if con.total_changes > before:
                     counts["photos_inserted"] += 1
+        run_id = record_run(con, source=run_source, ran_at=timestamp, statut=stat, n_rows=len(listings), structure=shash)
     total_listings = int(con.execute("SELECT COUNT(*) FROM listings").fetchone()[0])
     total_photos = int(con.execute("SELECT COUNT(*) FROM listing_photos").fetchone()[0])
     journal_mode = str(con.execute("PRAGMA journal_mode").fetchone()[0])
     con.close()
     return {
-        "ok": True,
+        "ok": stat == "ok",
         "source": str(source),
         "db": str(db_path),
         "journal_mode": journal_mode,
         "snapshot_at": timestamp,
+        "run": {"id": run_id, "source": run_source, "ran_at": timestamp, "statut": stat, "n_rows": len(listings), "structure_hash": shash},
         **counts,
         "total_listings": total_listings,
         "total_photos": total_photos,
@@ -286,10 +333,11 @@ def main() -> int:
     ap.add_argument("--source", default=str(DEFAULT_SOURCE))
     ap.add_argument("--db", default=str(DEFAULT_DB))
     ap.add_argument("--snapshot-at")
+    ap.add_argument("--source-name", default="immo_listings")
     args = ap.parse_args()
-    report = ingest(Path(args.source), Path(args.db), args.snapshot_at)
+    report = ingest(Path(args.source), Path(args.db), args.snapshot_at, args.source_name)
     print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
-    return 0
+    return 0 if report.get("ok") else 2
 
 
 if __name__ == "__main__":
