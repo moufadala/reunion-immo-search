@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import sqlite3
 import statistics
 import urllib.parse
@@ -106,7 +107,44 @@ def failed_notifications(con: sqlite3.Connection, limit: int = 10) -> list[sqlit
     ))
 
 
-def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_ratio: float, reference_time: datetime | None = None) -> dict[str, Any]:
+def directory_size_bytes(path: Path) -> int:
+    if not path.exists():
+        return 0
+    total = 0
+    for item in path.rglob("*"):
+        try:
+            if item.is_file() or item.is_symlink():
+                total += item.lstat().st_size
+        except OSError:
+            continue
+    return total
+
+
+def disk_alerts(*, artifacts_path: Path, artifact_size_threshold_gb: float, root_usage_threshold_pct: float) -> list[dict[str, Any]]:
+    alerts: list[dict[str, Any]] = []
+    size_bytes = directory_size_bytes(artifacts_path)
+    size_gb = size_bytes / (1024 ** 3)
+    if size_gb > artifact_size_threshold_gb:
+        alerts.append({
+            "kind": "disk_immo_artifacts",
+            "message": f"disque immo: artifacts/ {size_gb:.2f} Go > seuil {artifact_size_threshold_gb:.2f} Go",
+            "size_gb": round(size_gb, 3),
+            "threshold_gb": artifact_size_threshold_gb,
+            "path": str(artifacts_path),
+        })
+    usage = shutil.disk_usage("/")
+    pct = usage.used / usage.total * 100 if usage.total else 0.0
+    if pct > root_usage_threshold_pct:
+        alerts.append({
+            "kind": "disk_immo_root",
+            "message": f"disque immo: / {pct:.1f}% > seuil {root_usage_threshold_pct:.1f}%",
+            "usage_pct": round(pct, 2),
+            "threshold_pct": root_usage_threshold_pct,
+        })
+    return alerts
+
+
+def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_ratio: float, reference_time: datetime | None = None, artifacts_path: Path | None = None, artifact_size_threshold_gb: float = 25.0, root_usage_threshold_pct: float = 85.0) -> dict[str, Any]:
     now = reference_time or utcnow()
     alerts: list[dict[str, Any]] = []
     con = connect(db_path)
@@ -160,6 +198,12 @@ def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_r
             "message": f"D2bis: {len(failed)} ligne(s) watch_notifications.status='failed' — perte silencieuse Telegram possible",
             "failed": [dict(r) for r in failed],
         })
+    artifacts_checked = artifacts_path or (ROOT / "artifacts")
+    alerts.extend(disk_alerts(
+        artifacts_path=artifacts_checked,
+        artifact_size_threshold_gb=artifact_size_threshold_gb,
+        root_usage_threshold_pct=root_usage_threshold_pct,
+    ))
     con.close()
     status = "down" if alerts else "ok"
     msg = "OK immo freshness" if status == "ok" else "; ".join(a["message"] for a in alerts[:3])
@@ -211,9 +255,20 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--push-url")
     ap.add_argument("--push-env", default="/opt/data/services/uptime-kuma/phased_push.env")
+    ap.add_argument("--artifacts-path", default=str(ROOT / "artifacts"))
+    ap.add_argument("--artifact-size-threshold-gb", type=float, default=25.0)
+    ap.add_argument("--root-usage-threshold-pct", type=float, default=85.0)
     args = ap.parse_args()
 
-    report = build_report(Path(args.db), source=args.source, max_age_hours=args.max_age_hours, collapse_ratio=args.collapse_ratio)
+    report = build_report(
+        Path(args.db),
+        source=args.source,
+        max_age_hours=args.max_age_hours,
+        collapse_ratio=args.collapse_ratio,
+        artifacts_path=Path(args.artifacts_path),
+        artifact_size_threshold_gb=args.artifact_size_threshold_gb,
+        root_usage_threshold_pct=args.root_usage_threshold_pct,
+    )
     if not args.dry_run:
         state_path = Path(args.state)
         state_path.parent.mkdir(parents=True, exist_ok=True)

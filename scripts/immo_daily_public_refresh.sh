@@ -252,6 +252,7 @@ run_step detail_geo_photo_prudent_audit "$PY" "$PROJECT/tests/audit_detail_geo_p
 run_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
 run_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 run_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
+run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --apply --json-out "$RUN_DIR/artifact_retention.json"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1
