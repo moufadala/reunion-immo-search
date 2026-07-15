@@ -25,7 +25,8 @@ if errors:
 def run_check(db: Path, transport_log: Path, watch_name: str = "audit_watch") -> dict:
     # limit=1 intentionally catches the starvation bug where an already-notified
     # first match can hide a newer unnotified match behind it.
-    criteria = {"commune": "Saint-Denis", "prix_max": 900, "limit": 1}
+    # transaction/type catch the real-watch bug where those criteria were ignored silently.
+    criteria = {"commune": "Saint-Denis", "transaction": "location", "type": ["appartement"], "prix_max": 900, "limit": 1}
     proc = subprocess.run(
         [
             sys.executable,
@@ -76,12 +77,17 @@ with tempfile.TemporaryDirectory() as td:
         """
     )
     rows = [
-        ("alpha", "A-1", "T2 audit match", "https://example.invalid/a", "Saint-Denis", 890, 42.0),
-        ("alpha", "A-2", "T3 too expensive", "https://example.invalid/b", "Saint-Denis", 1200, 70.0),
-        ("beta", "B-1", "Other commune", "https://example.invalid/c", "Sainte-Marie", 800, 50.0),
+        # These two rows must NOT match. Before the matcher understood transaction/type,
+        # one of them would pass silently and steal the limit=1 slot.
+        ("alpha", "A-0", "Vente wrong transaction", "https://example.invalid/z", "Saint-Denis", 800, 52.0, {"transaction": "vente", "type": "Appartement"}),
+        ("alpha", "A-0b", "Location wrong type", "https://example.invalid/y", "Saint-Denis", 800, 52.0, {"transaction": "location", "type": "Terrain"}),
+        ("alpha", "A-1", "T2 audit match", "https://example.invalid/a", "Saint-Denis", 890, 42.0, {"transaction": "location", "type": "Appartement"}),
+        ("alpha", "A-2", "T3 too expensive", "https://example.invalid/b", "Saint-Denis", 1200, 70.0, {"transaction": "location", "type": "Appartement"}),
+        ("beta", "B-1", "Other commune", "https://example.invalid/c", "Sainte-Marie", 800, 50.0, {"transaction": "location", "type": "Appartement"}),
     ]
-    for source, site_id, title, url, commune, prix, surface in rows:
-        raw = json.dumps({"source": source, "source_id": site_id, "title": title}, ensure_ascii=False)
+    for source, site_id, title, url, commune, prix, surface, extra in rows:
+        raw_obj = {"source": source, "source_id": site_id, "title": title, **extra}
+        raw = json.dumps(raw_obj, ensure_ascii=False)
         con.execute(
             """INSERT INTO listings(source,site_id,title,url,commune,prix,surface,raw_json,first_seen_at,updated_at)
             VALUES (?,?,?,?,?,?,?,?,datetime('now'),datetime('now'))""",
@@ -94,7 +100,7 @@ with tempfile.TemporaryDirectory() as td:
     second = run_check(db, log)
 
     con = sqlite3.connect(db)
-    raw = json.dumps({"source": "alpha", "source_id": "A-3", "title": "T1 new behind old"}, ensure_ascii=False)
+    raw = json.dumps({"source": "alpha", "source_id": "A-3", "title": "T1 new behind old", "transaction": "location", "type": "Appartement"}, ensure_ascii=False)
     con.execute(
         """INSERT INTO listings(source,site_id,title,url,commune,prix,surface,raw_json,first_seen_at,updated_at)
         VALUES (?,?,?,?,?,?,?,?,datetime('now'),datetime('now'))""",

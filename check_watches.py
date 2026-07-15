@@ -124,6 +124,76 @@ def as_float(value: Any) -> float | None:
         return None
 
 
+def raw_obj(row: sqlite3.Row) -> dict[str, Any]:
+    try:
+        text = row["raw_json"]
+    except (KeyError, IndexError):
+        return {}
+    if not text:
+        return {}
+    try:
+        obj = json.loads(text)
+    except Exception:
+        return {}
+    return obj if isinstance(obj, dict) else {}
+
+
+def criteria_values(value: Any) -> list[str]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return [normalize_text(v) for v in value if normalize_text(v)]
+    return [normalize_text(value)]
+
+
+def candidate_text(row: sqlite3.Row, raw: dict[str, Any], keys: tuple[str, ...]) -> str:
+    parts: list[str] = []
+    for key in keys:
+        value = raw.get(key)
+        if isinstance(value, list):
+            parts.extend(str(v) for v in value)
+        elif value not in (None, ""):
+            parts.append(str(value))
+    for key in ("title", "url"):
+        try:
+            if row[key]:
+                parts.append(str(row[key]))
+        except (KeyError, IndexError):
+            pass
+    return normalize_text(" ".join(parts))
+
+
+def transaction_matches(row: sqlite3.Row, raw: dict[str, Any], expected: Any) -> bool:
+    values = criteria_values(expected)
+    if not values:
+        return True
+    hay = candidate_text(row, raw, ("transaction", "operation", "deal_type", "category", "description"))
+    for value in values:
+        if value in hay:
+            return True
+        if value in {"location", "loc", "louer", "a louer", "à louer"} and any(token in hay for token in ("location", "loc", "louer", "loué", "a louer", "à louer", "a-louer")):
+            return True
+        if value in {"vente", "vendre", "achat", "a vendre", "à vendre"} and any(token in hay for token in ("vente", "vendre", "vendu", "achat", "a vendre", "à vendre", "a-vendre")):
+            return True
+    return False
+
+
+def type_matches(row: sqlite3.Row, raw: dict[str, Any], expected: Any) -> bool:
+    values = criteria_values(expected)
+    if not values:
+        return True
+    hay = candidate_text(row, raw, ("type", "property_type", "bien_type", "asset_type", "category", "description"))
+    aliases = {
+        "appartement": {"appartement", "apt", "t1", "t2", "t3", "t4", "t5", "studio"},
+        "maison": {"maison", "villa"},
+    }
+    for value in values:
+        allowed = aliases.get(value, {value})
+        if any(token in hay for token in allowed):
+            return True
+    return False
+
+
 def row_matches(row: sqlite3.Row, criteria: dict[str, Any]) -> bool:
     commune = criteria.get("commune")
     if commune and normalize_text(row["commune"]) != normalize_text(commune):
@@ -141,6 +211,11 @@ def row_matches(row: sqlite3.Row, criteria: dict[str, Any]) -> bool:
             return False
     prix = as_int(row["prix"])
     surface = as_float(row["surface"])
+    raw = raw_obj(row)
+    if not transaction_matches(row, raw, criteria.get("transaction")):
+        return False
+    if not type_matches(row, raw, criteria.get("type")):
+        return False
     if criteria.get("prix_min") is not None and (prix is None or prix < int(criteria["prix_min"])):
         return False
     if criteria.get("prix_max") is not None and (prix is None or prix > int(criteria["prix_max"])):
@@ -153,7 +228,7 @@ def row_matches(row: sqlite3.Row, criteria: dict[str, Any]) -> bool:
 
 
 def matching_listings(con: sqlite3.Connection, criteria: dict[str, Any]) -> list[sqlite3.Row]:
-    rows = list(con.execute("SELECT id, source, site_id, title, url, commune, prix, surface FROM listings ORDER BY id"))
+    rows = list(con.execute("SELECT id, source, site_id, title, url, commune, prix, surface, raw_json FROM listings ORDER BY id"))
     return [r for r in rows if row_matches(r, criteria)]
 
 
