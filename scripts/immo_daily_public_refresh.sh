@@ -217,6 +217,27 @@ PY
 run_step description_quality_stage_audit "$PY" "$PROJECT/tests/audit_description_quality.py" "$CLEAN_STAGE"
 run_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE" --json-out "$RUN_DIR/public_delta_guard.json"
 run_step dedup_stage_audit "$PY" "$PROJECT/scripts/audit_dedup_public.py" --listings "$CLEAN_STAGE/listings.json" --json-out "$RUN_DIR/dedup_audit.json" --md-out "$RUN_DIR/dedup_audit.md"
+run_step stage_source_freshness_gate "$PY" - "$CLEAN_STAGE/source_health.json" <<'PY'
+import json, sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+summary = payload.get('summary') or {}
+sources = payload.get('sources') or []
+fresh = int((summary.get('status_counts') or {}).get('fresh') or 0)
+critical_attention = summary.get('stale_or_attention_critical') or []
+if fresh < 11:
+    raise SystemExit(f'stage source freshness gate failed: fresh={fresh}/13 < 11')
+if len(critical_attention) > 2:
+    raise SystemExit(f'too many critical sources need attention: {critical_attention}')
+print(json.dumps({
+    'ok': True,
+    'fresh_sources': fresh,
+    'source_count': summary.get('source_count'),
+    'critical_attention': critical_attention,
+    'last_seen': {s.get('source'): s.get('last_seen_at') for s in sources},
+}, ensure_ascii=False))
+PY
 
 if [ "$STAGE_DB_MODE" = "1" ]; then
   run_step promote_db_candidate "$PY" "$PROJECT/scripts/promote_db_candidate.py" --candidate "$DB" --target "$PROD_DB" --json-out "$RUN_DIR/promote_db.json"
