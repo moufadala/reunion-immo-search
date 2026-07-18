@@ -65,6 +65,7 @@ def main() -> int:
     failures: list[str] = []
     evidence: list[dict] = []
     has_riviere_des_pluies = listing_payload_has(r"rivi[eè]res?\s+des\s+pluies")
+    has_beausejour = listing_payload_has(r"beaus[eé]jour")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page(viewport={"width": 390, "height": 844})
@@ -76,7 +77,7 @@ def main() -> int:
         quartier_cases = [
             ("rivière des pluies", 1 if has_riviere_des_pluies else 0),
             ("rivieres des pluies", 1 if has_riviere_des_pluies else 0),
-            ("beausejour", 1),
+            ("beausejour", 1 if has_beausejour else 0),
             ("grande montée", 1),
             # If the dataset has no exact listing for a quartier, the correct UX is 0 + explanation/suggestion,
             # not silently returning the whole database.
