@@ -195,8 +195,8 @@ def type_matches(row: sqlite3.Row, raw: dict[str, Any], expected: Any) -> bool:
 
 
 def row_matches(row: sqlite3.Row, criteria: dict[str, Any]) -> bool:
-    commune = criteria.get("commune")
-    if commune and normalize_text(row["commune"]) != normalize_text(commune):
+    communes = criteria_values(criteria.get("commune") or criteria.get("communes"))
+    if communes and normalize_text(row["commune"]) not in communes:
         return False
     source = criteria.get("source")
     if source and normalize_text(row["source"]) != normalize_text(source):

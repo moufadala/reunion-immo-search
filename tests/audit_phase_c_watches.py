@@ -134,6 +134,46 @@ with tempfile.TemporaryDirectory() as td:
     if lines and "T2 audit match" not in lines[0].get("text", ""):
         errors.append("alert text does not contain matching listing title")
 
+with tempfile.TemporaryDirectory() as td:
+    tmp = Path(td)
+    db = tmp / "commune_list.sqlite"
+    log = tmp / "telegram.log"
+    con = sqlite3.connect(db)
+    con.executescript(
+        """
+        CREATE TABLE listings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source TEXT NOT NULL,
+            site_id TEXT NOT NULL,
+            title TEXT,
+            url TEXT,
+            commune TEXT,
+            prix INTEGER,
+            surface REAL,
+            raw_json TEXT NOT NULL,
+            first_seen_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            UNIQUE(source, site_id)
+        );
+        """
+    )
+    for site_id, commune in [("N1", "Saint-Denis"), ("N2", "Sainte-Marie"), ("N3", "Sainte-Suzanne"), ("E1", "Saint-André"), ("S1", "Saint-Pierre")]:
+        raw = json.dumps({"transaction": "location", "type": "Appartement", "source_id": site_id}, ensure_ascii=False)
+        con.execute(
+            """INSERT INTO listings(source,site_id,title,url,commune,prix,surface,raw_json,first_seen_at,updated_at)
+            VALUES (?,?,?,?,?,?,?,?,datetime('now'),datetime('now'))""",
+            ("audit", site_id, f"Location {commune}", f"https://example.invalid/{site_id}", commune, 850, 55.0, raw),
+        )
+    con.commit(); con.close()
+    criteria = {"communes": ["Saint-Denis", "Sainte-Marie", "Sainte-Suzanne", "Saint-André"], "transaction": "location", "type": ["appartement"], "prix_max": 1100, "surface_min": 50, "limit": 10}
+    proc = subprocess.run([sys.executable, str(SCRIPT), "--db", str(db), "--ensure-schema", "--upsert-watch", "nord_est", "--criteria-json", json.dumps(criteria, ensure_ascii=False), "--transport-log", str(log)], cwd=str(ROOT), text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120)
+    if proc.returncode != 0:
+        errors.append(f"commune-list run failed rc={proc.returncode}: {proc.stderr[:300]}")
+    else:
+        summary = json.loads(proc.stdout)
+        if summary.get("matches") != 4 or summary.get("alerts_sent") != 4:
+            errors.append(f"commune-list expected 4 Nord+Est matches, got {summary}")
+
 print("PHASE_C_WATCHES_AUDIT", "PASS" if not errors else "FAIL")
 if errors:
     for e in errors:
