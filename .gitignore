@@ -30,6 +30,7 @@ artifacts/app.pre-promote-*/
 artifacts/app.pre-sprint-*/
 artifacts/app.rollback-*/
 artifacts/app.snapshot*/
+artifacts/app.SAFETY-*/
 artifacts/app_backups/
 artifacts/app_clean_v1*/
 artifacts/*stage*/
