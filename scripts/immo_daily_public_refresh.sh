@@ -19,6 +19,7 @@ RUN_DIR="${IMMO_REFRESH_RUN_DIR:-/opt/data/artifacts/immo-public-refresh/${STAMP
 PROD_DB="${IMMO_DB_PATH:-/opt/data/data/reunion_watch.db}"
 STAGE_DB_MODE="${IMMO_STAGE_DB:-1}"
 STAGE_DB="$RUN_DIR/reunion_watch.stage.db"
+MEDIA_COPY_MODE="${IMMO_MEDIA_COPY_MODE:-copy}"
 DB="$PROD_DB"
 export IMMO_DB_PATH="$DB"
 SELOGER_ARTIFACT="/opt/data/artifacts/realestate/seloger_multipage_results.json"
@@ -101,7 +102,7 @@ restore_on_failure() {
     printf 'Restoring artifacts/app after failed post-swap gate rc=%s\n' "$rc" >&2
     printf 'backup_app: %s\n' "$BACKUP_APP" >&2
     rm -rf "$PROJECT/artifacts/app"
-    cp -a "$BACKUP_APP" "$PROJECT/artifacts/app"
+    "$PY" "$PROJECT/scripts/media_link_copy.py" "$BACKUP_APP" "$PROJECT/artifacts/app" --media-mode "$MEDIA_COPY_MODE" >&2
     chmod -R a+rX "$PROJECT/artifacts/app"
     # Recreate nginx after replacing the bind-mounted directory. Otherwise
     # Docker can keep serving the removed inode and public checks see an empty
@@ -169,10 +170,10 @@ run_step db_enrichment_audit "$PY" "$PROJECT/tests/audit_db_enrichment.py" --db 
 run_step build_technical_app bash -lc 'cd "$0" && "$PY" src/build_app.py --db "$1" --out "$2"' "$PROJECT" "$DB" "$TECH_STAGE"
 run_step source_health_audit "$PY" "$PROJECT/tests/audit_source_health.py"
 run_step gallery_enrichment bash -lc 'cd "$0" && "$PY" scripts/enrich_listing_galleries.py --db "$1" --app "$2" --report "$3" --manifest "$4"' "$PROJECT" "$DB" "$TECH_STAGE" "$RUN_DIR/gallery-enrichment-report.md" "$RUN_DIR/gallery-enrichment-manifest.json"
-run_step seed_photo_cache bash -lc 'set -euo pipefail; project="$1"; stage="$2"; if [ -d "$project/artifacts/app/thumbs" ]; then mkdir -p "$stage/thumbs"; cp -an "$project/artifacts/app/thumbs/." "$stage/thumbs/"; fi' _ "$PROJECT" "$TECH_STAGE"
+run_step seed_photo_cache bash -lc 'set -euo pipefail; project="$1"; stage="$2"; mode="$3"; if [ -d "$project/artifacts/app/thumbs" ]; then "$PY" "$project/scripts/media_link_copy.py" "$project/artifacts/app/thumbs" "$stage/thumbs" --media-mode "$mode" --dirs-exist-ok --existing skip >/dev/null; fi' _ "$PROJECT" "$TECH_STAGE" "$MEDIA_COPY_MODE"
 run_step photo_cache bash -lc 'cd "$0" && IMMO_APP_PATH="$1" PHOTO_WORKERS=8 PHOTO_TIMEOUT=18 "$PY" scripts/cache_listing_images.py' "$PROJECT" "$TECH_STAGE"
 run_step intelligence_layers bash -lc 'cd "$0" && IMMO_DB_PATH="$1" IMMO_APP_PATH="$2" "$PY" src/immo_intelligence_layers.py' "$PROJECT" "$DB" "$TECH_STAGE"
-run_step build_clean_portal bash -lc 'cd "$0" && IMMO_APP_PATH="$1" IMMO_OUT_PATH="$2" "$PY" scripts/build_clean_portal_v1.py' "$PROJECT" "$TECH_STAGE" "$CLEAN_STAGE"
+run_step build_clean_portal bash -lc 'cd "$0" && IMMO_APP_PATH="$1" IMMO_OUT_PATH="$2" IMMO_MEDIA_COPY_MODE="$3" "$PY" scripts/build_clean_portal_v1.py' "$PROJECT" "$TECH_STAGE" "$CLEAN_STAGE" "$MEDIA_COPY_MODE"
 run_step p0_product_polish bash -lc 'cd "$0" && "$PY" scripts/p0_product_polish.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step product_hardening_v5 bash -lc 'cd "$0" && "$PY" scripts/patch_product_hardening_v5.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step domain_inventory_oracle_v2 "$PY" "$PROJECT/scripts/generate_domain_inventory_and_oracle_v2.py" --app "$CLEAN_STAGE"
@@ -246,10 +247,10 @@ if [ "$STAGE_DB_MODE" = "1" ]; then
   run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
 fi
 
-run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/promote_app.json"
+run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --media-copy-mode "$MEDIA_COPY_MODE" --json-out "$RUN_DIR/promote_app.json"
 BACKUP_APP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_app.json")"
 APP_SWAP_DONE=1
-run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/rollback_app_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_clean_portal.py"
+run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --media-copy-mode "$MEDIA_COPY_MODE" --json-out "$RUN_DIR/rollback_app_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_clean_portal.py"
 run_step clean_portal_audit "$PY" "$PROJECT/tests/audit_clean_portal.py"
 run_step description_quality_audit "$PY" "$PROJECT/tests/audit_description_quality.py" "$PROJECT/artifacts/app"
 run_step public_quality_budget_audit "$PY" "$PROJECT/tests/audit_public_quality_budget.py" "$PROJECT/artifacts/app"

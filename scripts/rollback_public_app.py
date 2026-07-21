@@ -3,12 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
+from media_link_copy import copytree_media_aware
 
 REQUIRED = ["index.html", "listings.json"]
 
@@ -25,10 +28,10 @@ def validate_app(path: Path) -> dict:
     return {"ok": not missing, "path": str(path), "missing": missing, "listing_count": count}
 
 
-def copy_tree(src: Path, dst: Path) -> None:
+def copy_tree(src: Path, dst: Path, *, media_mode: str) -> dict:
     if dst.exists():
         shutil.rmtree(dst)
-    shutil.copytree(src, dst)
+    return copytree_media_aware(src, dst, media_mode=media_mode).to_dict()
 
 
 def main() -> int:
@@ -38,6 +41,12 @@ def main() -> int:
     ap.add_argument("--apply", action="store_true", help="Actually replace target. Default is a non-destructive temp drill.")
     ap.add_argument("--qa-cmd", action="append", default=[], help="Extra command to run after restore/drill, relative to repo root")
     ap.add_argument("--json-out", type=Path)
+    ap.add_argument(
+        "--media-copy-mode",
+        choices=["copy", "hardlink"],
+        default=os.environ.get("IMMO_MEDIA_COPY_MODE", "copy"),
+        help="copy mode for media files during rollback restore/snapshots; default keeps legacy copy behavior",
+    )
     args = ap.parse_args()
 
     if not args.backup.exists() or not args.backup.is_dir():
@@ -51,19 +60,21 @@ def main() -> int:
     restored_path: Path
     mode: str
     target_snapshot = None
+    snapshot_stats = None
+    restore_stats = None
     if args.apply:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         target_snapshot = args.target.with_name(args.target.name + f".pre-rollback-{stamp}")
         if args.target.exists():
-            shutil.copytree(args.target, target_snapshot)
-        copy_tree(args.backup, args.target)
+            snapshot_stats = copytree_media_aware(args.target, target_snapshot, media_mode=args.media_copy_mode).to_dict()
+        restore_stats = copy_tree(args.backup, args.target, media_mode=args.media_copy_mode)
         restored_path = args.target
         mode = "apply"
     else:
         tmp_obj = tempfile.TemporaryDirectory(prefix="immo-rollback-drill-")
         tmp = Path(tmp_obj.name)
         restored_path = tmp / "app"
-        copy_tree(args.backup, restored_path)
+        restore_stats = copy_tree(args.backup, restored_path, media_mode=args.media_copy_mode)
         mode = "drill"
 
     restored_check = validate_app(restored_path)
@@ -81,6 +92,9 @@ def main() -> int:
         "backup": str(args.backup),
         "target": str(args.target),
         "target_snapshot": str(target_snapshot) if target_snapshot else None,
+        "media_copy_mode": args.media_copy_mode,
+        "snapshot_copy_stats": snapshot_stats,
+        "restore_copy_stats": restore_stats,
         "restored_path": str(restored_path),
         "backup_check": backup_check,
         "restored_check": restored_check,
