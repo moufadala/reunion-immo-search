@@ -12,6 +12,7 @@ import os
 import shutil
 import sqlite3
 import statistics
+import subprocess
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone, timedelta
@@ -235,14 +236,38 @@ def load_env_file(path: Path) -> dict[str, str]:
 
 def push_kuma(push_url: str, status: str, message: str, *, ping: float = 1.0) -> dict[str, Any]:
     sep = "&" if "?" in push_url else "?"
-    url = f"{push_url}{sep}{urllib.parse.urlencode({'status': 'up' if status == 'ok' else 'down', 'msg': message[:450], 'ping': str(ping)})}"
-    with urllib.request.urlopen(url, timeout=20) as res:  # nosec - local Kuma push URL from root-owned env
-        body = res.read().decode("utf-8", errors="replace")
+    query = urllib.parse.urlencode({'status': 'up' if status == 'ok' else 'down', 'msg': message[:450], 'ping': str(ping)})
+    url = f"{push_url}{sep}{query}"
     try:
-        payload = json.loads(body)
-    except Exception:
-        payload = {"raw": body}
-    return {"http_status": getattr(res, "status", None), "payload": payload}
+        with urllib.request.urlopen(url, timeout=20) as res:  # nosec - local Kuma push URL from root-owned env
+            body = res.read().decode("utf-8", errors="replace")
+        return {"ok": True, "method": "direct", "http_status": getattr(res, "status", None), "body": body[:300]}
+    except Exception as exc:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.hostname not in {"127.0.0.1", "localhost"} or parsed.port != 3001:
+            raise
+        path = parsed.path + (("?" + parsed.query) if parsed.query else "")
+        # When this checker runs inside its dedicated container, 127.0.0.1 is
+        # the checker container, not Uptime Kuma. Prefer the Docker network
+        # alias; Hermes-host manual runs can still use the Docker socket fallback.
+        alias_url = "http://uptime-kuma:3001" + path
+        try:
+            with urllib.request.urlopen(alias_url, timeout=20) as res:
+                body = res.read().decode("utf-8", errors="replace")
+            return {"ok": True, "method": "docker-network-alias", "http_status": getattr(res, "status", None), "body": body[:300]}
+        except Exception as alias_exc:
+            cmd = [
+                "docker", "run", "--rm", "--net=container:uptime-kuma",
+                "alpine:3.20", "sh", "-lc",
+                "wget -q -O - " + repr("http://127.0.0.1:3001" + path),
+            ]
+            result = subprocess.run(cmd, text=True, capture_output=True, timeout=30)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Kuma push failed direct={exc!r} alias={alias_exc!r} "
+                    f"fallback_exit={result.returncode}: {result.stderr[:300]}"
+                ) from exc
+            return {"ok": True, "method": "docker-net-container", "http_status": None, "body": result.stdout[:300]}
 
 
 def main() -> int:
