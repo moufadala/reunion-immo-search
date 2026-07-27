@@ -550,6 +550,65 @@ def scrape_97immo(max_items=90, max_pages=4, delay=1.5):
         time.sleep(delay)
     return out
 
+# Trouve le 27/07 (soir) : la source "ofim" (via ofim_rental_scraper.py,
+# hors depot) et "ofim_rss" (ci-dessous) scrapaient TOUTES LES DEUX le meme
+# flux RSS identique (rss.php == rss.xml, verifie octet pres), plafonne a
+# 50 par ofim.fr lui-meme -- double travail pour zero gain. Le vrai
+# catalogue (113 biens) vit sur des pages de categorie HTML STATIQUES
+# (liste-location-appartements.html, liste-location-villas.html...),
+# PAS besoin de navigateur (verifie : cartes avec data-annonce-id et lien
+# reel deja dans le HTML brut d'une requete urllib simple). Pagination
+# reelle via recherche.html?rc1=<N>&start=<offset>, rc1 decouvert sur la
+# page 1 de chaque categorie plutot que devine. Limite aux 2 categories
+# residentielles (appartements/villas = 65/113 biens) : le reste (terrains,
+# bureaux, locaux, entrepots) est hors perimetre du projet (veille locative
+# residentielle Nord+Est), pas verifie faute d'interet.
+OFIM_CATEGORIES = {'appartements': 'flat', 'villas': 'house'}
+
+
+def scrape_ofim(max_items=90, max_pages=6, delay=1.5):
+    found=[]  # (url, ptype)
+    seen=set()
+    for slug, ptype in OFIM_CATEGORIES.items():
+        try:
+            text,_=fetch(f'https://www.ofim.fr/liste-location-{slug}.html')
+        except Exception:
+            continue
+        time.sleep(delay)
+        rc1_m=re.search(r'rc1=(\d+)',text)
+        links=unique_links(text,r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']','https://www.ofim.fr/',50)
+        for u in links:
+            if u not in seen:
+                seen.add(u); found.append((u,ptype))
+        if rc1_m:
+            rc1=rc1_m.group(1)
+            for page in range(1,max_pages):
+                start=page*10
+                try:
+                    text,_=fetch(f'https://www.ofim.fr/recherche.html?rp=1&rt=1&rc1={rc1}&start={start}')
+                except Exception:
+                    break
+                time.sleep(delay)
+                links=unique_links(text,r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']','https://www.ofim.fr/',50)
+                new=[u for u in links if u not in seen]
+                if not new:
+                    break
+                for u in new:
+                    seen.add(u); found.append((u,ptype))
+                if len(found)>=max_items:
+                    break
+        if len(found)>=max_items:
+            break
+    out=[]
+    for u,ptype in found[:max_items]:
+        sid_m=re.search(r'ofim\.fr/(\d+)/',u)
+        sid=sid_m.group(1) if sid_m else hashlib.md5(u.encode()).hexdigest()[:16]
+        try: out.append(detail_listing('ofim',u,ptype,sid))
+        except Exception: pass
+        time.sleep(delay)
+    return out
+
+
 def scrape_ofim_rss(max_items=50):
     text,_=fetch('https://www.ofim.fr/rss.xml')
     items=re.findall(r'<item\b[^>]*>(.*?)</item>',text,re.I|re.S)[:max_items]
@@ -732,7 +791,7 @@ def main():
     if _sf is not None:
         SCRAPLING_MODE=_sf.resolve_mode(getattr(args,'scrapling_mode','auto'))
         SCRAPLING_ENGINE=getattr(args,'scrapling_engine','http')
-    funcs=[scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim_rss,scrape_alter,scrape_citya,scrape_domimmo,scrape_zimo,scrape_superimmo,scrape_locamoi]
+    funcs=[scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_citya,scrape_domimmo,scrape_zimo,scrape_superimmo,scrape_locamoi]
     events=[]; errors=[]
     conn=None
     if not args.dry_run:
