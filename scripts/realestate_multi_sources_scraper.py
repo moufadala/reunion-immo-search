@@ -525,7 +525,11 @@ def scrape_97immo(max_items=90, max_pages=4, delay=1.5):
             except Exception:
                 break
             time.sleep(delay)
-            links=unique_links(text,r'href=["\']([^"\']*/immobilier-annonce/location/(?:appartement|maison-villa)[^"\']+)["\']','https://www.97immo.com/',50)
+            # Trouve le 27/07 (soir) : le motif 'maison-villa' ratait les
+            # vraies URLs '/location/maison/...' (verifie sur Sainte-Suzanne :
+            # les 2 seules annonces residentielles reelles utilisent ce
+            # segment sans '-villa', 100% ratees avant ce correctif).
+            links=unique_links(text,r'href=["\']([^"\']*/immobilier-annonce/location/(?:appartement|maison(?:-villa)?)[^"\']+)["\']','https://www.97immo.com/',50)
             new=[u for u in links if u not in seen]
             if not new:
                 break
@@ -540,7 +544,7 @@ def scrape_97immo(max_items=90, max_pages=4, delay=1.5):
     for u, commune in found[:max_items]:
         sid=u.rstrip('/').split('/')[-2] + '_' + u.rstrip('/').split('/')[-1]
         try:
-            l=detail_listing('97immo',u,'house' if '/maison-villa/' in u else 'flat',sid)
+            l=detail_listing('97immo',u,'house' if '/maison' in u else 'flat',sid)
             out.append(replace(l, city=commune))
         except Exception: pass
         time.sleep(delay)
