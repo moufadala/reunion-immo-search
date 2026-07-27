@@ -32,6 +32,7 @@ import sqlite3
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
@@ -108,12 +109,19 @@ def clean(s):
 
 
 def fetch(url, timeout=25):
+    # Trouve le 27/07 (soir) : sans Referer, zimo (et probablement d'autres)
+    # renvoie 403 sur SA PROPRE page de detail -- confirme en testant avec/sans
+    # le header sur la meme URL. enrich_source_details_v3.py le savait deja
+    # (son fetch texte l'envoie) mais ce fetch-ci, utilise pour les champs
+    # structures (adresse/etage/lat-lon), ne l'envoyait pas.
+    host = urllib.parse.urlparse(url).netloc
     req = urllib.request.Request(url, headers={
         'User-Agent': UA,
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
         'Accept-Encoding': 'gzip',
         'Connection': 'close',
+        'Referer': 'https://%s/' % host,
     })
     with urllib.request.urlopen(req, timeout=timeout) as r:
         raw = r.read()
