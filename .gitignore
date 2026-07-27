@@ -95,3 +95,4 @@ scripts/*.bak.*
 webapp/dist/
 webapp/node_modules/
 config/reference_point.json
+webapp/src/*.bak.*

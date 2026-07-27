@@ -23,7 +23,15 @@ echo "== 1/3 photos chez nous =="
 IMMO_APP_PATH="$APP" "$PY" "$PROJECT/scripts/cache_photos.py"
 
 echo "== 2/3 feed =="
-IMMO_FEED_OUT="$APP/feed.json" "$PY" "$PROJECT/scripts/export_feed.py" | head -3
+# Ne PAS piper directement dans `head` : sous `set -o pipefail`, la fermeture
+# anticipee du tube par head declenche un BrokenPipeError cote Python, qui
+# fait echouer toute la ligne -- et donc tout le script AVANT l'etape 3
+# (verifie le 27/07 : feed.json s'est mis a jour, mais la bascule racine non,
+# sans le moindre message d'erreur visible dans le run normal).
+FEED_LOG=$(mktemp)
+IMMO_FEED_OUT="$APP/feed.json" "$PY" "$PROJECT/scripts/export_feed.py" > "$FEED_LOG"
+head -3 "$FEED_LOG"
+rm -f "$FEED_LOG"
 
 echo "== 3/3 interface =="
 if [ ! -s "$DIST/index.html" ]; then
@@ -46,16 +54,12 @@ if [ "$V2_RACINE" = "1" ]; then
     cp -a "$APP/index.html" "$APP/legacy/index.html"
   fi
   cp -a "$DIST/index.html" "$APP/index.html"
-  # l'index buildee reference /v2/assets/... : on garde un seul jeu d'assets.
-  "$PY" - "$APP/index.html" <<'PY'
-import re, sys, pathlib
-p = pathlib.Path(sys.argv[1])
-s = p.read_text(encoding='utf-8')
-# vite emet des chemins /assets/... : on les pointe vers /v2/assets/...
-s2 = re.sub(r'(["\'])/assets/', r'\1/v2/assets/', s)
-p.write_text(s2, encoding='utf-8')
-print('index racine recable vers /v2/assets/ :', s != s2)
-PY
+  # Vite emet des chemins RELATIFS (./assets/...), pas absolus : depuis la
+  # racine ca pointerait vers artifacts/app/assets/ (inexistant, seul
+  # v2/assets/ existe). Verifie le 27/07 : sans ce correctif la racine
+  # chargeait (200) mais le JS/CSS etait en 404 -- page blanche silencieuse,
+  # aucune erreur visible sur l'index lui-meme. On garde un seul jeu d'assets.
+  "$PY" "$PROJECT/scripts/_rewrite_root_asset_paths.py" "$APP/index.html"
 fi
 
 chmod 755 "$APP/v2" 2>/dev/null || true
