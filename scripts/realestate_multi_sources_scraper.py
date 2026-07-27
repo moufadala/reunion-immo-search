@@ -151,9 +151,31 @@ def save_raw(site,sid,obj):
     path.write_text(json.dumps(obj,ensure_ascii=False,indent=2),encoding='utf-8')
     return str(path)
 
-def scrape_immo974():
-    text,_=fetch('https://www.immo974.com/resultat-de-recherche',method='POST',data={'searchcategory':'2'})
-    arts=re.findall(r'<article>(.*?)</article>',text,re.I|re.S)
+# Trouve le 27/07 (soir) : ne lisait que le POST initial (1 page, ~20
+# annonces, toute l'ile, aucun cap avant). La pagination REELLE n'est pas
+# un parametre 'page' (teste et infirme : memes IDs), mais offset/results
+# en GET (ex. ?offset=20&results=20), verifie contre le lien natif
+# "SUIVANT" du site (~20 pages, ~400 annonces au total). Pas de filtre
+# commune a la source : le filtre reste client-side sur 'city'.
+def scrape_immo974(max_pages=8, page_size=20, delay=1.5):
+    arts=[]
+    for page in range(max_pages):
+        offset=page*page_size
+        if offset==0:
+            try:
+                text,_=fetch('https://www.immo974.com/resultat-de-recherche',method='POST',data={'searchcategory':'2'})
+            except Exception:
+                break
+        else:
+            try:
+                text,_=fetch(f'https://www.immo974.com/resultat-de-recherche?offset={offset}&results={page_size}')
+            except Exception:
+                break
+        time.sleep(delay)
+        page_arts=re.findall(r'<article>(.*?)</article>',text,re.I|re.S)
+        if not page_arts:
+            break
+        arts.extend(page_arts)
     out=[]
     for a in arts:
         if '/annonce/locations/' not in a: continue
@@ -235,11 +257,39 @@ def scrape_superimmo():
         out.append(Listing('superimmo',sid,url,url,title,city,None,'flat' if 'appartement' in url else ('house' if 'maison' in url else None),parse_rooms(txt),None,parse_surface(txt),price,None,None,None,d['image'],txt[:500],save_raw('superimmo',sid,d),hash_listing(d)))
     return out
 
-def scrape_locamoi():
-    text,_=fetch('https://locamoi.fr/location/appartement/la-reunion')
-    m=re.search(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',text,re.I|re.S)
-    if not m: return []
-    obj=json.loads(m.group(1)); items=obj.get('mainEntity',{}).get('itemListElement',[])
+# Trouve le 27/07 (soir) : ne lisait que la page 1 (meme defaut que citya/
+# zimo/fnaim). Le site annonce "131 appartements" toute l'ile des la
+# meta-description ; pagination confirmee via ?page=N (verifie jusqu'a la
+# page 3, aucune page par commune -- filtre reste client-side sur 'city').
+def scrape_locamoi(max_pages=7, delay=1.5):
+    items=[]
+    seen_urls=set()
+    for page in range(1, max_pages+1):
+        url='https://locamoi.fr/location/appartement/la-reunion'
+        if page>1:
+            url+=f'?page={page}'
+        try:
+            text,_=fetch(url)
+        except Exception:
+            break
+        time.sleep(delay)
+        m=re.search(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',text,re.I|re.S)
+        if not m:
+            break
+        try:
+            obj=json.loads(m.group(1))
+        except Exception:
+            break
+        page_items=obj.get('mainEntity',{}).get('itemListElement',[])
+        new=[it for it in page_items
+             if (it.get('item',{}).get('url') or it.get('item',{}).get('offers',{}).get('url')) not in seen_urls]
+        if not new:
+            break
+        for it in new:
+            u=it.get('item',{}).get('url') or it.get('item',{}).get('offers',{}).get('url')
+            if u:
+                seen_urls.add(u)
+            items.append(it)
     out=[]
     for it in items:
         item=it.get('item',{}); offers=item.get('offers',{}); offered=offers.get('itemOffered',{})
@@ -419,24 +469,81 @@ def unique_links(text, pattern, base, limit=25):
         if len(seen)>=limit: break
     return seen
 
-def scrape_fnaim(max_items=25):
-    text,_=fetch('https://www.fnaim.re/locations/1')
-    links=unique_links(text,r'href=["\']([^"\']*id-location-[^"\']+)["\']','https://www.fnaim.re/',max_items)
+# Trouve le 27/07 (soir) : ne lisait que /locations/1 (meme defaut que
+# citya/zimo). Le site paginate reellement sur /locations/N (verifie
+# jusqu'a la page 12 pleine), pas de filtre commune a la source -- la
+# ville est deja encodee dans le slug d'URL (ex. "...-st-denis-3-pieces-
+# ..."), exploitable par city_from_url() deja existant dans detail_listing.
+def scrape_fnaim(max_items=90, max_pages=12, delay=1.5):
+    links=[]
+    seen=set()
+    for page in range(1, max_pages+1):
+        try:
+            text,_=fetch(f'https://www.fnaim.re/locations/{page}')
+        except Exception:
+            break
+        time.sleep(delay)
+        page_links=unique_links(text,r'href=["\']([^"\']*id-location-[^"\']+)["\']','https://www.fnaim.re/',max_items)
+        new=[u for u in page_links if u not in seen]
+        if not new:
+            break
+        for u in new:
+            seen.add(u)
+            links.append(u)
+        if len(links) >= max_items:
+            break
     out=[]
-    for u in links:
+    for u in links[:max_items]:
         sid=re.search(r'id-location-[^/]+-(\d+)/?',u)
         try: out.append(detail_listing('fnaim',u,'house' if 'maison' in u else 'flat',sid.group(1) if sid else None))
         except Exception: pass
+        time.sleep(delay)
     return out
 
-def scrape_97immo(max_items=25):
-    text,_=fetch('https://www.97immo.com/immobilier/location/la-r%C3%A9union')
-    links=unique_links(text,r'href=["\']([^"\']*/immobilier-annonce/location/(?:appartement|maison-villa)[^"\']+)["\']','https://www.97immo.com/',max_items)
+# Trouve le 27/07 (soir) : ne lisait que la page toute-l'ile (meme defaut
+# que citya) et ratait structurellement Sainte-Marie/Sainte-Suzanne/
+# Saint-Andre. Le site a un vrai moteur de recherche par commune
+# (immo_liste_location.php?id_localisations[]=<ID>) qui paginate (&page=N,
+# verifie : 0 chevauchement entre page 1 et 2). IDs communes verifies :
+# Saint-Denis=195, Sainte-Marie=82, Sainte-Suzanne=131, Saint-Andre=220.
+IMMO97_COMMUNES = {
+    'Saint-Denis': '195', 'Sainte-Marie': '82', 'Sainte-Suzanne': '131', 'Saint-André': '220',
+}
+
+
+def scrape_97immo(max_items=90, max_pages=4, delay=1.5):
+    found=[]  # (url, commune)
+    seen=set()
+    for commune, cid in IMMO97_COMMUNES.items():
+        for page in range(1, max_pages+1):
+            url=(f'https://www.97immo.com/immo_liste_location.php?id_typeoffres=location'
+                 f'&id_destinations=19&id_localisations%5B%5D={cid}&typelien=moteur_search')
+            if page>1:
+                url+=f'&page={page}'
+            try:
+                text,_=fetch(url)
+            except Exception:
+                break
+            time.sleep(delay)
+            links=unique_links(text,r'href=["\']([^"\']*/immobilier-annonce/location/(?:appartement|maison-villa)[^"\']+)["\']','https://www.97immo.com/',50)
+            new=[u for u in links if u not in seen]
+            if not new:
+                break
+            for u in new:
+                seen.add(u)
+                found.append((u, commune))
+            if len(found) >= max_items:
+                break
+        if len(found) >= max_items:
+            break
     out=[]
-    for u in links:
+    for u, commune in found[:max_items]:
         sid=u.rstrip('/').split('/')[-2] + '_' + u.rstrip('/').split('/')[-1]
-        try: out.append(detail_listing('97immo',u,'house' if '/maison-villa/' in u else 'flat',sid))
+        try:
+            l=detail_listing('97immo',u,'house' if '/maison-villa/' in u else 'flat',sid)
+            out.append(replace(l, city=commune))
         except Exception: pass
+        time.sleep(delay)
     return out
 
 def scrape_ofim_rss(max_items=50):
@@ -542,7 +649,12 @@ def scrape_citya(max_items=90, max_pages=4, delay=1.5):
         time.sleep(delay)
     return out
 
-def scrape_domimmo(max_items=25):
+# Trouve le 27/07 (soir) : `offset` est ignore par l'API Keldom (teste :
+# offset=200 renvoie le meme set que limit=200 sans offset -- ce n'est pas
+# une vraie pagination page/offset). Le vrai levier est `limit` seul :
+# 200->500 triple le nombre d'offres Reunion utiles apres filtre. Au-dela
+# de ~700-1000, l'API renvoie 500 (verifie : 1000 et 3000 echouent).
+def scrape_domimmo(max_items=150):
     """Domimmo now serves its usable data through Keldom's JSON API.
 
     The legacy domimmo.com list page has become empty/fragile. Keldom's API is
@@ -550,7 +662,7 @@ def scrape_domimmo(max_items=25):
     a broad slice then keep only Réunion rental-shaped offers. This keeps the
     source fresh without changing downstream filtering semantics.
     """
-    params={'limit':'200'}
+    params={'limit':'500'}
     text,_=fetch('https://www.keldom.com/api/domimmo/offers?'+urlencode(params))
     payload=json.loads(text)
     items=payload if isinstance(payload,list) else (payload.get('items') or payload.get('data') or [])
