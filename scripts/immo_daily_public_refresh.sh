@@ -259,6 +259,14 @@ run_step public_perf_index_audit "$PY" "$PROJECT/tests/audit_public_perf_index.p
 run_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
 run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
 run_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
+# --- PRODUIT V2 (feed.json + /v2/) -------------------------------------------
+# OBLIGATOIRE ICI, apres promote_app_candidate : celui-ci fait un rmtree de
+# artifacts/app et detruirait sinon feed.json, photos_manifest.json et /v2/.
+# Constate en lisant promote_app_candidate.py le 2026-07-27 -- sans cette
+# etape, le run de 16:30 effacait l'interface tous les jours.
+run_step build_product_v2 bash "$PROJECT/scripts/build_product_v2.sh"
+run_step product_v2_gate "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/artifacts/app"
+
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 run_step public_user_search_audit "$PY" "$PROJECT/tests/audit_user_search_cases.py"

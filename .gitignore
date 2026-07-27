@@ -81,3 +81,17 @@ logs/
 *.sqlite-wal
 data/
 run/
+
+# --- prive : ce depot GitHub est PUBLIC (verifie 2026-07-27) --------------
+# Rien de ce qui decrit la famille ne doit y monter.
+deploy/basicauth.users
+scripts/profils.py
+config/distances_quartiers.json
+artifacts/detail_pages/
+
+# sauvegardes locales et build
+deploy/*.bak.*
+scripts/*.bak.*
+webapp/dist/
+webapp/node_modules/
+config/reference_point.json
