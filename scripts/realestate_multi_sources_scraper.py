@@ -172,9 +172,29 @@ def scrape_immo974():
         out.append(Listing('immo974',sid,url,url,t,d['city'],None,'apartment' if 'appartement' in url else ('house' if 'maison' in url or 'villa' in url else None),parse_rooms((t or '')+' '+(d.get('desc') or '')),None,parse_surface((t or '')+' '+(d.get('desc') or '')),to_int_price(d['price']),None,None,d['date'],image_url,d['desc'],save_raw('immo974',sid,d),hash_listing(d)))
     return out
 
-def scrape_zimo():
-    text,_=fetch('https://www.zimo.fr/annonces/location/la-reunion-974')
-    arts=re.findall(r'<article\b[^>]*>(.*?)</article>',text,re.I|re.S)
+# Trouve le 27/07 (soir) : ne lisait que la page 1 (96 annonces, toute l'ile,
+# pas de filtre commune cote zimo -- pas de page par commune comme citya).
+# La pagination existe (?page=N, verifie jusqu'a la page 20 pleine, 0 vide a
+# la page 25, aucun chevauchement d'ID entre pages) mais le volume total est
+# tres grand (potentiellement 1900+ annonces toute l'ile). Prudence anti-
+# bannissement : on ne prend que quelques pages de plus par run (delay entre
+# pages), pas tout d'un coup -- la couverture Nord+Est se construira sur
+# plusieurs jours, comme pour detail_enrich.py.
+def scrape_zimo(max_pages=6, delay=2.0):
+    arts=[]
+    for page in range(1, max_pages+1):
+        url='https://www.zimo.fr/annonces/location/la-reunion-974'
+        if page>1:
+            url+=f'?page={page}'
+        try:
+            text,_=fetch(url)
+        except Exception:
+            break
+        page_arts=re.findall(r'<article\b[^>]*>(.*?)</article>',text,re.I|re.S)
+        if not page_arts:
+            break
+        arts.extend(page_arts)
+        time.sleep(delay)
     out=[]
     for a in arts:
         m=re.search(r'<a href=["\'](/annonce/[^"\']+)["\'][^>]*title=["\']([^"\']+)',a,re.I|re.S)

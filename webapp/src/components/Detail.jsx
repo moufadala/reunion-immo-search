@@ -1,6 +1,45 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Badge, Button } from "./ui";
 import { cx, eur, m2, dateFR, ilYA, precisionDe, chambresEstimees, typeLisible, osmUrl } from "../lib";
+
+/* Carrousel minimal : avant, une seule <img> etait servie meme quand
+   l'annonce a plusieurs photos (galerie deja recuperee cote pipeline,
+   jamais exposee ici). Remonte par Moufadal : "je pouvais pas toutes
+   les regarder". */
+function Galerie({ images }) {
+  const [i, setI] = useState(0);
+  if (!images?.length) return null;
+  const n = images.length;
+  return (
+    <div className="relative mb-4">
+      <img src={images[i]} alt="" className="aspect-[16/9] w-full rounded-2xl object-cover" />
+      {n > 1 && (
+        <>
+          <button type="button" aria-label="Photo précédente"
+            onClick={() => setI((i - 1 + n) % n)}
+            className="absolute left-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink/55 text-white backdrop-blur-sm">
+            ‹
+          </button>
+          <button type="button" aria-label="Photo suivante"
+            onClick={() => setI((i + 1) % n)}
+            className="absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full bg-ink/55 text-white backdrop-blur-sm">
+            ›
+          </button>
+          <div className="absolute bottom-2 left-1/2 flex -translate-x-1/2 gap-1.5">
+            {images.map((_, idx) => (
+              <button key={idx} type="button" aria-label={`Photo ${idx + 1}`}
+                onClick={() => setI(idx)}
+                className={cx("h-1.5 w-1.5 rounded-full", idx === i ? "bg-white" : "bg-white/50")} />
+            ))}
+          </div>
+          <span className="absolute right-2 top-2 rounded-full bg-ink/55 px-2 py-0.5 text-[11px] font-semibold text-white">
+            {i + 1}/{n}
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
 
 function Ligne({ k, v, note }) {
   return (
@@ -55,9 +94,7 @@ export default function Detail({ l, onClose }) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {l.image && (
-            <img src={l.image} alt="" className="mb-4 aspect-[16/9] w-full rounded-2xl object-cover" />
-          )}
+          <Galerie images={l.images?.length ? l.images : (l.image ? [l.image] : [])} />
 
           <h3 className="text-[14px] font-bold leading-snug text-ink">{l.title}</h3>
 

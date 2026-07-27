@@ -115,6 +115,38 @@ _COMMUNE_ALIASES = {
 
 TARGET_COMMUNES = list(QUARTIERS.keys())
 
+# Communes clairement HORS perimetre (Nord+Est proche seulement). Trouve le
+# 27/07 (soir) : en paginant zimo/citya au-dela de la 1re page pour corriger
+# la sous-collecte, la base recoit mecaniquement des annonces de toute l'ile
+# (le scraper n'a pas de filtre commune a la source). Sans ce filtre cote
+# feed, elles se seraient affichees comme "localisation inconnue" au lieu
+# d'etre exclues -- ce meme mecanisme avait deja laisse fuiter "Plaine Des
+# Cafres" comme fausse commune avant le premier correctif de ce fichier.
+_OUT_ALIASES = [
+    'saint pierre', 'st pierre', 'le tampon', 'tampon', 'saint paul', 'st paul',
+    'saint leu', 'st leu', 'saint louis', 'st louis', 'la possession', 'possession',
+    'saint joseph', 'st joseph', 'petite ile', 'petite-ile', 'le port',
+    'saint benoit', 'st benoit', 'bras panon', 'salazie', 'plaine des palmistes',
+    'sainte rose', 'ste rose', 'saint philippe', 'st philippe', 'les avirons',
+    'avirons', 'etang sale', 'etang-sale', 'entre deux', 'entre-deux', 'cilaos',
+    'trois bassins', 'saint gilles', 'st gilles', 'la saline', 'l hermitage',
+    'hermitage', 'boucan canot', 'plateau caillou', 'la chaloupe', 'ravine des cabris',
+    'bois d olives', 'terre sainte', 'grand bois', 'manapany', 'langevin',
+    'la chatoire', 'bellemene', 'la plaine des cafres', 'plaine des cafres',
+    'bourg murat', 'la montagne saint paul',
+]
+_OUT_INDEX = sorted({norm(a) for a in _OUT_ALIASES}, key=len, reverse=True)
+
+
+def looks_out_of_scope(*fields):
+    """Vrai si un signal CLAIR (nom de commune hors perimetre) apparait dans
+    les champs bruts. Ne dit jamais "hors perimetre" par defaut -- seulement
+    sur un nom reconnu, jamais par absence de signal (ca, c'est 'inconnu')."""
+    blob = norm(' '.join(str(f) for f in fields if f))
+    if not blob:
+        return False
+    return any(a in blob for a in _OUT_INDEX)
+
 # index alias normalise -> (commune, libelle), le plus long alias en premier
 # pour qu'un alias plus specifique gagne sur un alias plus court inclus dedans.
 _QUARTIER_INDEX = []

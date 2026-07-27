@@ -135,16 +135,26 @@ def main():
         pass
     # Filet : anciennes vignettes referencees par le pipeline precedent et pas
     # encore reprises par le manifeste. On ne perd rien de ce qui existe deja.
+    # Trouve le 27/07 (soir), remonte par Moufadal apres coup ("je pouvais pas
+    # toutes les regarder") : ce meme fichier legacy contient DEJA une galerie
+    # multi-photos par annonce (local_image_urls, alimentee chaque jour par
+    # enrich_listing_galleries.py) -- jamais reprise par ce pipeline-ci, qui
+    # n'a toujours servi qu'UNE photo. On la recupere ici, sans y toucher.
+    galleries = {}
     try:
         old = json.load(open(ROOT + '/artifacts/app/listings.json', encoding='utf-8'))
         items = old if isinstance(old, list) else (old.get('items') or old.get('listings') or [])
         for it in items:
             k2 = (it.get('source'), str(it.get('source_id')))
             u = it.get('local_image_url')
-            if k2 in thumbs or not u:
-                continue
-            if os.path.exists(os.path.join(ROOT, 'artifacts/app', u)):
+            if k2 not in thumbs and u and os.path.exists(os.path.join(ROOT, 'artifacts/app', u)):
                 thumbs[k2] = '/' + u.lstrip('/')
+            urls = it.get('local_image_urls')
+            if isinstance(urls, list) and len(urls) > 1:
+                ok = ['/' + u2.lstrip('/') for u2 in urls
+                      if u2 and os.path.exists(os.path.join(ROOT, 'artifacts/app', u2.lstrip('/')))]
+                if len(ok) > 1:
+                    galleries[k2] = ok
     except (OSError, ValueError):
         pass
 
@@ -195,10 +205,21 @@ def main():
     d30 = (now - timedelta(days=30)).isoformat()
 
     listings = []
+    hors_perimetre = 0
     for r in c.execute('select * from rental_listings order by seen_last_at desc'):
         k = (r['source_site'], r['source_id'])
         e = enrich.get(k, {})
         d = detail.get(k, {})
+
+        # Trouve le 27/07 (soir) : les scrapers n'ont pas de filtre commune a
+        # la source (ex. zimo/citya ramenent toute l'ile) -- la base peut donc
+        # contenir des annonces hors Nord+Est en attendant le prochain passage
+        # de scripts/scope/purge_nord_est.py. On ne les affiche jamais dans le
+        # feed public (mais on ne les supprime pas de la base ici : lecture
+        # seule, rien d'irreversible).
+        if gq.looks_out_of_scope(r['city'], r['district'], e.get('city_normalized'), e.get('zone_normalized')):
+            hors_perimetre += 1
+            continue
 
         lat, lon = d.get('lat'), d.get('lon')
         commune = commune_of(norm(r['city']), e.get('city_normalized'))
@@ -286,6 +307,9 @@ def main():
             # doit plus jamais casser une carte.
             'image': thumbs.get((r['source_site'], str(r['source_id']))),
             'image_locale': (r['source_site'], str(r['source_id'])) in thumbs,
+            'images': galleries.get((r['source_site'], str(r['source_id'])))
+                      or ([thumbs[(r['source_site'], str(r['source_id']))]]
+                          if (r['source_site'], str(r['source_id'])) in thumbs else []),
             'description': d.get('description_full') or r['description'],
             'detail_read': bool(d.get('http_status') == 200),
         })
@@ -335,6 +359,7 @@ def main():
     meta = {
         'genere_le': now.isoformat(),
         'perimetre': COMMUNES,
+        'hors_perimetre_exclues': hors_perimetre,
         'total': len(listings),
         'actives': movements['actives'],
         'avec_point_carte': sum(1 for x in listings if x['lat']),
