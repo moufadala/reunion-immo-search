@@ -135,6 +135,59 @@ def fetch(url, timeout=25):
         return r.status, raw.decode(enc, 'replace')
 
 
+# Trouve le 27/07 (soir) : seloger renvoie 403 sur fetch() meme avec Referer
+# (contrairement a zimo). Confirme deux fois independamment (probe du matin +
+# reverifie ce soir) : la page de detail charge normalement (200) via le
+# navigateur headless chromium-cdp deja utilise en prod pour les LISTES
+# seloger (scripts/seloger_multi_page.py). Meme pattern de connexion,
+# reutilise tel quel. Un seul navigateur/contexte garde ouvert pour tout le
+# run (pas de reconnexion par page) ; ferme explicitement par close_cdp().
+_CDP_BROWSER = None
+_CDP_CONTEXT = None
+
+
+def _cdp_context():
+    global _CDP_BROWSER, _CDP_CONTEXT
+    if _CDP_CONTEXT is not None:
+        return _CDP_CONTEXT
+    import socket
+    from playwright.sync_api import sync_playwright
+    host = os.environ.get('IMMO_CDP_HOST', 'chromium-cdp')
+    port = os.environ.get('IMMO_CDP_PORT', '9223')
+    try:
+        host = socket.gethostbyname(host)
+    except OSError:
+        pass
+    _playwright = sync_playwright().start()
+    _CDP_BROWSER = _playwright.chromium.connect_over_cdp('http://%s:%s' % (host, port))
+    _CDP_CONTEXT = _CDP_BROWSER.new_context(
+        locale='fr-FR', timezone_id='Indian/Reunion', viewport={'width': 1366, 'height': 900})
+    return _CDP_CONTEXT
+
+
+def close_cdp():
+    global _CDP_BROWSER, _CDP_CONTEXT
+    if _CDP_BROWSER is not None:
+        try:
+            _CDP_BROWSER.close()
+        except Exception:
+            pass
+    _CDP_BROWSER = None
+    _CDP_CONTEXT = None
+
+
+def fetch_cdp(url, timeout=45000):
+    ctx = _cdp_context()
+    page = ctx.new_page()
+    try:
+        rep = page.goto(url, wait_until='domcontentloaded', timeout=timeout)
+        page.wait_for_timeout(2500)
+        status = rep.status if rep else 200
+        return status, page.content()
+    finally:
+        page.close()
+
+
 # ---------------------------------------------------------------- extraction
 
 # Types schema.org qui decrivent LE BIEN. Tout le reste (Organization,
@@ -633,7 +686,10 @@ def main():
         rec = {}
         note = ''
         try:
-            status, page = fetch(url)
+            if ss == 'seloger':
+                status, page = fetch_cdp(url)
+            else:
+                status, page = fetch(url)
             with open(os.path.join(CACHE, '%s_%s.html' % (ss, re.sub(r'\W+', '_', si)[:60])),
                       'w', encoding='utf-8') as f:
                 f.write(page)
@@ -662,8 +718,12 @@ def main():
         if i % 10 == 0 or i == len(rows):
             print('  %d/%d  ok=%d err=%d' % (i, len(rows), ok, err), flush=True)
 
+    close_cdp()
     print('\nTERMINE: %d lues, %d erreurs' % (ok, err))
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    finally:
+        close_cdp()
