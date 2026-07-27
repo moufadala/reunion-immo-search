@@ -10,8 +10,8 @@ Sources implemented:
 This is technical ingestion, not final alert criteria.
 """
 from __future__ import annotations
-import argparse, hashlib, html, json, re, sqlite3, ssl
-from dataclasses import dataclass, asdict
+import argparse, hashlib, html, json, re, sqlite3, ssl, time
+from dataclasses import dataclass, asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -465,14 +465,61 @@ def scrape_alter(max_items=25):
         except Exception: pass
     return out
 
-def scrape_citya(max_items=25):
-    text,_=fetch('https://www.citya.com/annonces/location/appartement/la-reunion-974')
-    links=[u for u in unique_links(text,r'href=["\']([^"\']*/annonces/location/(?:appartement|maison)/[^"\']+)["\']','https://www.citya.com/',max_items*2) if re.search(r'/[A-Z0-9]{6,}',u)]
+# Trouve le 27/07 (soir) : l'ancienne version ne lisait que la page toute-l'ile
+# (la-reunion-974), qui est surtout un ANNUAIRE de liens vers les pages par
+# commune -- la plupart des 50 liens captes (plafond max_items*2) n'etaient
+# meme pas des annonces. Preuve : Saint-Denis seul a 34 appartements reels
+# chez citya (2 pages), alors que toute la base ne comptait que 2 annonces
+# citya actives, toutes communes confondues. Les pages par commune existent
+# deja cote citya (memes slugs que nos 4 communes cibles) et paginent
+# (?page=2). Les cartes sont bien dans le HTML statique (data-itemId="GES..."
+# sur un <div>, pas un <a href> -- l'URL se reconstruit : recherche +
+# "/" + itemId, verifie sur un cas reel) : pas besoin de navigateur.
+CITYA_COMMUNES = {
+    'Saint-Denis': 'saint-denis-97411',
+    'Sainte-Marie': 'sainte-marie-97438',
+    'Sainte-Suzanne': 'sainte-suzanne-97441',
+    'Saint-André': 'saint-andre-97440',
+}
+
+
+def scrape_citya(max_items=90, max_pages=4, delay=1.5):
+    found=[]  # (item_id, ptype, url, commune)
+    seen_ids=set()
+    for commune, slug in CITYA_COMMUNES.items():
+        for ptype in ('appartement', 'maison'):
+            for page in range(1, max_pages+1):
+                url = f'https://www.citya.com/annonces/location/{ptype}/{slug}'
+                if page > 1:
+                    url += f'?page={page}'
+                try:
+                    text,_=fetch(url)
+                except Exception:
+                    break
+                time.sleep(delay)
+                ids=[m for m in re.findall(r'data-itemId=["\']([A-Z0-9-]+)["\']', text) if m not in seen_ids]
+                if not ids:
+                    break
+                for item_id in ids:
+                    seen_ids.add(item_id)
+                    found.append((item_id, ptype, f'https://www.citya.com/annonces/location/{ptype}/{slug}/{item_id}', commune))
+                if len(found) >= max_items:
+                    break
+            if len(found) >= max_items:
+                break
+        if len(found) >= max_items:
+            break
     out=[]
-    for u in links[:max_items]:
-        sid=u.rstrip('/').split('/')[-1]
-        try: out.append(detail_listing('citya',u,'house' if '/maison/' in u else 'flat',sid))
+    for item_id, ptype, u, commune in found[:max_items]:
+        try:
+            l=detail_listing('citya',u,'house' if ptype=='maison' else 'flat',item_id)
+            # La commune interrogee est le signal SUR, contrairement au
+            # devinage depuis le texte de detail_listing() (trouve fautif :
+            # "Le Tampon"/"Saint-Pierre"/etc. sur des pages citya-Saint-Denis,
+            # probablement le texte d'agence qui mentionne d'autres secteurs).
+            out.append(replace(l, city=commune))
         except Exception: pass
+        time.sleep(delay)
     return out
 
 def scrape_domimmo(max_items=25):
