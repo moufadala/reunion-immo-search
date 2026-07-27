@@ -76,7 +76,13 @@ function Bande({ l }) {
   );
 }
 
-const PROFIL_NOM = { maman: "Maman", famille: "Famille" };
+/* Pas de nom de profil en dur ici (ex. "Maman") : ce fichier part sur un
+   depot GitHub public, le nom du profil (donnee personnelle) ne doit vivre
+   que cote serveur (scripts/profils.py, hors depot). On derive juste un
+   libelle a partir de la cle. */
+function libelleProfil(cle) {
+  return cle ? cle.charAt(0).toUpperCase() + cle.slice(1) : "";
+}
 
 export default function Card({ l, onOuvrir }) {
   const [imgKo, setImgKo] = useState(false);
@@ -113,7 +119,7 @@ export default function Card({ l, onOuvrir }) {
           {!l.active && <Badge tone="danger">Retirée</Badge>}
           {best && (
             <Badge tone="p5" title={`Score ${best.score}/100 pour ce profil`}>
-              ★ {PROFIL_NOM[l.meilleur_profil]}
+              ★ {libelleProfil(l.meilleur_profil)}
             </Badge>
           )}
         </div>
