@@ -21,6 +21,7 @@ from datetime import datetime, timezone, timedelta
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from profils import PROFILS, scorer  # noqa: E402
+import geo_quartiers as gq  # noqa: E402
 
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 ROOT = '/opt/data/projects/reunion-immo-search'
@@ -67,7 +68,12 @@ def commune_of(city_norm, enrich_city):
     for c in COMMUNES:
         if norm(enrich_city) == norm(c) or city_norm == norm(c):
             return c
-    return enrich_city or None
+    # Avant : on renvoyait enrich_city tel quel en dernier repli, ce qui
+    # affichait des communes hors perimetre (ex. "Plaine Des Cafres") comme
+    # si elles etaient valides. On tente d'abord un signal fiable (alias
+    # commune, code postal) via geo_quartiers ; sinon on dit franchement
+    # qu'on ne sait pas plutot que d'inventer une commune.
+    return None
 
 
 # Valeurs qui ne veulent rien dire : elles ne doivent pas devenir un libelle.
@@ -196,8 +202,21 @@ def main():
 
         lat, lon = d.get('lat'), d.get('lon')
         commune = commune_of(norm(r['city']), e.get('city_normalized'))
+        if not commune:
+            # Repli 27/07 : la commune declaree par le portail est parfois
+            # vide/mal formee (code postal seul, "individuel Saint-Denis",
+            # nom de quartier sans la commune...). On cherche un signal
+            # commune non ambigu dans les champs bruts + le texte de
+            # l'annonce avant d'abandonner.
+            commune = gq.infer_commune(
+                r['city'], r['district'], e.get('city_normalized'),
+                e.get('zone_normalized'), r['title'])
         quartier = (quartier_propre(e.get('zone_normalized'), commune)
-                    or quartier_propre(r['district'], commune))
+                    or quartier_propre(r['district'], commune)
+                    or gq.infer_quartier(
+                        commune, r['title'],
+                        d.get('description_full') or r['description'],
+                        r['district'], e.get('zone_normalized')))
 
         # --- localisation : on prend le SIGNAL LE PLUS PRECIS disponible, et on
         # dit toujours d'ou il vient. Jamais d'invention.

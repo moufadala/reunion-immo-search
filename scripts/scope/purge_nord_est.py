@@ -69,6 +69,15 @@ for ss, si, cn, zn, reg in ro.execute(
 
 
 def classify(ss, si, city, district, title):
+    # Bug trouve le 27/07 (perte confirmee : zimo 019f8ebb, Saint-Denis reel,
+    # tue par city_normalized='Bras-Panon' invente par l'enrichissement) :
+    # l'enrichissement etait cru aveuglement, avant meme de regarder le champ
+    # brut du scraper. On verifie D'ABORD si le brut dit sans ambiguite une
+    # commune cible -- l'enrichissement ne peut plus la contredire.
+    for raw in (city, district):
+        n = norm(raw)
+        if n and any(n == t or n.startswith(t + '-') for t in TARGET):
+            return 'IN'
     e = enr.get((ss, si))
     if e:
         cn, zn, _ = e
