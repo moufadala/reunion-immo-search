@@ -16,7 +16,17 @@ CONTAINER_NAME=${CONTAINER_NAME:-immo-dashboard}
 IMMO_HOSTNAME=${IMMO_HOSTNAME:-immo.srv1723523.hstgr.cloud}
 IMMO_ALT_HOSTNAME=${IMMO_ALT_HOSTNAME:-immo.148.230.103.174.sslip.io}
 NETWORK=${NETWORK:-hermes_default}
-IMAGE=${IMAGE:-nginx:alpine}
+IMAGE=${IMAGE:-nginx@sha256:4a73073bd557c65b759505da037898b61f1be6cbcc3c2c3aeac22d2a470c1752}
+
+BASICAUTH_FILE=${BASICAUTH_FILE:-/opt/data/projects/reunion-immo-search/deploy/basicauth.users}
+
+# Acces prive: le site expose feed.json (profils, budgets, temps de trajet vers un point prive).
+# Aucune publication sans basic auth. Le hash vit uniquement ici, jamais dans le vault.
+if [ ! -s "$BASICAUTH_FILE" ]; then
+  echo "ERROR: basic auth users file missing: $BASICAUTH_FILE" >&2
+  exit 1
+fi
+BASICAUTH_USERS=$(cat "$BASICAUTH_FILE")
 
 if [ ! -s "$HERMES_APP_DIR/index.html" ] || [ ! -s "$HERMES_APP_DIR/listings.json" ]; then
   echo "ERROR: app files missing under Hermes path: $HERMES_APP_DIR" >&2
@@ -65,6 +75,9 @@ docker run -d \
   --label "traefik.http.routers.$CONTAINER_NAME.tls=true" \
   --label "traefik.http.routers.$CONTAINER_NAME.tls.certresolver=letsencrypt" \
   --label "traefik.http.services.$CONTAINER_NAME.loadbalancer.server.port=80" \
+  --label "traefik.http.middlewares.$CONTAINER_NAME-auth.basicauth.users=$BASICAUTH_USERS" \
+  --label "traefik.http.middlewares.$CONTAINER_NAME-auth.basicauth.realm=Immo Nord-Est (prive)" \
+  --label "traefik.http.routers.$CONTAINER_NAME.middlewares=$CONTAINER_NAME-auth@docker" \
   "$IMAGE"
 
 sleep 2

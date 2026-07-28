@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------
+   Système de design — une seule couleur d'accent, une échelle typo
+   nette, et un vocabulaire de couleur qui SIGNIFIE quelque chose :
+   la précision de localisation a sa propre échelle, elle n'est pas
+   décorative. Clair et sombre traités tous les deux.
+   --------------------------------------------------------------- */
+@theme {
+  --font-sans: "Inter var", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+
+  --color-canvas: oklch(98.4% 0.004 106);
+  --color-surface: oklch(100% 0 0);
+  --color-sunken: oklch(96.2% 0.005 106);
+  --color-line: oklch(91% 0.006 106);
+  --color-ink: oklch(21% 0.012 265);
+  --color-muted: oklch(52% 0.014 265);
+  --color-faint: oklch(66% 0.012 265);
+
+  --color-accent: oklch(52% 0.13 195);
+  --color-accent-soft: oklch(95.5% 0.028 195);
+  --color-accent-ink: oklch(34% 0.09 195);
+
+  /* échelle de précision de localisation — du plus sûr au plus flou */
+  --color-p5: oklch(56% 0.14 155); /* adresse exacte */
+  --color-p4: oklch(60% 0.13 175);
+  --color-p3: oklch(66% 0.12 230);
+  --color-p2: oklch(70% 0.11 60);
+  --color-p0: oklch(64% 0.02 265); /* inconnu */
+
+  --color-danger: oklch(56% 0.19 25);
+  --color-warn: oklch(70% 0.15 70);
+
+  --radius-card: 16px;
+  --shadow-card: 0 1px 2px oklch(20% 0.02 265 / 0.04),
+    0 8px 24px oklch(20% 0.02 265 / 0.06);
+  --shadow-lift: 0 2px 4px oklch(20% 0.02 265 / 0.05),
+    0 16px 40px oklch(20% 0.02 265 / 0.11);
+}
+
+/* PIEGE PROUVE 2026-07-27 : en Tailwind v4, `@theme` DANS un `@media` ne
+   fonctionne pas — les valeurs sont emises inconditionnellement et gagnent par
+   ordre de source, rendant la page sombre en permanence. Les surcharges de
+   theme doivent etre de simples proprietes CSS sur :root. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: oklch(17.5% 0.012 265);
+    --color-surface: oklch(21.5% 0.014 265);
+    --color-sunken: oklch(24.5% 0.015 265);
+    --color-line: oklch(30% 0.016 265);
+    --color-ink: oklch(96% 0.005 265);
+    --color-muted: oklch(75% 0.012 265);
+    --color-faint: oklch(62% 0.012 265);
+    --color-accent: oklch(76% 0.13 195);
+    --color-accent-soft: oklch(29% 0.05 195);
+    --color-accent-ink: oklch(88% 0.09 195);
+    --color-p5: oklch(72% 0.15 155);
+    --color-p4: oklch(74% 0.13 175);
+    --color-p3: oklch(76% 0.12 230);
+    --color-p2: oklch(80% 0.12 60);
+    --color-p0: oklch(70% 0.02 265);
+    --color-danger: oklch(70% 0.17 25);
+    --color-warn: oklch(80% 0.14 70);
+    --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.28);
+    --shadow-lift: 0 2px 4px oklch(0% 0 0 / 0.35), 0 16px 44px oklch(0% 0 0 / 0.42);
+  }
+}
+
+/* Bascule manuelle : Android laisse rarement choisir par site. */
+:root[data-theme="dark"] {
+  --color-canvas: oklch(17.5% 0.012 265);
+  --color-surface: oklch(21.5% 0.014 265);
+  --color-sunken: oklch(24.5% 0.015 265);
+  --color-line: oklch(30% 0.016 265);
+  --color-ink: oklch(96% 0.005 265);
+  --color-muted: oklch(75% 0.012 265);
+  --color-faint: oklch(62% 0.012 265);
+  --color-accent: oklch(76% 0.13 195);
+  --color-accent-soft: oklch(29% 0.05 195);
+  --color-accent-ink: oklch(88% 0.09 195);
+  --color-p5: oklch(72% 0.15 155);
+  --color-p4: oklch(74% 0.13 175);
+  --color-p3: oklch(76% 0.12 230);
+  --color-p2: oklch(80% 0.12 60);
+  --color-p0: oklch(70% 0.02 265);
+  --color-danger: oklch(70% 0.17 25);
+  --color-warn: oklch(80% 0.14 70);
+  --shadow-card: 0 1px 2px oklch(0% 0 0 / 0.3), 0 8px 24px oklch(0% 0 0 / 0.28);
+  --shadow-lift: 0 2px 4px oklch(0% 0 0 / 0.35), 0 16px 44px oklch(0% 0 0 / 0.42);
+}
+:root[data-theme="light"] {
+  --color-canvas: oklch(98.4% 0.004 106);
+  --color-surface: oklch(100% 0 0);
+  --color-sunken: oklch(96.2% 0.005 106);
+  --color-line: oklch(91% 0.006 106);
+  --color-ink: oklch(21% 0.012 265);
+  --color-muted: oklch(52% 0.014 265);
+  --color-faint: oklch(66% 0.012 265);
+  --color-accent: oklch(52% 0.13 195);
+  --color-accent-soft: oklch(95.5% 0.028 195);
+  --color-accent-ink: oklch(34% 0.09 195);
+}
+
+html {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "tnum";
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+/* Lenis */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* apparition douce au scroll, sans dépendance */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.in { opacity: 1; transform: none; }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 99px;
+  border: 3px solid var(--color-canvas);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-faint); }
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

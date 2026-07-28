@@ -1,281 +1,317 @@
 {
   "version": "domain_inventory_v2",
-  "listing_count": 343,
+  "listing_count": 662,
   "cities": [
     [
       "Saint-Denis",
-      117
+      162
     ],
     [
       "Saint-Pierre",
-      57
+      131
     ],
     [
       "Saint-Paul",
-      51
+      91
     ],
     [
       "Le Tampon",
-      28
+      88
+    ],
+    [
+      "Saint-Louis",
+      27
     ],
     [
       "Saint-Leu",
-      13
+      24
     ],
     [
       "Saint-André",
-      11
+      19
+    ],
+    [
+      "La Possession",
+      19
     ],
     [
       "Étang-Salé",
-      9
+      17
+    ],
+    [
+      "Non précisée",
+      17
+    ],
+    [
+      "Saint-Joseph",
+      14
+    ],
+    [
+      "Sainte-Marie",
+      13
+    ],
+    [
+      "Saint-Philippe",
+      7
+    ],
+    [
+      "Petite-Île",
+      7
+    ],
+    [
+      "Plaine-des-Palmistes",
+      6
+    ],
+    [
+      "Saint-Benoît",
+      5
+    ],
+    [
+      "Les Avirons",
+      5
+    ],
+    [
+      "Entre-Deux",
+      3
+    ],
+    [
+      "Bras-Panon",
+      3
+    ],
+    [
+      "Cilaos",
+      2
+    ],
+    [
+      "Le Port",
+      2
+    ]
+  ],
+  "districts": [
+    [
+      "Saint-Pierre",
+      118
+    ],
+    [
+      "Saint-Denis",
+      108
+    ],
+    [
+      "Le Tampon",
+      82
+    ],
+    [
+      "Saint-Paul",
+      56
+    ],
+    [
+      "Sainte-Clotilde",
+      27
+    ],
+    [
+      "La Saline les Bains",
+      26
+    ],
+    [
+      "Saint-Louis",
+      26
+    ],
+    [
+      "Saint-Leu",
+      23
+    ],
+    [
+      "Saint-André",
+      18
+    ],
+    [
+      "La Possession",
+      17
+    ],
+    [
+      "Zone non précisée",
+      17
+    ],
+    [
+      "Etang-Salé",
+      16
+    ],
+    [
+      "Saint-Joseph",
+      15
+    ],
+    [
+      "Moufia",
+      14
     ],
     [
       "Sainte-Marie",
       8
     ],
     [
-      "Saint-Joseph",
-      7
-    ],
-    [
-      "La Possession",
-      7
-    ],
-    [
-      "Saint-Louis",
-      7
-    ],
-    [
-      "Trois-Bassins",
-      6
-    ],
-    [
-      "Petite-Île",
-      5
-    ],
-    [
-      "Non précisée",
-      4
-    ],
-    [
-      "Bras-Panon",
-      4
-    ],
-    [
-      "Saint-Benoît",
-      4
-    ],
-    [
-      "Sainte-Suzanne",
-      3
-    ],
-    [
-      "Le Port",
-      1
-    ],
-    [
-      "Entre-Deux",
-      1
-    ]
-  ],
-  "districts": [
-    [
-      "Saint-Denis",
-      57
-    ],
-    [
-      "Saint-Pierre",
-      47
-    ],
-    [
-      "Sainte-Clotilde",
-      31
-    ],
-    [
-      "Le Tampon",
-      28
-    ],
-    [
-      "Saint-Paul",
-      27
-    ],
-    [
-      "La Saline les Bains",
-      23
-    ],
-    [
-      "Moufia",
-      15
-    ],
-    [
-      "Saint-Leu",
-      13
-    ],
-    [
-      "Saint-André",
-      9
-    ],
-    [
-      "La Montagne",
-      7
-    ],
-    [
-      "Saint-Louis",
-      7
-    ],
-    [
-      "Bellepierre",
-      6
+      "Montgaillard",
+      8
     ],
     [
       "Ravine des Cabris",
+      8
+    ],
+    [
+      "Saint-Philippe",
+      7
+    ],
+    [
+      "Petite Ile",
+      7
+    ],
+    [
+      "La Saline",
+      7
+    ],
+    [
+      "La Plaine des Palmistes",
       6
     ],
     [
-      "Saint-Joseph",
-      6
-    ],
-    [
-      "Trois-Bassins",
-      6
-    ],
-    [
-      "Etang-Salé",
-      6
-    ],
-    [
-      "Sainte-Marie",
+      "Saint-Benoît",
       5
     ],
     [
-      "Sainte-Suzanne",
+      "Les Avirons",
       5
-    ],
-    [
-      "Zone non précisée",
-      4
     ],
     [
       "Bras-Panon",
       4
     ],
     [
-      "Bassin Plat",
-      4
-    ],
-    [
-      "Bois de Nèfles Sainte-Clotilde",
+      "La Bretagne",
       3
     ],
     [
-      "La Possession",
+      "Entre-Deux",
       3
     ],
     [
-      "Saint-Benoît",
+      "Bellepierre",
       3
     ],
     [
-      "Moulin Joli",
-      2
-    ],
-    [
-      "Les Camélias",
-      2
-    ],
-    [
-      "Petite Ile",
-      2
+      "Bois de Nèfles Saint-Paul",
+      3
     ],
     [
       "Ligne des Bambous",
+      3
+    ],
+    [
+      "La Grande Montée",
       2
     ],
     [
-      "La Saline",
+      "Champ Fleuri",
+      2
+    ],
+    [
+      "Cilaos",
       2
     ],
     [
       "Beauséjour",
-      1
-    ],
-    [
-      "La Grande Montée",
-      1
-    ],
-    [
-      "Les Cafés",
-      1
-    ],
-    [
-      "Champ Fleuri",
-      1
+      2
     ],
     [
       "Le Port",
+      2
+    ],
+    [
+      "La Montagne",
       1
     ],
     [
-      "Bas de la Rivière",
+      "Les Camélias",
+      1
+    ],
+    [
+      "Moulin Joli",
+      1
+    ],
+    [
+      "Duparc",
+      1
+    ],
+    [
+      "La Source",
+      1
+    ],
+    [
+      "Bassin Plat",
+      1
+    ],
+    [
+      "Trou d'Eau",
+      1
+    ],
+    [
+      "Condé-Concession",
       1
     ],
     [
       "Cambaie",
       1
-    ],
-    [
-      "Entre-Deux",
-      1
     ]
   ],
   "regions": [
     [
-      "Nord",
-      128
+      "Sud",
+      301
     ],
     [
-      "Sud",
-      114
+      "Nord",
+      175
     ],
     [
       "Ouest",
-      78
+      136
     ],
     [
       "Est",
-      19
+      33
     ],
     [
       "Région non précisée",
-      4
+      17
     ]
   ],
   "types": [
     [
       "Appartement",
-      253
+      422
     ],
     [
       "Maison",
-      82
+      213
     ],
     [
       "Appartement / maison",
-      8
+      27
     ]
   ],
   "sources": [
     [
+      "seloger",
+      252
+    ],
+    [
       "zimo",
-      79
+      179
     ],
     [
       "bienici",
-      47
+      46
     ],
     [
-      "seloger",
+      "domimmo",
       30
     ],
     [
@@ -283,19 +319,15 @@
       24
     ],
     [
-      "domimmo",
-      23
+      "locamoi",
+      21
     ],
     [
       "ofim",
-      23
+      21
     ],
     [
       "ofim_rss",
-      23
-    ],
-    [
-      "locamoi",
       21
     ],
     [
@@ -304,7 +336,7 @@
     ],
     [
       "immo974",
-      17
+      19
     ],
     [
       "superimmo",
@@ -312,117 +344,121 @@
     ],
     [
       "alter",
-      12
+      7
     ],
     [
       "97immo",
-      9
+      7
     ]
   ],
   "features": [
     [
       "Varangue / terrasse",
-      160
-    ],
-    [
-      "Parking",
-      134
+      217
     ],
     [
       "Meublé",
-      120
+      184
+    ],
+    [
+      "Parking",
+      178
     ],
     [
       "Jardin",
-      47
+      77
     ],
     [
       "Piscine",
-      20
+      34
     ],
     [
       "Non meublé",
-      15
+      26
     ]
   ],
   "price_summary": {
-    "count": 321,
-    "min": 60,
-    "max": 5540,
-    "p25": 612,
-    "median": 890,
-    "p75": 1325
+    "count": 635,
+    "min": 84,
+    "max": 5630,
+    "p25": 770,
+    "median": 990,
+    "p75": 1400
   },
   "surface_summary": {
-    "count": 339,
-    "min": 9.7,
-    "max": 400.0,
-    "median": 52.87
+    "count": 653,
+    "min": 1.0,
+    "max": 974.0,
+    "median": 63.0
   },
   "rooms": [
     [
-      2,
-      95
+      3,
+      168
     ],
     [
-      1,
-      72
+      2,
+      154
     ],
     [
       4,
-      66
+      134
     ],
     [
-      3,
-      65
+      1,
+      101
     ],
     [
       5,
-      25
+      54
     ],
     [
       6,
-      4
+      18
     ],
     [
       7,
-      1
+      5
+    ],
+    [
+      8,
+      4
     ]
   ],
   "furnished": {
-    "yes": 135,
+    "yes": 210,
     "no_explicit": 0,
-    "unknown_or_not_furnished": 208
+    "unknown_or_not_furnished": 452
   },
   "missing_fields": [
     [
       "rooms",
-      44
+      41
     ],
     [
       "price",
-      22
+      27
     ],
     [
       "surface",
-      4
+      9
     ],
     [
       "local_image_url",
-      3
+      7
     ]
   ],
   "changes": [
     [
       "disappeared",
-      72
-    ],
-    [
-      "price_changed",
-      5
+      70
     ],
     [
       "reappeared",
+      7
+    ],
+    [
+      "price_changed",
       3
     ]
   ]

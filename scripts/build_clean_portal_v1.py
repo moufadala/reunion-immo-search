@@ -6,11 +6,13 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 import os
+from media_link_copy import copytree_media_aware
 
 ROOT = Path('/opt/data/projects/reunion-immo-search')
 SRC_APP = Path(os.environ.get('IMMO_APP_PATH', str(ROOT / 'artifacts/app')))
 SRC_JSON = SRC_APP / 'listings.json'
 OUT = Path(os.environ.get('IMMO_OUT_PATH', str(ROOT / 'artifacts/app_clean_v1')))
+MEDIA_COPY_MODE = os.environ.get('IMMO_MEDIA_COPY_MODE', 'copy')
 THUMBS = SRC_APP / 'thumbs'
 
 raw = json.loads(SRC_JSON.read_text(encoding='utf-8'))
@@ -22,7 +24,7 @@ if OUT.exists():
     shutil.rmtree(OUT)
 OUT.mkdir(parents=True)
 if THUMBS.exists():
-    shutil.copytree(THUMBS, OUT / 'thumbs')
+    copytree_media_aware(THUMBS, OUT / 'thumbs', media_mode=MEDIA_COPY_MODE)
 
 SIDECAR_FILES = [
     'changes.html', 'changes.json',

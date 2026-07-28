@@ -27,7 +27,7 @@ BOILERPLATE_PATTERNS = [
     "Annonce publiée le",
     "Proposée par",
 ]
-TARGET_SOURCES = ['superimmo', 'locamoi', 'domimmo', '97immo', 'citya', 'zimo']
+TARGET_SOURCES = ['superimmo', 'locamoi', 'domimmo', '97immo', 'citya', 'zimo', 'fnaim']
 
 
 def utcstamp() -> str:
@@ -356,6 +356,23 @@ def zimo_description(row: sqlite3.Row) -> tuple[str, dict[str, Any]]:
     return '', {'method': 'zimo_content_endpoint_then_meta', 'attempts': attempts, 'blocked': True}
 
 
+def fnaim_description(row: sqlite3.Row) -> tuple[str, dict[str, Any]]:
+    """Le scraper d'origine (detail_listing() dans
+    realestate_multi_sources_scraper.py) retombe sur meta/og:description, un
+    gabarit SEO court et parfois casse ("de e" au lieu du prix). Le vrai
+    texte de l'annonce vit dans un bloc bien identifie -- on le prefere."""
+    status, body = request_text(row['url'], referer='https://www.fnaim.re/')
+    meta = extract_meta_description(body)
+    desc = ''
+    m = re.search(r'<div[^>]+class=["\'][^"\']*property__description-content[^"\']*["\'][^>]*>(.*?)</div>',
+                 body, re.I | re.S)
+    if m:
+        desc = clean_text(m.group(1))
+    if len(desc) < len(meta):
+        desc = meta
+    return desc, {'method': 'fnaim_html_descriptif', 'http_status': status, 'meta_len': len(meta)}
+
+
 FETCHERS = {
     'superimmo': superimmo_description,
     'locamoi': locamoi_description,
@@ -363,6 +380,7 @@ FETCHERS = {
     '97immo': immo97_description,
     'citya': citya_description,
     'zimo': zimo_description,
+    'fnaim': fnaim_description,
 }
 
 

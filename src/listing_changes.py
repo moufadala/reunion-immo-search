@@ -62,10 +62,18 @@ def portable_image_url(url: str | None) -> str | None:
     return u
 
 
+EMAIL_RE = re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.I)
+PHONE_RE = re.compile(
+    r"(?<![A-Za-z0-9])(?:\+?262|0)(?:[\s.\-/]*(?:262|692|693|6|7|2))?(?:[\s.\-/]*\d){7,9}(?![A-Za-z0-9])"
+)
+
+
 def clean_public_text(value: Any) -> str | None:
     if value in (None, ""):
         return None
     text = re.sub(r"https?://\S+", "", str(value))
+    text = EMAIL_RE.sub("", text)
+    text = PHONE_RE.sub("", text)
     text = re.sub(r"\b(?:serp_view|distributionTypes|estateTypes|locations|search|page)=[^\s]+", "", text, flags=re.I)
     text = re.sub(r"[#?&][A-Za-z0-9_%=+&.,:-]+", "", text)
     text = re.sub(r"\s+", " ", text).strip(" -·;,.\n\t")

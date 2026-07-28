@@ -94,12 +94,30 @@ def location_label(row, commune, primary_zone):
         bits.append(commune)
     return ' · '.join(bits) if bits else 'Secteur non précisé'
 
+BOILERPLATE_DESCRIPTION_MARKERS = [
+    "L'annonce a bien été ajoutée à vos favoris",
+    "Annonce publiée le",
+    "Proposée par",
+    "Cette annonce vous est proposée par",
+    "Extrait de notre barème",
+]
+
+def has_description_boilerplate(text):
+    text = text or ''
+    hits = [marker for marker in BOILERPLATE_DESCRIPTION_MARKERS if marker in text]
+    # A lone "Proposée par" can appear in legitimate agency prose. The Superimmo
+    # crawler/card boilerplate is characterized by the favorite marker or several
+    # metadata markers together.
+    return "L'annonce a bien été ajoutée à vos favoris" in text or len(hits) >= 2
+
 def description_pack(row, item):
     raw=clean(row.get('description'))
     title=clean(row.get('title'))
     # V3: never truncate genuine source descriptions in the data payload. If the UI
     # needs a preview, it must shorten client-side; the JSON keeps the source text.
-    if raw and len(raw) >= 45 and raw.lower() != title.lower():
+    # But source/crawler boilerplate is not a genuine source description: keep the
+    # public payload honest by falling back to a structured synthesis.
+    if raw and len(raw) >= 45 and raw.lower() != title.lower() and not has_description_boilerplate(raw):
         return raw, 'Description source'
     parts=[]
     if item.get('property_type'): parts.append(item['property_type'])

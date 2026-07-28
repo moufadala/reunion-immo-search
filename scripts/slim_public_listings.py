@@ -5,20 +5,20 @@ The public UI needs searchable/displayable facts, not every raw analysis blob.
 This keeps fields used by index.html/tests and removes heavy debug/internal payloads.
 """
 from __future__ import annotations
+import argparse
 import json
 import re
 import sys
 from pathlib import Path
 
-APP = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('/opt/data/projects/reunion-immo-search/artifacts/app')
-PATH = APP / 'listings.json'
+DEFAULT_APP = Path('/opt/data/projects/reunion-immo-search/artifacts/app')
 
 KEEP_TOP = {
     'id','source','source_id','url','title','city','district','region','location',
     'location_intelligence','map_point','map_url','type','price','surface','rooms','bedrooms',
     'furnished','agency','image_url','local_image_url','local_image_urls','description',
     'description_status','description_analysis','seen_last_at','published_at','score',
-    'opportunity_score','feature_tags','geo_quality','image_quality','seen_also_on','dedup_product_note',
+    'opportunity_score','opportunity_analysis','feature_tags','geo_quality','image_quality','seen_also_on','dedup_product_note',
     'dedup_group_id','dedup_decision','dedup_confidence','dedup_role','dedup_reason','dedup_sources','canonical_display_id','display_canonical','housing_details'
     }
 
@@ -54,6 +54,17 @@ def slim_housing(h):
             vv['evidence'] = ev[:2]
         if vv:
             out[k] = vv
+    return out
+
+def slim_opportunity(oa):
+    """Keep the public opportunity contract while dropping bulky debug detail."""
+    if not isinstance(oa, dict):
+        return oa
+    keep = ['score', 'label', 'segment', 'reasons', 'risks', 'signals', 'recommendation']
+    out = {k: oa.get(k) for k in keep if oa.get(k) not in (None, '', [], {})}
+    for k in ['reasons', 'risks', 'signals']:
+        if isinstance(out.get(k), list):
+            out[k] = out[k][:6]
     return out
 
 TECH_DESC_RE = re.compile(r'Annonce\s+SeLoger\s+collectée\s+par\s+CDP\..*$', re.I | re.S)
@@ -189,9 +200,17 @@ def refresh_opportunity(app: Path, items: list[dict]) -> None:
         opp['top'] = [x for x in opp['top'] if str(x.get('id')) in public_ids]
     opp_path.write_text(json.dumps(opp, ensure_ascii=False, indent=2), encoding='utf-8')
 
-def main():
-    payload = json.loads(PATH.read_text(encoding='utf-8'))
-    before = PATH.stat().st_size
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    ap = argparse.ArgumentParser(description='Slim public listings.json while preserving fields required by public gates.')
+    ap.add_argument('app', nargs='?', type=Path, default=DEFAULT_APP, help='Public app/stage directory containing listings.json')
+    return ap.parse_args(argv)
+
+def main(argv: list[str] | None = None):
+    args = parse_args(argv)
+    app = args.app
+    path = app / 'listings.json'
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    before = path.stat().st_size
     new_items = []
     excluded = {'missing_or_invalid_price': 0}
     for x in payload.get('listings', []):
@@ -205,6 +224,8 @@ def main():
             y['description_analysis'] = slim_description_analysis(y['description_analysis'])
         if 'housing_details' in y:
             y['housing_details'] = slim_housing(y['housing_details'])
+        if 'opportunity_analysis' in y:
+            y['opportunity_analysis'] = slim_opportunity(y['opportunity_analysis'])
         if 'description' in y:
             y['description'] = clean_description(y)
         if 'feature_tags' not in y:
@@ -214,24 +235,24 @@ def main():
         new_items.append(y)
     generated_at = payload.get('generated_at')
     out = {'generated_at': generated_at, 'count': len(new_items), 'listings': new_items}
-    PATH.write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-    write_light_index(APP, generated_at, new_items)
-    refresh_coverage(APP, new_items)
-    refresh_photo_quality(APP, new_items)
-    refresh_locations(APP, new_items)
-    refresh_opportunity(APP, new_items)
+    path.write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    write_light_index(app, generated_at, new_items)
+    refresh_coverage(app, new_items)
+    refresh_photo_quality(app, new_items)
+    refresh_locations(app, new_items)
+    refresh_opportunity(app, new_items)
     # Backups in app root accidentally become public budget debt. Move them out of served app.
-    backup_dir = APP.parent / 'app_backups'
+    backup_dir = app.parent / 'app_backups'
     backup_dir.mkdir(exist_ok=True)
     moved=[]
-    for p in APP.glob('listings.before-*.json'):
+    for p in app.glob('listings.before-*.json'):
         target = backup_dir / p.name
         if target.exists():
             p.unlink()
         else:
             p.rename(target)
         moved.append(str(target))
-    after = PATH.stat().st_size
+    after = path.stat().st_size
     print(json.dumps({'ok': True, 'before': before, 'after': after, 'moved_backups': moved, 'excluded': excluded, 'public_count': len(new_items)}, ensure_ascii=False, indent=2))
 
 if __name__ == '__main__':

@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+
+from media_link_copy import copytree_media_aware
 
 
 def validate_app(path: Path) -> None:
@@ -26,6 +29,12 @@ def main() -> int:
     ap.add_argument("--critical-source", action="append", default=["seloger"])
     ap.add_argument("--json-out", type=Path, default=Path("artifacts/app/promote_guard.json"))
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--media-copy-mode",
+        choices=["copy", "hardlink"],
+        default=os.environ.get("IMMO_MEDIA_COPY_MODE", "copy"),
+        help="copy mode for media files during backup/promotion; default keeps legacy copy behavior",
+    )
     args = ap.parse_args()
 
     root = Path(__file__).resolve().parents[1]
@@ -53,11 +62,13 @@ def main() -> int:
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     backup = args.target.with_name(args.target.name + f".pre-promote-{stamp}")
     promoted = False
+    backup_stats = None
+    promote_stats = None
     if not args.dry_run:
-        shutil.copytree(args.target, backup)
+        backup_stats = copytree_media_aware(args.target, backup, media_mode=args.media_copy_mode)
         if args.target.exists():
             shutil.rmtree(args.target)
-        shutil.copytree(args.candidate, args.target)
+        promote_stats = copytree_media_aware(args.candidate, args.target, media_mode=args.media_copy_mode)
         # nginx container must be able to read after restrictive cron umasks
         for p in args.target.rglob("*"):
             if p.is_dir():
@@ -74,6 +85,9 @@ def main() -> int:
         "candidate": str(args.candidate),
         "target": str(args.target),
         "backup": str(backup) if promoted else None,
+        "media_copy_mode": args.media_copy_mode,
+        "backup_copy_stats": backup_stats.to_dict() if backup_stats else None,
+        "promote_copy_stats": promote_stats.to_dict() if promote_stats else None,
         "guard_json": str(guard_out),
         "guard_stdout_tail": proc.stdout[-2000:],
     }

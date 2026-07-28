@@ -1,42 +1,38 @@
 # Photo cache V5
 
-- Listings: 343
-- URLs uniques: 2370
-- URLs téléchargées OK: 2296
-- Annonces avec photo locale: 339/343
-- Annonces avec galerie locale (>1): 203
-- Manifest: `/opt/data/projects/reunion-immo-search/artifacts/daily-tech-stage-20260627T163009Z/thumbs_manifest.json`
+- Listings: 662
+- URLs uniques: 2782
+- URLs téléchargées OK: 2679
+- Annonces avec photo locale: 655/662
+- Annonces avec galerie locale (>1): 252
+- Manifest: `/opt/data/projects/reunion-immo-search/artifacts/daily-tech-stage-20260723T163034Z/thumbs_manifest.json`
 
 ## Échecs par raison
-- exception: 59
-- too_small: 15
+- exception: 55
+- too_small: 48
 
 ## Hosts OK principaux
-- www.ofim.fr: 672
-- file.bienici.com: 521
-- box.ics.fr: 287
-- www.immo974.com: 160
-- cabinet-habilis.staticlbi.com: 114
-- zimo-images.s3.fr-par.scw.cloud: 87
-- img.e-xiste.com: 78
-- img.netty.immo: 65
-- nato-immobilier.staticlbi.com: 59
-- immo-cdn.fr: 46
-- photos.ubiflow.net: 23
-- keldom.blob.core.windows.net: 22
-- www.locagestion.com: 21
-- mms.seloger.com: 20
+- www.ofim.fr: 604
+- file.bienici.com: 496
+- box.ics.fr: 307
+- zimo-images.s3.fr-par.scw.cloud: 252
+- www.immo974.com: 190
+- mms.seloger.com: 168
+- img.e-xiste.com: 145
+- img.netty.immo: 132
+- cabinet-habilis.staticlbi.com: 94
+- immo-cdn.fr: 90
+- keldom.blob.core.windows.net: 77
 - www.fnaim.re: 20
-- herren-immobilier.com: 16
-- adopteuntoit.staticlbi.com: 15
-- www.repimmo.com: 14
-- images.playiad.com: 12
-- photos5.pagesimmo.com: 12
-- www.97immo.com: 9
-- photo.superimmo.com: 7
-- static.tekaimmo.com: 5
+- images.playiad.com: 18
+- www.repimmo.com: 15
+- reseau-noblimo.staticlbi.com: 14
+- photo.superimmo.com: 13
+- www.97immo.com: 8
+- herren-immobilier.com: 7
+- photos5.pagesimmo.com: 7
+- winkeys.staticlbi.com: 7
+- www.accord-immobilier.re: 6
 - media.studio-net.fr: 4
-- eu.viva-images.com: 2
-- player.previsite.net: 2
-- www.cessionpme.com: 2
+- static.tekaimmo.com: 4
 - www.citya.com: 1
