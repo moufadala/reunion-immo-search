@@ -46,6 +46,18 @@ def clean_text(s: str | None) -> str:
     return s.strip(' \n\t-')
 
 
+# Trouve le 28/07 : les 90 annonces fnaim recuperees par la pagination du
+# 27/07 ont TOUTES un gabarit generique auto-genere par fnaim.re lui-meme
+# ("Annonce immobiliere de location <type> <pieces> pieces de € sur
+# <ville> - avec <agence>"), 87-141 caracteres -- au-dessus du seuil de 80,
+# donc jamais detecte comme "sparse" malgre son inutilite totale. C'est
+# exactement le meme defaut deja identifie et corrige le 27/07 matin pour
+# fnaim_description(), mais is_sparse() ne le reconnaissait pas comme
+# candidat a l'enrichissement -> la fonction de description existait deja,
+# elle n'etait simplement jamais appelee sur ces lignes.
+_GABARIT_GENERIQUE = re.compile(r'^annonce immobili[eè]re de location', re.I)
+
+
 def is_sparse(existing: str | None, title: str | None = None) -> bool:
     e = clean_text(existing)
     t = clean_text(title).lower()
@@ -56,6 +68,8 @@ def is_sparse(existing: str | None, title: str | None = None) -> bool:
     if t and e.lower() == t:
         return True
     if "L'annonce a bien été ajoutée à vos favoris" in e:
+        return True
+    if _GABARIT_GENERIQUE.match(e):
         return True
     return False
 
