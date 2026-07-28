@@ -19,10 +19,14 @@ DIST="$PROJECT/webapp/dist"
 # 1 = l'app v2 devient aussi la page d'accueil (/). 0 = seulement /v2/.
 V2_RACINE="${IMMO_V2_AS_ROOT:-0}"
 
-echo "== 1/3 photos chez nous =="
+echo "== 1/5 extraction galeries JSON =="
+"$PY" "$PROJECT/scripts/enrich_listing_photos.py"
+
+echo "== 2/5 photos chez nous =="
+echo "mode photos: offline=${PHOTO_OFFLINE:-0} max_par_annonce=${PHOTO_MAX_PER_LISTING:-20}"
 IMMO_APP_PATH="$APP" "$PY" "$PROJECT/scripts/cache_photos.py"
 
-echo "== 2/3 feed =="
+echo "== 3/5 feed =="
 # Ne PAS piper directement dans `head` : sous `set -o pipefail`, la fermeture
 # anticipee du tube par head declenche un BrokenPipeError cote Python, qui
 # fait echouer toute la ligne -- et donc tout le script AVANT l'etape 3
@@ -33,7 +37,7 @@ IMMO_FEED_OUT="$APP/feed.json" "$PY" "$PROJECT/scripts/export_feed.py" > "$FEED_
 head -3 "$FEED_LOG"
 rm -f "$FEED_LOG"
 
-echo "== 3/3 interface =="
+echo "== 4/5 interface =="
 if [ ! -s "$DIST/index.html" ]; then
   echo "ERREUR: build absent ($DIST/index.html). Lancer d'abord :" >&2
   echo "  cd $PROJECT/webapp && npm_config_cache=/tmp/npm-immo npm ci && npm run build" >&2
@@ -64,5 +68,8 @@ fi
 
 chmod 755 "$APP/v2" 2>/dev/null || true
 find "$APP/v2" -type f -exec chmod 644 {} + 2>/dev/null || true
+
+echo "== 5/5 QA produit =="
+"$PY" "$PROJECT/scripts/audit_product_v2.py" "$APP"
 
 echo "OK  feed=$(stat -c%s "$APP/feed.json") o  v2=$(ls "$APP/v2/assets" | wc -l) assets  racine=$V2_RACINE"

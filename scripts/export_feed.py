@@ -124,13 +124,21 @@ def main():
     # Les chemins sont ABSOLUS : l'app est servie depuis /v2/ aujourd'hui et
     # depuis / demain -- un chemin relatif casserait a la bascule.
     thumbs = {}
+    galeries_man = {}
     try:
         man = json.load(open(ROOT + '/artifacts/app/photos_manifest.json', encoding='utf-8'))
         for cle, v in (man.get('photos') or {}).items():
             site, _, sid = cle.partition(':')
+            k = (site, sid)
             loc = v.get('local')
             if loc and os.path.exists(os.path.join(ROOT, 'artifacts/app', loc.lstrip('/'))):
-                thumbs[(site, sid)] = loc
+                thumbs[k] = loc
+            locs = ['/' + str(u).lstrip('/') for u in (v.get('locals') or [])
+                    if u and os.path.exists(os.path.join(ROOT, 'artifacts/app', str(u).lstrip('/')))]
+            if len(locs) > 1:
+                # Nouvelle source canonique de galerie : manifeste local,
+                # produit par cache_photos.py depuis listing_detail.photo_urls.
+                galeries_man[k] = locs
     except (OSError, ValueError):
         pass
     # Filet : anciennes vignettes referencees par le pipeline precedent et pas
@@ -259,6 +267,7 @@ def main():
             label = None
             prec = 'inconnu'
 
+        k = (r['source_site'], str(r['source_id']))
         listings.append({
             'id': '%s:%s' % (r['source_site'], r['source_id']),
             'source': r['source_site'],
@@ -305,11 +314,10 @@ def main():
             # media / texte — UNIQUEMENT notre copie locale. Pas de repli sur
             # l'URL distante : un lien qui meurt chez le portail (cas zimo) ne
             # doit plus jamais casser une carte.
-            'image': thumbs.get((r['source_site'], str(r['source_id']))),
-            'image_locale': (r['source_site'], str(r['source_id'])) in thumbs,
-            'images': galleries.get((r['source_site'], str(r['source_id'])))
-                      or ([thumbs[(r['source_site'], str(r['source_id']))]]
-                          if (r['source_site'], str(r['source_id'])) in thumbs else []),
+            'image': thumbs.get(k),
+            'image_locale': k in thumbs,
+            'images': galeries_man.get(k) or galleries.get(k)
+                      or ([thumbs[k]] if k in thumbs else []),
             'description': d.get('description_full') or r['description'],
             'detail_read': bool(d.get('http_status') == 200),
         })

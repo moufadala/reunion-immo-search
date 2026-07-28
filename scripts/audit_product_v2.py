@@ -40,6 +40,64 @@ def main() -> int:
         erreurs.append('%d vignettes referencees mais absentes du disque (%s...)'
                        % (len(cassees), ', '.join(cassees[:3])))
 
+    # 2b. Galeries : toutes les images exposées au front doivent rester locales
+    # et exister sur disque. Les sources JSON riches ne doivent plus régresser
+    # à une seule photo quand raw_json_path en contient plusieurs.
+    galeries_cassees = []
+    galeries_distantes = []
+    multi_par_source = {}
+    for x in listings:
+        images = x.get('images') or []
+        if len(images) > 1:
+            multi_par_source[x.get('source')] = multi_par_source.get(x.get('source'), 0) + 1
+        for image in images:
+            image = str(image)
+            if not image.startswith('/thumbs/'):
+                galeries_distantes.append(x['id'])
+                break
+            if not (app / image.lstrip('/')).is_file():
+                galeries_cassees.append(x['id'])
+                break
+    if galeries_distantes:
+        erreurs.append('%d galeries contiennent une URL non locale (%s...)'
+                       % (len(galeries_distantes), ', '.join(galeries_distantes[:3])))
+    if galeries_cassees:
+        erreurs.append('%d galeries referencent un fichier absent (%s...)'
+                       % (len(galeries_cassees), ', '.join(galeries_cassees[:3])))
+    # 2c. Invariant honnête : la QA ne doit pas imposer un nombre absolu de
+    # galeries par portail (ça dépend des 404/limitations CDN). Elle vérifie ce
+    # que le produit contrôle vraiment : si le manifeste local possède plusieurs
+    # photos pour une annonce visible dans le feed, le feed doit les exposer.
+    man_p = app / 'photos_manifest.json'
+    manifest_multi_expected = {}
+    manifest_to_feed_losses = []
+    if man_p.is_file():
+        try:
+            man = json.loads(man_p.read_text(encoding='utf-8'))
+        except ValueError:
+            erreurs.append('photos_manifest.json illisible')
+        else:
+            feed_by_id = {x['id']: x for x in listings}
+            for cle, v in (man.get('photos') or {}).items():
+                dispo = ['/' + str(u).lstrip('/') for u in (v.get('locals') or [])
+                         if u and (app / str(u).lstrip('/')).is_file()]
+                if len(dispo) <= 1:
+                    continue
+                site, _, sid = cle.partition(':')
+                fid = '%s:%s' % (site, sid)
+                x = feed_by_id.get(fid)
+                if x is None:
+                    continue  # hors périmètre public : pas une perte d'export.
+                manifest_multi_expected[site] = manifest_multi_expected.get(site, 0) + 1
+                exposees = [str(i) for i in (x.get('images') or [])]
+                if len(exposees) < len(dispo):
+                    manifest_to_feed_losses.append('%s: manifeste %d -> feed %d'
+                                                   % (fid, len(dispo), len(exposees)))
+            if manifest_to_feed_losses:
+                erreurs.append('%d galeries locales non exposées intégralement (%s)'
+                               % (len(manifest_to_feed_losses),
+                                  ' ; '.join(manifest_to_feed_losses[:3])))
+
     # 3. L'interface est deployee.
     for f in ('v2/index.html', 'v2/feed.json'):
         if not (app / f).exists():
@@ -63,6 +121,9 @@ def main() -> int:
         'actives': len(actives),
         'avec_photo_locale': sum(1 for x in listings if x.get('image')),
         'actives_sans_photo': len(sans),
+        'multi_photo_par_source': multi_par_source,
+        'multi_photo_attendues_depuis_manifest': manifest_multi_expected,
+        'manifest_to_feed_losses': manifest_to_feed_losses[:10],
         'erreurs': erreurs,
     }
     print(json.dumps(resultat, ensure_ascii=False))
