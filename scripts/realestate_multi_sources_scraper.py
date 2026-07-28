@@ -302,11 +302,21 @@ def scrape_locamoi(max_pages=7, delay=1.5):
         out.append(Listing('locamoi',sid,url,url,title,addr.get('addressLocality'),None,'flat',int(rooms) if isinstance(rooms,(int,float)) else None,None,float(surf) if isinstance(surf,(int,float)) else None,int(price) if isinstance(price,(int,float)) else to_int_price(price),None,'locamoi/aggregated',offers.get('validFrom'),item.get('image'),title,save_raw('locamoi',sid,d),hash_listing(d)))
     return out
 
+# Trouve le 28/07 : `[^"\']+` s'arrete a la PREMIERE apostrophe rencontree
+# dans le contenu, meme quand l'attribut est delimite par des guillemets
+# doubles -- coupe "Immobilier La Reunion L'..." et "à louer à l'..." net a
+# l'apostrophe. Preuve : 97immo et ofim en sont pleins (texte francais =
+# apostrophes partout). Corrige en capturant jusqu'a la MEME quote que
+# celle qui a ouvert l'attribut (backreference), pas n'importe laquelle.
 def meta_content(text, name):
-    m=re.search(r'<meta[^>]+(?:property|name)=["\']'+re.escape(name)+r'["\'][^>]+content=["\']([^"\']+)',text,re.I)
-    if not m:
-        m=re.search(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']'+re.escape(name)+r'["\']',text,re.I)
-    return clean(m.group(1)) if m else None
+    esc=re.escape(name)
+    m=re.search(r'<meta[^>]+(?:property|name)=(["\'])'+esc+r'\1[^>]+content=(["\'])(.*?)\2',text,re.I)
+    if m:
+        return clean(m.group(3))
+    m=re.search(r'<meta[^>]+content=(["\'])(.*?)\1[^>]+(?:property|name)=(["\'])'+esc+r'\3',text,re.I)
+    if m:
+        return clean(m.group(2))
+    return None
 
 def title_tag(text):
     m=re.search(r'<title[^>]*>(.*?)</title>',text,re.I|re.S)
