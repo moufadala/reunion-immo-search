@@ -174,6 +174,37 @@ def test_should_update_boilerplate():
     assert reason == "accepted_cleaned_boilerplate"
 
 
+class FakeLLMClient:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+        self.messages = self
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return {"content": [{"type": "tool_use", "name": "extract_listing_signals", "input": self.payload}], "usage": {"input_tokens": 10, "output_tokens": 20}}
+
+
+def test_llm_disabled_without_client():
+    mod = load_module()
+    fields, meta = mod.llm_extract_listing_signals(row(), long_desc(), client=None)
+    assert fields == {}
+    assert meta["llm"] == "disabled"
+
+
+def test_llm_grounding_filter():
+    mod = load_module()
+    text = "Appartement proche de l'école Joinville, commerces du centre-ville, accès route du Littoral, résidence Les Badamiers."
+    client = FakeLLMClient({"quartier_precis": None, "proximites": ["école Joinville", "plage absente", "mer"], "routes_axes": ["route du Littoral"], "points_repere": ["résidence Les Badamiers"]})
+    fields, meta = mod.llm_extract_listing_signals(row(description=text), text, client=client)
+    assert fields["proximites"] == ["école Joinville"]
+    assert fields["routes_axes"] == ["route du Littoral"]
+    assert fields["points_repere"] == ["résidence Les Badamiers"]
+    assert "plage absente" in meta["rejected_ungrounded"]
+    assert "mer" in meta["rejected_ungrounded"]
+    assert mod.llm_fields_have_values(fields) is True
+
+
 def main() -> int:
     run_case("exact_id_first", test_exact_id_first)
     run_case("schema_list", lambda: test_schema([keldom_item()]))
@@ -183,6 +214,8 @@ def main() -> int:
     run_case("false_positive_rejected", test_false_positive_rejected)
     run_case("footer_cut", test_footer_cut)
     run_case("should_update_boilerplate", test_should_update_boilerplate)
+    run_case("llm_disabled_without_client", test_llm_disabled_without_client)
+    run_case("llm_grounding_filter", test_llm_grounding_filter)
     print("ENRICH_SOURCE_DETAILS_V3_AUDIT PASS")
     return 0
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
 import os
@@ -9,6 +10,7 @@ import re
 import shutil
 import sqlite3
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -95,6 +97,187 @@ def should_update(existing: str | None, new: str | None, title: str | None = Non
     if len(n) <= len(e):
         return False, 'new_not_longer'
     return True, 'accepted'
+
+
+LLM_DEFAULT_MODEL = os.environ.get('IMMO_LLM_MODEL', 'claude-haiku-4-5-20251001')
+LLM_LIST_FIELDS = ('proximites', 'routes_axes', 'points_repere')
+LLM_SCALAR_FIELDS = ('quartier_precis',)
+LLM_TOOL = {
+    'name': 'extract_listing_signals',
+    'description': 'Extrait uniquement les signaux explicitement présents dans le texte source dune annonce immobilière.',
+    'input_schema': {
+        'type': 'object',
+        'properties': {
+            'quartier_precis': {'type': ['string', 'null'], 'description': 'Quartier/localité exact explicitement citée, sinon null.'},
+            'proximites': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Écoles, commerces, transports, plage, services explicitement cités.'},
+            'routes_axes': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Routes, axes, accès rapides explicitement cités.'},
+            'points_repere': {'type': 'array', 'items': {'type': 'string'}, 'description': 'Résidences, bâtiments, lieux-dits, repères explicitement cités.'},
+        },
+        'required': ['quartier_precis', 'proximites', 'routes_axes', 'points_repere'],
+        'additionalProperties': False,
+    },
+}
+
+
+def llm_input_hash(source_text: str) -> str:
+    return hashlib.sha256(clean_text(source_text).encode('utf-8')).hexdigest()
+
+
+def normalize_grounding_text(value: str | None) -> str:
+    text = clean_text(value).lower()
+    text = ''.join(ch for ch in unicodedata.normalize('NFKD', text) if not unicodedata.combining(ch))
+    text = re.sub(r'[^a-z0-9]+', ' ', text)
+    return re.sub(r'\s+', ' ', text).strip()
+
+
+def is_grounded(value: str | None, source_text: str) -> bool:
+    v = normalize_grounding_text(value)
+    if not v:
+        return False
+    source_norm = normalize_grounding_text(source_text)
+    # Boundary-aware phrase match: a hallucinated short token like "mer" must
+    # not be accepted just because it is inside "commerce". This keeps the
+    # anti-hallucination guard faithful to "littéralement présent".
+    return re.search(r'(?<![a-z0-9])' + re.escape(v) + r'(?![a-z0-9])', source_norm) is not None
+
+
+def llm_fields_have_values(fields: dict[str, Any]) -> bool:
+    return any(bool(fields.get(k)) for k in (*LLM_SCALAR_FIELDS, *LLM_LIST_FIELDS))
+
+
+def grounded_llm_fields(payload: dict[str, Any], source_text: str) -> tuple[dict[str, Any], list[str]]:
+    accepted: dict[str, Any] = {'quartier_precis': None, 'proximites': [], 'routes_axes': [], 'points_repere': []}
+    rejected: list[str] = []
+    for field in LLM_SCALAR_FIELDS:
+        value = payload.get(field)
+        if isinstance(value, str) and is_grounded(value, source_text):
+            accepted[field] = clean_text(value)
+        elif value:
+            rejected.append(str(value))
+    for field in LLM_LIST_FIELDS:
+        raw = payload.get(field) or []
+        if not isinstance(raw, list):
+            raw = []
+        for value in raw:
+            if isinstance(value, str) and is_grounded(value, source_text):
+                cleaned = clean_text(value)
+                if cleaned and cleaned not in accepted[field]:
+                    accepted[field].append(cleaned)
+            elif value:
+                rejected.append(str(value))
+    return accepted, rejected
+
+
+def extract_tool_payload(response: Any) -> dict[str, Any]:
+    content = response.get('content') if isinstance(response, dict) else getattr(response, 'content', None)
+    for block in content or []:
+        if isinstance(block, dict):
+            typ = block.get('type')
+            name = block.get('name')
+            inp = block.get('input')
+        else:
+            typ = getattr(block, 'type', None)
+            name = getattr(block, 'name', None)
+            inp = getattr(block, 'input', None)
+        if typ == 'tool_use' and name == 'extract_listing_signals' and isinstance(inp, dict):
+            return inp
+    return {}
+
+
+def response_usage(response: Any) -> dict[str, Any]:
+    usage = response.get('usage') if isinstance(response, dict) else getattr(response, 'usage', None)
+    if isinstance(usage, dict):
+        return usage
+    if usage is None:
+        return {}
+    return {k: getattr(usage, k) for k in ('input_tokens', 'output_tokens') if hasattr(usage, k)}
+
+
+def build_llm_messages(row: Any, source_text: str) -> list[dict[str, Any]]:
+    return [
+        {
+            'role': 'user',
+            'content': (
+                "Annonce immobilière Réunion. Extrais uniquement les informations "
+                "littéralement présentes dans le texte. N'infère rien. Si absent: null ou [].\n\n"
+                f"Source: {row['source_site']} / {row['source_id']}\n"
+                f"Titre: {clean_text(row['title'])}\n"
+                f"Ville connue: {clean_text(row['city'])}\n\n"
+                f"Texte source:\n{clean_text(source_text)[:3500]}"
+            ),
+        }
+    ]
+
+
+def llm_extract_listing_signals(row: Any, source_text: str, *, client: Any = None, model: str = LLM_DEFAULT_MODEL) -> tuple[dict[str, Any], dict[str, Any]]:
+    text = clean_text(source_text)
+    if len(text) < 80:
+        return {}, {'llm': 'skipped_no_text'}
+    if client is None:
+        return {}, {'llm': 'disabled', 'model': model, 'input_hash': llm_input_hash(text)}
+    response = client.messages.create(
+        model=model,
+        max_tokens=512,
+        temperature=0,
+        tools=[LLM_TOOL],
+        tool_choice={'type': 'tool', 'name': 'extract_listing_signals'},
+        messages=build_llm_messages(row, text),
+    )
+    payload = extract_tool_payload(response)
+    fields, rejected = grounded_llm_fields(payload, text)
+    return fields, {'llm': 'ok', 'model': model, 'input_hash': llm_input_hash(text), 'usage': response_usage(response), 'rejected_ungrounded': rejected}
+
+
+def create_llm_client() -> Any:
+    try:
+        from anthropic import Anthropic  # type: ignore
+    except Exception as exc:
+        raise RuntimeError('anthropic SDK missing; run with --llm-dry-run or install/enable the SDK') from exc
+    if not os.environ.get('ANTHROPIC_API_KEY'):
+        raise RuntimeError('ANTHROPIC_API_KEY missing; refusing LLM live calls')
+    return Anthropic()
+
+
+def ensure_llm_table(con: sqlite3.Connection) -> None:
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS listing_llm_extraction (
+            source_site TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            extracted_at TEXT NOT NULL,
+            model TEXT NOT NULL,
+            input_hash TEXT NOT NULL,
+            fields_json TEXT NOT NULL,
+            grounded INTEGER NOT NULL DEFAULT 1,
+            input_tokens INTEGER,
+            output_tokens INTEGER,
+            PRIMARY KEY (source_site, source_id, model)
+        )
+        """
+    )
+
+
+def upsert_llm_extraction(con: sqlite3.Connection, row: Any, *, model: str, fields: dict[str, Any], meta: dict[str, Any], extracted_at: str) -> None:
+    usage_raw = meta.get('usage')
+    usage: dict[str, Any] = usage_raw if isinstance(usage_raw, dict) else {}
+    con.execute(
+        """
+        INSERT INTO listing_llm_extraction(source_site, source_id, extracted_at, model, input_hash, fields_json, grounded, input_tokens, output_tokens)
+        VALUES (?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(source_site, source_id, model) DO UPDATE SET
+            extracted_at=excluded.extracted_at,
+            input_hash=excluded.input_hash,
+            fields_json=excluded.fields_json,
+            grounded=excluded.grounded,
+            input_tokens=excluded.input_tokens,
+            output_tokens=excluded.output_tokens
+        """,
+        (
+            row['source_site'], row['source_id'], extracted_at, model, meta.get('input_hash', ''),
+            json.dumps(fields, ensure_ascii=False, sort_keys=True), 1,
+            usage.get('input_tokens'), usage.get('output_tokens'),
+        ),
+    )
 
 
 def request_text(url: str, *, referer: str | None = None, timeout: int = 25) -> tuple[int, str]:
@@ -406,7 +589,14 @@ def main() -> int:
     ap.add_argument('--limit', type=int, default=0)
     ap.add_argument('--sleep', type=float, default=0.8)
     ap.add_argument('--report', default='')
+    ap.add_argument('--llm-dry-run', action='store_true', help='write LLM extraction prompts to JSONL without network calls')
+    ap.add_argument('--llm', action='store_true', help='enable live LLM extraction and persist grounded fields (off by default)')
+    ap.add_argument('--llm-model', default=LLM_DEFAULT_MODEL)
+    ap.add_argument('--llm-report', default='', help='JSONL path for LLM dry-run/live metadata')
+    ap.add_argument('--llm-limit', type=int, default=0, help='maximum LLM candidates/calls this run')
     args = ap.parse_args()
+    if args.dry_run and args.llm:
+        raise SystemExit('Refusing --dry-run with --llm live calls; use --llm-dry-run for zero-network prompt review, or remove --dry-run to persist live extraction.')
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
     db = Path(args.db)
@@ -437,8 +627,14 @@ def main() -> int:
     if args.limit:
         rows = rows[:args.limit]
 
-    counts: dict[str, int] = {'attempted': 0, 'accepted': 0, 'updated': 0, 'rejected': 0, 'errors': 0, 'blocked': 0, 'skipped_no_fetcher': 0}
+    counts: dict[str, int] = {'attempted': 0, 'accepted': 0, 'updated': 0, 'rejected': 0, 'errors': 0, 'blocked': 0, 'skipped_no_fetcher': 0, 'llm_candidates': 0, 'llm_dry_run': 0, 'llm_called': 0, 'llm_saved': 0, 'llm_errors': 0}
     by_source: dict[str, dict[str, int]] = {}
+    llm_client = create_llm_client() if args.llm else None
+    if args.llm and not args.dry_run:
+        ensure_llm_table(con)
+    llm_report = Path(args.llm_report) if args.llm_report else OUTDIR / f'llm_extraction_{stamp}.jsonl'
+    llm_log_handle = llm_report.open('w', encoding='utf-8') if (args.llm_dry_run or args.llm) else None
+    llm_seen = 0
 
     with report.open('w', encoding='utf-8') as log:
         for idx, row in enumerate(rows, 1):
@@ -456,9 +652,38 @@ def main() -> int:
             try:
                 new_desc, meta = fetcher(row)
                 ok, reason = should_update(row['description'], new_desc, row['title'])
+                source_text = clean_text(new_desc) or clean_text(row['description'])
                 rec.update({'new_len': len(clean_text(new_desc)), 'reason': reason, 'meta': meta, 'preview': clean_text(new_desc)[:240]})
                 if meta.get('blocked'):
                     counts['blocked'] += 1; by_source[src]['blocked'] += 1
+                if source_text and (args.llm_dry_run or args.llm) and (not args.llm_limit or llm_seen < args.llm_limit):
+                    counts['llm_candidates'] += 1
+                    llm_seen += 1
+                    if args.llm_dry_run and llm_log_handle:
+                        llm_log_handle.write(json.dumps({
+                            'dry_run': True,
+                            'source': src,
+                            'source_id': row['source_id'],
+                            'input_hash': llm_input_hash(source_text),
+                            'tool': LLM_TOOL,
+                            'messages': build_llm_messages(row, source_text),
+                        }, ensure_ascii=False) + '\n')
+                        llm_log_handle.flush()
+                        counts['llm_dry_run'] += 1
+                    if args.llm:
+                        try:
+                            fields, llm_meta = llm_extract_listing_signals(row, source_text, client=llm_client, model=args.llm_model)
+                            counts['llm_called'] += 1
+                            rec['llm'] = {'fields': fields, 'meta': llm_meta}
+                            if llm_log_handle:
+                                llm_log_handle.write(json.dumps({'source': src, 'source_id': row['source_id'], 'fields': fields, 'meta': llm_meta}, ensure_ascii=False) + '\n')
+                                llm_log_handle.flush()
+                            if llm_fields_have_values(fields) and not args.dry_run:
+                                upsert_llm_extraction(con, row, model=args.llm_model, fields=fields, meta=llm_meta, extracted_at=datetime.now(timezone.utc).isoformat())
+                                counts['llm_saved'] += 1
+                        except Exception as llm_exc:
+                            counts['llm_errors'] += 1
+                            rec['llm_error'] = repr(llm_exc)
                 if ok:
                     counts['accepted'] += 1; by_source[src]['accepted'] += 1
                     rec['action'] = 'accept_dry_run' if args.dry_run else 'update_db'
@@ -478,6 +703,8 @@ def main() -> int:
             log.flush()
             if idx < len(rows):
                 time.sleep(args.sleep)
+    if llm_log_handle:
+        llm_log_handle.close()
     if not args.dry_run:
         con.commit()
     summary = {'generated_at': datetime.now(timezone.utc).isoformat(), 'dry_run': args.dry_run, 'db': str(db), 'backup': str(backup) if backup else None, 'report': str(report), 'counts': counts, 'by_source': by_source}

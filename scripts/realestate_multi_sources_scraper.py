@@ -600,11 +600,16 @@ def scrape_ofim(max_items=90, max_pages=6, delay=1.5):
                     break
                 time.sleep(delay)
                 links=unique_links(text,r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']','https://www.ofim.fr/',50)
-                new=[u for u in links if u not in seen]
-                if not new:
+                # OFIM can reorder/overlap list windows between the category
+                # seed page and search.html?start=N. A page with only already
+                # seen URLs is not catalogue end; only a truly empty page is.
+                # Otherwise the scrape becomes order-dependent and listings
+                # disappear/reappear on the next pass despite stable OFIM IDs.
+                if not links:
                     break
-                for u in new:
-                    seen.add(u); found.append((u,ptype))
+                for u in links:
+                    if u not in seen:
+                        seen.add(u); found.append((u,ptype))
                 if len(found)>=max_items:
                     break
         if len(found)>=max_items:

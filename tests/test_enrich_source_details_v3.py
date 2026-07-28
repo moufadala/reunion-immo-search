@@ -199,3 +199,52 @@ def test_should_update_replaces_existing_boilerplate_with_clean_text():
     )
     assert ok is True
     assert reason == "accepted_cleaned_boilerplate"
+
+
+class FakeLLMClient:
+    def __init__(self, payload):
+        self.payload = payload
+        self.calls = []
+        self.messages = self
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return {
+            "content": [
+                {"type": "tool_use", "name": "extract_listing_signals", "input": self.payload}
+            ],
+            "usage": {"input_tokens": 10, "output_tokens": 20},
+        }
+
+
+def test_llm_extract_disabled_without_client_makes_no_call():
+    mod = load_module()
+    fields, meta = mod.llm_extract_listing_signals(row(), long_desc(), client=None)
+    assert fields == {}
+    assert meta["llm"] == "disabled"
+
+
+def test_llm_extract_accepts_only_grounded_values():
+    mod = load_module()
+    text = (
+        "Appartement proche de l'école Joinville, des commerces du centre-ville, "
+        "accès rapide à la route du Littoral et repère: résidence Les Badamiers."
+    )
+    client = FakeLLMClient(
+        {
+            "quartier_precis": "centre-ville",
+            "proximites": ["école Joinville", "plage inexistante", "mer"],
+            "routes_axes": ["route du Littoral"],
+            "points_repere": ["résidence Les Badamiers"],
+        }
+    )
+    fields, meta = mod.llm_extract_listing_signals(row(description=text), text, client=client)
+    assert meta["llm"] == "ok"
+    assert fields["quartier_precis"] == "centre-ville"
+    assert fields["proximites"] == ["école Joinville"]
+    assert fields["routes_axes"] == ["route du Littoral"]
+    assert fields["points_repere"] == ["résidence Les Badamiers"]
+    assert "plage inexistante" in meta["rejected_ungrounded"]
+    assert "mer" in meta["rejected_ungrounded"]  # not accepted from inside "commerces"
+    assert mod.llm_fields_have_values(fields) is True
+    assert client.calls, "client should be called only when explicitly injected"
