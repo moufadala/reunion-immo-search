@@ -205,6 +205,25 @@ def test_llm_grounding_filter():
     assert mod.llm_fields_have_values(fields) is True
 
 
+def test_extract_tool_payload_openrouter_shape_and_usage_normalization():
+    mod = load_module()
+    response = {
+        "choices": [{"message": {"tool_calls": [{"type": "function", "function": {"name": "extract_listing_signals", "arguments": json.dumps({"quartier_precis": "Technopole"})}}]}}],
+        "usage": {"prompt_tokens": 11, "completion_tokens": 7, "total_tokens": 18},
+    }
+    assert mod.extract_tool_payload(response) == {"quartier_precis": "Technopole"}
+    usage = mod.response_usage(response)
+    assert usage["input_tokens"] == 11
+    assert usage["output_tokens"] == 7
+
+
+def test_default_llm_model_follows_provider_case_insensitive():
+    mod = load_module()
+    assert mod.default_llm_model("openrouter") == "anthropic/claude-haiku-4.5"
+    assert mod.default_llm_model("OpenRouter") == "anthropic/claude-haiku-4.5"
+    assert mod.default_llm_model(" anthropic ") == "claude-haiku-4-5-20251001"
+
+
 def main() -> int:
     run_case("exact_id_first", test_exact_id_first)
     run_case("schema_list", lambda: test_schema([keldom_item()]))
@@ -216,6 +235,8 @@ def main() -> int:
     run_case("should_update_boilerplate", test_should_update_boilerplate)
     run_case("llm_disabled_without_client", test_llm_disabled_without_client)
     run_case("llm_grounding_filter", test_llm_grounding_filter)
+    run_case("openrouter_payload_shape", test_extract_tool_payload_openrouter_shape_and_usage_normalization)
+    run_case("default_llm_model_provider", test_default_llm_model_follows_provider_case_insensitive)
     print("ENRICH_SOURCE_DETAILS_V3_AUDIT PASS")
     return 0
 

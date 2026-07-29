@@ -99,7 +99,18 @@ def should_update(existing: str | None, new: str | None, title: str | None = Non
     return True, 'accepted'
 
 
-LLM_DEFAULT_MODEL = os.environ.get('IMMO_LLM_MODEL', 'claude-haiku-4-5-20251001')
+LLM_DEFAULT_PROVIDER = (os.environ.get('IMMO_LLM_PROVIDER') or ('openrouter' if os.environ.get('OPENROUTER_API_KEY') else 'anthropic')).strip().lower()
+
+
+def default_llm_model(provider: str) -> str:
+    env_model = os.environ.get('IMMO_LLM_MODEL')
+    if env_model:
+        return env_model
+    provider = (provider or '').strip().lower()
+    return 'anthropic/claude-haiku-4.5' if provider == 'openrouter' else 'claude-haiku-4-5-20251001'
+
+
+LLM_DEFAULT_MODEL = default_llm_model(LLM_DEFAULT_PROVIDER)
 LLM_LIST_FIELDS = ('proximites', 'routes_axes', 'points_repere')
 LLM_SCALAR_FIELDS = ('quartier_precis',)
 LLM_TOOL = {
@@ -169,6 +180,7 @@ def grounded_llm_fields(payload: dict[str, Any], source_text: str) -> tuple[dict
 
 
 def extract_tool_payload(response: Any) -> dict[str, Any]:
+    # Anthropic native SDK shape used by the original implementation.
     content = response.get('content') if isinstance(response, dict) else getattr(response, 'content', None)
     for block in content or []:
         if isinstance(block, dict):
@@ -181,15 +193,39 @@ def extract_tool_payload(response: Any) -> dict[str, Any]:
             inp = getattr(block, 'input', None)
         if typ == 'tool_use' and name == 'extract_listing_signals' and isinstance(inp, dict):
             return inp
+
+    # OpenRouter/OpenAI-compatible shape: choices[].message.tool_calls[].
+    choices = response.get('choices') if isinstance(response, dict) else None
+    for choice in choices or []:
+        msg = choice.get('message') or {}
+        for call in msg.get('tool_calls') or []:
+            fn = call.get('function') or {}
+            if fn.get('name') != 'extract_listing_signals':
+                continue
+            args = fn.get('arguments')
+            if isinstance(args, dict):
+                return args
+            if isinstance(args, str):
+                try:
+                    parsed = json.loads(args)
+                except Exception:
+                    return {}
+                return parsed if isinstance(parsed, dict) else {}
     return {}
 
 
 def response_usage(response: Any) -> dict[str, Any]:
     usage = response.get('usage') if isinstance(response, dict) else getattr(response, 'usage', None)
-    if isinstance(usage, dict):
-        return usage
     if usage is None:
         return {}
+    if isinstance(usage, dict):
+        out = dict(usage)
+        # Normalize OpenAI/OpenRouter names to the DB fields used by this script.
+        if 'input_tokens' not in out and 'prompt_tokens' in out:
+            out['input_tokens'] = out.get('prompt_tokens')
+        if 'output_tokens' not in out and 'completion_tokens' in out:
+            out['output_tokens'] = out.get('completion_tokens')
+        return out
     return {k: getattr(usage, k) for k in ('input_tokens', 'output_tokens') if hasattr(usage, k)}
 
 
@@ -225,17 +261,78 @@ def llm_extract_listing_signals(row: Any, source_text: str, *, client: Any = Non
     )
     payload = extract_tool_payload(response)
     fields, rejected = grounded_llm_fields(payload, text)
-    return fields, {'llm': 'ok', 'model': model, 'input_hash': llm_input_hash(text), 'usage': response_usage(response), 'rejected_ungrounded': rejected}
+    return fields, {'llm': 'ok', 'provider': getattr(client, 'provider_name', 'anthropic'), 'model': model, 'input_hash': llm_input_hash(text), 'usage': response_usage(response), 'rejected_ungrounded': rejected}
 
 
-def create_llm_client() -> Any:
-    try:
-        from anthropic import Anthropic  # type: ignore
-    except Exception as exc:
-        raise RuntimeError('anthropic SDK missing; run with --llm-dry-run or install/enable the SDK') from exc
-    if not os.environ.get('ANTHROPIC_API_KEY'):
-        raise RuntimeError('ANTHROPIC_API_KEY missing; refusing LLM live calls')
-    return Anthropic()
+class OpenRouterLLMClient:
+    provider_name = 'openrouter'
+
+    def __init__(self, api_key: str, *, referer: str | None = None, title: str = 'reunion-immo-search'):
+        self.api_key = api_key
+        self.referer = referer or 'https://immo.148.230.103.174.sslip.io/'
+        self.title = title
+        self.messages = self
+
+    @staticmethod
+    def _openrouter_tool(tool: dict[str, Any]) -> dict[str, Any]:
+        return {
+            'type': 'function',
+            'function': {
+                'name': tool['name'],
+                'description': tool.get('description', ''),
+                'parameters': tool.get('input_schema', {}),
+            },
+        }
+
+    @staticmethod
+    def _openrouter_tool_choice(choice: dict[str, Any]) -> dict[str, Any]:
+        if choice.get('type') == 'tool':
+            return {'type': 'function', 'function': {'name': choice.get('name')}}
+        return choice
+
+    def create(self, **kwargs: Any) -> dict[str, Any]:
+        payload = dict(kwargs)
+        payload['tools'] = [self._openrouter_tool(t) for t in payload.get('tools', [])]
+        if isinstance(payload.get('tool_choice'), dict):
+            payload['tool_choice'] = self._openrouter_tool_choice(payload['tool_choice'])
+        body = json.dumps(payload, ensure_ascii=False).encode('utf-8')
+        req = urllib.request.Request(
+            'https://openrouter.ai/api/v1/chat/completions',
+            data=body,
+            headers={
+                'Authorization': f'Bearer {self.api_key}',
+                'Content-Type': 'application/json',
+                'HTTP-Referer': self.referer,
+                'X-OpenRouter-Title': self.title,
+            },
+            method='POST',
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                return json.loads(resp.read().decode('utf-8'))
+        except urllib.error.HTTPError as exc:
+            raw = exc.read().decode('utf-8', errors='replace')[:1000]
+            raise RuntimeError(f'OpenRouter API error {exc.code}: {raw}') from exc
+
+
+def create_llm_client(provider: str = LLM_DEFAULT_PROVIDER) -> Any:
+    provider = (provider or '').lower()
+    if provider == 'openrouter':
+        key = os.environ.get('OPENROUTER_API_KEY')
+        if not key:
+            raise RuntimeError('OPENROUTER_API_KEY missing; refusing OpenRouter LLM live calls')
+        return OpenRouterLLMClient(key)
+    if provider == 'anthropic':
+        try:
+            from anthropic import Anthropic  # type: ignore
+        except Exception as exc:
+            raise RuntimeError('anthropic SDK missing; run with --llm-dry-run or use IMMO_LLM_PROVIDER=openrouter') from exc
+        if not os.environ.get('ANTHROPIC_API_KEY'):
+            raise RuntimeError('ANTHROPIC_API_KEY missing; refusing Anthropic LLM live calls')
+        client = Anthropic()
+        setattr(client, 'provider_name', 'anthropic')
+        return client
+    raise RuntimeError(f'Unsupported IMMO_LLM_PROVIDER: {provider!r}')
 
 
 def ensure_llm_table(con: sqlite3.Connection) -> None:
@@ -591,12 +688,15 @@ def main() -> int:
     ap.add_argument('--report', default='')
     ap.add_argument('--llm-dry-run', action='store_true', help='write LLM extraction prompts to JSONL without network calls')
     ap.add_argument('--llm', action='store_true', help='enable live LLM extraction and persist grounded fields (off by default)')
-    ap.add_argument('--llm-model', default=LLM_DEFAULT_MODEL)
+    ap.add_argument('--llm-model', default='', help='LLM model id; default follows --llm-provider unless IMMO_LLM_MODEL is set')
+    ap.add_argument('--llm-provider', default=LLM_DEFAULT_PROVIDER, choices=['openrouter', 'anthropic'])
     ap.add_argument('--llm-report', default='', help='JSONL path for LLM dry-run/live metadata')
     ap.add_argument('--llm-limit', type=int, default=0, help='maximum LLM candidates/calls this run')
     args = ap.parse_args()
     if args.dry_run and args.llm:
         raise SystemExit('Refusing --dry-run with --llm live calls; use --llm-dry-run for zero-network prompt review, or remove --dry-run to persist live extraction.')
+    if not args.llm_model:
+        args.llm_model = default_llm_model(args.llm_provider)
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
     db = Path(args.db)
@@ -629,7 +729,7 @@ def main() -> int:
 
     counts: dict[str, int] = {'attempted': 0, 'accepted': 0, 'updated': 0, 'rejected': 0, 'errors': 0, 'blocked': 0, 'skipped_no_fetcher': 0, 'llm_candidates': 0, 'llm_dry_run': 0, 'llm_called': 0, 'llm_saved': 0, 'llm_errors': 0}
     by_source: dict[str, dict[str, int]] = {}
-    llm_client = create_llm_client() if args.llm else None
+    llm_client = create_llm_client(args.llm_provider) if args.llm else None
     if args.llm and not args.dry_run:
         ensure_llm_table(con)
     llm_report = Path(args.llm_report) if args.llm_report else OUTDIR / f'llm_extraction_{stamp}.jsonl'
@@ -657,33 +757,38 @@ def main() -> int:
                 if meta.get('blocked'):
                     counts['blocked'] += 1; by_source[src]['blocked'] += 1
                 if source_text and (args.llm_dry_run or args.llm) and (not args.llm_limit or llm_seen < args.llm_limit):
-                    counts['llm_candidates'] += 1
-                    llm_seen += 1
-                    if args.llm_dry_run and llm_log_handle:
-                        llm_log_handle.write(json.dumps({
-                            'dry_run': True,
-                            'source': src,
-                            'source_id': row['source_id'],
-                            'input_hash': llm_input_hash(source_text),
-                            'tool': LLM_TOOL,
-                            'messages': build_llm_messages(row, source_text),
-                        }, ensure_ascii=False) + '\n')
-                        llm_log_handle.flush()
-                        counts['llm_dry_run'] += 1
-                    if args.llm:
-                        try:
-                            fields, llm_meta = llm_extract_listing_signals(row, source_text, client=llm_client, model=args.llm_model)
-                            counts['llm_called'] += 1
-                            rec['llm'] = {'fields': fields, 'meta': llm_meta}
-                            if llm_log_handle:
-                                llm_log_handle.write(json.dumps({'source': src, 'source_id': row['source_id'], 'fields': fields, 'meta': llm_meta}, ensure_ascii=False) + '\n')
-                                llm_log_handle.flush()
-                            if llm_fields_have_values(fields) and not args.dry_run:
-                                upsert_llm_extraction(con, row, model=args.llm_model, fields=fields, meta=llm_meta, extracted_at=datetime.now(timezone.utc).isoformat())
-                                counts['llm_saved'] += 1
-                        except Exception as llm_exc:
-                            counts['llm_errors'] += 1
-                            rec['llm_error'] = repr(llm_exc)
+                    llm_fields, llm_meta = llm_extract_listing_signals(row, source_text, client=None, model=args.llm_model)
+                    if llm_meta.get('llm') == 'skipped_no_text':
+                        rec['llm'] = {'fields': llm_fields, 'meta': llm_meta}
+                    else:
+                        counts['llm_candidates'] += 1
+                        llm_seen += 1
+                        if args.llm_dry_run and llm_log_handle:
+                            llm_log_handle.write(json.dumps({
+                                'dry_run': True,
+                                'source': src,
+                                'source_id': row['source_id'],
+                                'input_hash': llm_input_hash(source_text),
+                                'tool': LLM_TOOL,
+                                'messages': build_llm_messages(row, source_text),
+                            }, ensure_ascii=False) + '\n')
+                            llm_log_handle.flush()
+                            counts['llm_dry_run'] += 1
+                        if args.llm:
+                            try:
+                                fields, llm_meta = llm_extract_listing_signals(row, source_text, client=llm_client, model=args.llm_model)
+                                if llm_meta.get('llm') == 'ok':
+                                    counts['llm_called'] += 1
+                                rec['llm'] = {'fields': fields, 'meta': llm_meta}
+                                if llm_log_handle:
+                                    llm_log_handle.write(json.dumps({'source': src, 'source_id': row['source_id'], 'fields': fields, 'meta': llm_meta}, ensure_ascii=False) + '\n')
+                                    llm_log_handle.flush()
+                                if llm_fields_have_values(fields) and not args.dry_run:
+                                    upsert_llm_extraction(con, row, model=args.llm_model, fields=fields, meta=llm_meta, extracted_at=datetime.now(timezone.utc).isoformat())
+                                    counts['llm_saved'] += 1
+                            except Exception as llm_exc:
+                                counts['llm_errors'] += 1
+                                rec['llm_error'] = repr(llm_exc)
                 if ok:
                     counts['accepted'] += 1; by_source[src]['accepted'] += 1
                     rec['action'] = 'accept_dry_run' if args.dry_run else 'update_db'
