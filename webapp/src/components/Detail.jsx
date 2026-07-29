@@ -65,6 +65,7 @@ export default function Detail({ l, onClose }) {
   const p = precisionDe(l);
   const ch = chambresEstimees(l);
   const carte = osmUrl(l.lat, l.lon);
+  const llm = l.llm_extraction_status === "fresh" ? l.llm_extraction : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
@@ -138,6 +139,18 @@ export default function Detail({ l, onClose }) {
                   Ouvrir sur OpenStreetMap →
                 </a>
               )}
+            </div>
+          )}
+
+          {(llm?.quartier_precis || llm?.proximites?.length || llm?.routes_axes?.length || llm?.points_repere?.length) && (
+            <div className="mt-4 rounded-2xl border border-line bg-sunken p-3.5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-faint">
+                Repères extraits par LLM · vérifiés dans le texte source
+              </p>
+              {llm?.quartier_precis && <Ligne k="Quartier précis" v={llm.quartier_precis} />}
+              {llm?.proximites?.length > 0 && <Ligne k="Proximités" v={llm.proximites.join(" · ")} />}
+              {llm?.routes_axes?.length > 0 && <Ligne k="Routes / axes" v={llm.routes_axes.join(" · ")} />}
+              {llm?.points_repere?.length > 0 && <Ligne k="Points repère" v={llm.points_repere.join(" · ")} />}
             </div>
           )}
 

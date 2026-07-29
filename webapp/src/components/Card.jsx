@@ -37,6 +37,7 @@ function Car({ className }) {
 function Bande({ l }) {
   const sus = [];
   const push = (txt, ton = "neutral") => sus.push({ txt, ton });
+  const llm = l.llm_extraction_status === "fresh" ? l.llm_extraction : null;
 
   if (l.floor) {
     const asc = l.elevator === 1 ? " · ascenseur"
@@ -54,6 +55,8 @@ function Bande({ l }) {
   if (l.parking) push("parking");
   if (l.piscine) push("piscine");
   if (l.clim) push("clim");
+  for (const axe of (llm?.routes_axes || []).slice(0, 2)) push(axe, "p2");
+  for (const prox of (llm?.proximites || []).slice(0, 2)) push(prox, "p5");
   if (l.furnished != null) push(l.furnished ? "meublé" : "non meublé", l.furnished === 0 ? "p5" : "neutral");
 
   const inconnus = [];

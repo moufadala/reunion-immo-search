@@ -354,6 +354,38 @@ def ensure_llm_table(con: sqlite3.Connection) -> None:
     )
 
 
+def get_cached_llm_extraction(con: sqlite3.Connection, row: Any, *, model: str, input_hash: str) -> dict[str, Any] | None:
+    try:
+        hit = con.execute(
+            """
+            SELECT fields_json, input_hash, extracted_at, input_tokens, output_tokens
+            FROM listing_llm_extraction
+            WHERE source_site=? AND source_id=? AND model=?
+            """,
+            (row['source_site'], row['source_id'], model),
+        ).fetchone()
+    except sqlite3.OperationalError:
+        return None
+    if not hit or hit['input_hash'] != input_hash:
+        return None
+    try:
+        fields = json.loads(hit['fields_json'] or '{}')
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(fields, dict):
+        return None
+    return {
+        'fields': fields,
+        'meta': {
+            'llm': 'cached',
+            'model': model,
+            'input_hash': input_hash,
+            'extracted_at': hit['extracted_at'],
+            'usage': {'input_tokens': hit['input_tokens'], 'output_tokens': hit['output_tokens']},
+        },
+    }
+
+
 def upsert_llm_extraction(con: sqlite3.Connection, row: Any, *, model: str, fields: dict[str, Any], meta: dict[str, Any], extracted_at: str) -> None:
     usage_raw = meta.get('usage')
     usage: dict[str, Any] = usage_raw if isinstance(usage_raw, dict) else {}
@@ -678,7 +710,7 @@ FETCHERS = {
 }
 
 
-def main() -> int:
+def build_arg_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser()
     ap.add_argument('--db', default=str(DB))
     ap.add_argument('--sources', default=','.join(TARGET_SOURCES))
@@ -691,8 +723,13 @@ def main() -> int:
     ap.add_argument('--llm-model', default='', help='LLM model id; default follows --llm-provider unless IMMO_LLM_MODEL is set')
     ap.add_argument('--llm-provider', default=LLM_DEFAULT_PROVIDER, choices=['openrouter', 'anthropic'])
     ap.add_argument('--llm-report', default='', help='JSONL path for LLM dry-run/live metadata')
-    ap.add_argument('--llm-limit', type=int, default=0, help='maximum LLM candidates/calls this run')
-    args = ap.parse_args()
+    ap.add_argument('--llm-limit', type=int, default=40, help='maximum LLM candidates/calls this run; pass 0 explicitly for unlimited')
+    ap.add_argument('--llm-refresh', action='store_true', help='ignore existing matching input_hash cache and call the LLM again')
+    return ap
+
+
+def main() -> int:
+    args = build_arg_parser().parse_args()
     if args.dry_run and args.llm:
         raise SystemExit('Refusing --dry-run with --llm live calls; use --llm-dry-run for zero-network prompt review, or remove --dry-run to persist live extraction.')
     if not args.llm_model:
@@ -727,7 +764,7 @@ def main() -> int:
     if args.limit:
         rows = rows[:args.limit]
 
-    counts: dict[str, int] = {'attempted': 0, 'accepted': 0, 'updated': 0, 'rejected': 0, 'errors': 0, 'blocked': 0, 'skipped_no_fetcher': 0, 'llm_candidates': 0, 'llm_dry_run': 0, 'llm_called': 0, 'llm_saved': 0, 'llm_errors': 0}
+    counts: dict[str, int] = {'attempted': 0, 'accepted': 0, 'updated': 0, 'rejected': 0, 'errors': 0, 'blocked': 0, 'skipped_no_fetcher': 0, 'llm_candidates': 0, 'llm_dry_run': 0, 'llm_called': 0, 'llm_cached': 0, 'llm_saved': 0, 'llm_errors': 0}
     by_source: dict[str, dict[str, int]] = {}
     llm_client = create_llm_client(args.llm_provider) if args.llm else None
     if args.llm and not args.dry_run:
@@ -776,14 +813,21 @@ def main() -> int:
                             counts['llm_dry_run'] += 1
                         if args.llm:
                             try:
-                                fields, llm_meta = llm_extract_listing_signals(row, source_text, client=llm_client, model=args.llm_model)
-                                if llm_meta.get('llm') == 'ok':
-                                    counts['llm_called'] += 1
+                                input_hash = llm_input_hash(source_text)
+                                cached = None if args.llm_refresh else get_cached_llm_extraction(con, row, model=args.llm_model, input_hash=input_hash)
+                                if cached:
+                                    fields = cached['fields']
+                                    llm_meta = cached['meta']
+                                    counts['llm_cached'] += 1
+                                else:
+                                    fields, llm_meta = llm_extract_listing_signals(row, source_text, client=llm_client, model=args.llm_model)
+                                    if llm_meta.get('llm') == 'ok':
+                                        counts['llm_called'] += 1
                                 rec['llm'] = {'fields': fields, 'meta': llm_meta}
                                 if llm_log_handle:
                                     llm_log_handle.write(json.dumps({'source': src, 'source_id': row['source_id'], 'fields': fields, 'meta': llm_meta}, ensure_ascii=False) + '\n')
                                     llm_log_handle.flush()
-                                if llm_fields_have_values(fields) and not args.dry_run:
+                                if llm_fields_have_values(fields) and not args.dry_run and llm_meta.get('llm') != 'cached':
                                     upsert_llm_extraction(con, row, model=args.llm_model, fields=fields, meta=llm_meta, extracted_at=datetime.now(timezone.utc).isoformat())
                                     counts['llm_saved'] += 1
                             except Exception as llm_exc:

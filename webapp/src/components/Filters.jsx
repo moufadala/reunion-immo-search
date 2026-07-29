@@ -34,7 +34,8 @@ export function appliquer(listings, f) {
     if (f.avecCarte && !l.lat) return false;
     if (f.precisionMin && (l.location_precision_rank ?? 0) < f.precisionMin) return false;
     if (q) {
-      const blob = norm(`${l.title} ${l.location_label} ${l.commune} ${l.description} ${l.agency}`);
+      const llm = l.llm_extraction_status === "fresh" ? l.llm_extraction : null;
+      const blob = norm(`${l.title} ${l.location_label} ${l.commune} ${l.quartier} ${l.description} ${l.agency} ${llm?.quartier_precis || ""} ${(llm?.proximites || []).join(" ")} ${(llm?.routes_axes || []).join(" ")} ${(llm?.points_repere || []).join(" ")}`);
       if (!q.split(" ").every((mot) => blob.includes(mot))) return false;
     }
     return true;

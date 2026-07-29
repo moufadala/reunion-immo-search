@@ -806,7 +806,7 @@ def main():
     if _sf is not None:
         SCRAPLING_MODE=_sf.resolve_mode(getattr(args,'scrapling_mode','auto'))
         SCRAPLING_ENGINE=getattr(args,'scrapling_engine','http')
-    funcs=[scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_citya,scrape_domimmo,scrape_zimo,scrape_superimmo,scrape_locamoi]
+    funcs=[scrape_domimmo,scrape_locamoi,scrape_citya,scrape_zimo,scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_superimmo]
     events=[]; errors=[]
     conn=None
     if not args.dry_run:
@@ -821,10 +821,18 @@ def main():
                 for l in listings:
                     status='dry' if args.dry_run else upsert(conn,l)
                     events.append({'status':status, **asdict(l)})
+                # Commit after every source, not only at process end. The daily
+                # cron has a hard timeout around this multi-source scraper; if a
+                # later slow/anti-bot source times out, already refreshed sources
+                # must still update seen_last_at so the freshness gate reflects
+                # real progress instead of rolling back the whole batch.
+                if conn:
+                    conn.commit()
             except Exception as e:
                 source_status[fname]={'ok': False, 'count': 0, 'error': repr(e)}
                 errors.append({'source':f.__name__,'error':repr(e)})
-        if conn: conn.commit()
+                if conn:
+                    conn.commit()
     finally:
         if conn: conn.close()
     fetch_modes={}

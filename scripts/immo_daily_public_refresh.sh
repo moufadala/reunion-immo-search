@@ -154,7 +154,11 @@ src.backup(dst)
 dst.close()
 src.close()
 ' "$DB" "$ENRICHMENT_DB_BACKUP"
-run_step source_detail_enrichment "$PY" "$PROJECT/scripts/enrich_source_details_v3.py" --db "$DB" --sleep 0.08 --report "$RUN_DIR/source_detail_enrichment.jsonl"
+ENRICH_ARGS=("$PROJECT/scripts/enrich_source_details_v3.py" --db "$DB" --sleep 0.08 --report "$RUN_DIR/source_detail_enrichment.jsonl")
+if [ "${IMMO_ENABLE_LLM:-1}" = "1" ]; then
+  ENRICH_ARGS+=(--llm --llm-provider openrouter --llm-limit "${IMMO_LLM_LIMIT:-40}" --llm-report "$RUN_DIR/llm_extraction.jsonl")
+fi
+run_step source_detail_enrichment "$PY" "${ENRICH_ARGS[@]}"
 
 # Recompute through a safe two-stage pipeline:
 # 1) build the technical app in an isolated stage, not in artifacts/app served by nginx;

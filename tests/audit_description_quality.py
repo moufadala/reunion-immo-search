@@ -45,7 +45,20 @@ def main() -> int:
         default=float(os.environ.get("IMMO_MIN_SOURCE_DESCRIPTION_RATIO", "0.98")),
         help="Minimum share of listings with source descriptions when --min-source is unset.",
     )
-    ap.add_argument("--max-fallback", type=int, default=int(os.environ.get("IMMO_MAX_FALLBACK_DESCRIPTIONS", "5")))
+    ap.add_argument(
+        "--max-fallback",
+        type=int,
+        default=int(os.environ["IMMO_MAX_FALLBACK_DESCRIPTIONS"])
+        if os.environ.get("IMMO_MAX_FALLBACK_DESCRIPTIONS")
+        else 0,
+        help="Absolute maximum fallback descriptions. 0 = derive from --max-fallback-ratio.",
+    )
+    ap.add_argument(
+        "--max-fallback-ratio",
+        type=float,
+        default=float(os.environ.get("IMMO_MAX_FALLBACK_DESCRIPTION_RATIO", "0.01")),
+        help="Maximum share of synthetic fallback descriptions when --max-fallback is unset.",
+    )
     ap.add_argument("--max-boilerplate", type=int, default=int(os.environ.get("IMMO_MAX_BOILERPLATE_DESCRIPTIONS", "0")))
     ap.add_argument("--max-empty", type=int, default=int(os.environ.get("IMMO_MAX_EMPTY_DESCRIPTIONS", "0")))
     args = ap.parse_args()
@@ -53,6 +66,7 @@ def main() -> int:
     app = Path(args.app)
     items = load_items(app)
     min_source = args.min_source if args.min_source > 0 else ceil(len(items) * max(0.0, min(args.min_source_ratio, 1.0)))
+    max_fallback = args.max_fallback if args.max_fallback > 0 else max(5, ceil(len(items) * max(0.0, args.max_fallback_ratio)))
     statuses = Counter(str(x.get("description_status") or "") for x in items)
     desc_lens = [len(str(x.get("description") or "").strip()) for x in items]
     empty = [x for x in items if not str(x.get("description") or "").strip()]
@@ -88,7 +102,8 @@ def main() -> int:
         "thresholds": {
             "min_source": min_source,
             "min_source_ratio": args.min_source_ratio if args.min_source <= 0 else None,
-            "max_fallback": args.max_fallback,
+            "max_fallback": max_fallback,
+            "max_fallback_ratio": args.max_fallback_ratio if args.max_fallback <= 0 else None,
             "max_boilerplate": args.max_boilerplate,
             "max_empty": args.max_empty,
         },
@@ -97,8 +112,8 @@ def main() -> int:
     failures = []
     if len(source) < min_source:
         failures.append(f"source descriptions below threshold: {len(source)} < {min_source}")
-    if len(fallback) > args.max_fallback:
-        failures.append(f"fallback descriptions above threshold: {len(fallback)} > {args.max_fallback}")
+    if len(fallback) > max_fallback:
+        failures.append(f"fallback descriptions above threshold: {len(fallback)} > {max_fallback}")
     if len(empty) > args.max_empty:
         failures.append(f"empty descriptions above threshold: {len(empty)} > {args.max_empty}")
     if len(boilerplate) > args.max_boilerplate:

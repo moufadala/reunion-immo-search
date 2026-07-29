@@ -19,28 +19,36 @@ DIST="$PROJECT/webapp/dist"
 # 1 = l'app v2 devient aussi la page d'accueil (/). 0 = seulement /v2/.
 V2_RACINE="${IMMO_V2_AS_ROOT:-0}"
 
+export_feed_once() {
+  # Ne PAS piper directement dans `head` : sous `set -o pipefail`, la fermeture
+  # anticipee du tube par head declenche un BrokenPipeError cote Python, qui
+  # fait echouer toute la ligne -- et donc tout le script AVANT la suite.
+  FEED_LOG=$(mktemp)
+  IMMO_FEED_OUT="$APP/feed.json" "$PY" "$PROJECT/scripts/export_feed.py" > "$FEED_LOG"
+  head -3 "$FEED_LOG"
+  rm -f "$FEED_LOG"
+}
+
 echo "== 1/6 extraction galeries JSON =="
 "$PY" "$PROJECT/scripts/enrich_listing_photos.py"
 
-echo "== 2/6 rafraichissement cible domimmo =="
+# promote_app_candidate recrée artifacts/app depuis le clean-stage, donc feed.json
+# n'existe plus ici. refresh_domimmo_photo_urls cible les annonces Domimmo du
+# feed public courant : il lui faut un feed préliminaire avant son passage.
+echo "== 2/6 feed preliminaire =="
+export_feed_once
+
+echo "== 3/6 rafraichissement cible domimmo =="
 "$PY" "$PROJECT/scripts/refresh_domimmo_photo_urls.py"
 
-echo "== 3/6 photos chez nous =="
+echo "== 4/6 photos chez nous =="
 echo "mode photos: offline=${PHOTO_OFFLINE:-0} max_par_annonce=${PHOTO_MAX_PER_LISTING:-20}"
 IMMO_APP_PATH="$APP" "$PY" "$PROJECT/scripts/cache_photos.py"
 
-echo "== 4/6 feed =="
-# Ne PAS piper directement dans `head` : sous `set -o pipefail`, la fermeture
-# anticipee du tube par head declenche un BrokenPipeError cote Python, qui
-# fait echouer toute la ligne -- et donc tout le script AVANT l'etape 3
-# (verifie le 27/07 : feed.json s'est mis a jour, mais la bascule racine non,
-# sans le moindre message d'erreur visible dans le run normal).
-FEED_LOG=$(mktemp)
-IMMO_FEED_OUT="$APP/feed.json" "$PY" "$PROJECT/scripts/export_feed.py" > "$FEED_LOG"
-head -3 "$FEED_LOG"
-rm -f "$FEED_LOG"
+echo "== 5/6 feed final =="
+export_feed_once
 
-echo "== 5/6 interface =="
+echo "== 6/6 interface =="
 if [ ! -s "$DIST/index.html" ]; then
   echo "ERREUR: build absent ($DIST/index.html). Lancer d'abord :" >&2
   echo "  cd $PROJECT/webapp && npm_config_cache=/tmp/npm-immo npm ci && npm run build" >&2

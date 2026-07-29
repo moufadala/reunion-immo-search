@@ -22,6 +22,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from profils import PROFILS, scorer  # noqa: E402
 import geo_quartiers as gq  # noqa: E402
+from enrich_source_details_v3 import llm_input_hash  # noqa: E402
 
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 ROOT = '/opt/data/projects/reunion-immo-search'
@@ -62,6 +63,41 @@ def norm(s):
     s = re.sub(r'\bst\b', 'saint', s)
     s = re.sub(r'\bste\b', 'sainte', s)
     return re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+
+
+def load_llm_extractions(c):
+    """Return latest grounded LLM extraction per listing.
+
+    The table is optional: fresh deployments and test DBs may not have it yet.
+    Values are only used when their input_hash still matches the current source
+    text, so stale extraction never overrides a newer description.
+    """
+    latest = {}
+    try:
+        rows = c.execute(
+            '''
+            SELECT source_site, source_id, extracted_at, model, input_hash, fields_json
+            FROM listing_llm_extraction
+            WHERE COALESCE(grounded, 1)=1
+            ORDER BY extracted_at ASC
+            '''
+        )
+    except sqlite3.OperationalError:
+        return latest
+    for r in rows:
+        try:
+            fields = json.loads(r['fields_json'] or '{}')
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(fields, dict):
+            continue
+        latest[(r['source_site'], str(r['source_id']))] = {
+            'model': r['model'],
+            'extracted_at': r['extracted_at'],
+            'input_hash': r['input_hash'],
+            'fields': fields,
+        }
+    return latest
 
 
 def commune_of(city_norm, enrich_city):
@@ -207,6 +243,7 @@ def main():
     enrich = {}
     for r in c.execute('select * from listing_product_enrichment'):
         enrich[(r['source_site'], r['source_id'])] = dict(r)
+    llm_extractions = load_llm_extractions(c)
 
     now = datetime.now(timezone.utc)
     d7 = (now - timedelta(days=7)).isoformat()
@@ -246,6 +283,27 @@ def main():
                         commune, r['title'],
                         d.get('description_full') or r['description'],
                         r['district'], e.get('zone_normalized')))
+        source_text = d.get('description_full') or r['description'] or ''
+        llm = llm_extractions.get((r['source_site'], str(r['source_id'])))
+        llm_fields = None
+        llm_status = 'absent'
+        if llm:
+            if llm.get('input_hash') == llm_input_hash(source_text):
+                fields = llm.get('fields') or {}
+                llm_fields = {
+                    'quartier_precis': fields.get('quartier_precis'),
+                    'proximites': fields.get('proximites') if isinstance(fields.get('proximites'), list) else [],
+                    'routes_axes': fields.get('routes_axes') if isinstance(fields.get('routes_axes'), list) else [],
+                    'points_repere': fields.get('points_repere') if isinstance(fields.get('points_repere'), list) else [],
+                    'model': llm.get('model'),
+                    'extracted_at': llm.get('extracted_at'),
+                    'input_hash': llm.get('input_hash'),
+                }
+                llm_status = 'fresh'
+                if not quartier and fields.get('quartier_precis'):
+                    quartier = fields.get('quartier_precis')
+            else:
+                llm_status = 'stale'
 
         # --- localisation : on prend le SIGNAL LE PLUS PRECIS disponible, et on
         # dit toujours d'ou il vient. Jamais d'invention.
@@ -318,8 +376,10 @@ def main():
             'image_locale': k in thumbs,
             'images': galeries_man.get(k) or galleries.get(k)
                       or ([thumbs[k]] if k in thumbs else []),
-            'description': d.get('description_full') or r['description'],
+            'description': source_text,
             'detail_read': bool(d.get('http_status') == 200),
+            'llm_extraction': llm_fields,
+            'llm_extraction_status': llm_status,
         })
 
     # --- trajet + score par profil ---
@@ -373,6 +433,8 @@ def main():
         'avec_point_carte': sum(1 for x in listings if x['lat']),
         'avec_trajet': sum(1 for x in listings if x['trajet']),
         'avec_photo_locale': sum(1 for x in listings if x['image']),
+        'avec_llm_extraction': sum(1 for x in listings if x.get('llm_extraction_status') == 'fresh'),
+        'llm_extraction_stale': sum(1 for x in listings if x.get('llm_extraction_status') == 'stale'),
         'actives_sans_photo': sum(1 for x in listings if x['active'] and not x['image']),
         'detail_lu': sum(1 for x in listings if x['detail_read']),
         'fraiches': sum(1 for x in listings if x['fraiche'] and x['active']),

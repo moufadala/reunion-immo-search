@@ -8,7 +8,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 APP = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('/opt/data/projects/reunion-immo-search/artifacts/app')
-MAX_LISTINGS_JSON_BYTES = 3_200_000
+STATIC_MAX_LISTINGS_JSON_BYTES = 3_200_000
+MAX_LISTINGS_JSON_BYTES_PER_ITEM = 3_500
 MAX_INDEX_BYTES = 120_000
 MAX_PUBLIC_JSON_BYTES = 3_500_000
 REQUIRED_PAGES = [
@@ -44,10 +45,11 @@ if index.exists():
 listings_path = APP / 'listings.json'
 if listings_path.exists():
     size = listings_path.stat().st_size
-    if size > MAX_LISTINGS_JSON_BYTES:
-        errors.append(f'listings.json too large: {size}>{MAX_LISTINGS_JSON_BYTES}')
     data = json.loads(listings_path.read_text(encoding='utf-8'))
     items = data.get('listings') or []
+    max_listings_json_bytes = max(STATIC_MAX_LISTINGS_JSON_BYTES, len(items) * MAX_LISTINGS_JSON_BYTES_PER_ITEM)
+    if size > max_listings_json_bytes:
+        errors.append(f'listings.json too large: {size}>{max_listings_json_bytes}')
     if len(items) < 400:
         errors.append(f'too few listings: {len(items)}')
     dangerous_urls = []

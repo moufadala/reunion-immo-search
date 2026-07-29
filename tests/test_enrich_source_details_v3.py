@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import sqlite3
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -267,3 +268,27 @@ def test_default_llm_model_follows_provider_case_insensitive():
     assert mod.default_llm_model("openrouter") == "anthropic/claude-haiku-4.5"
     assert mod.default_llm_model("OpenRouter") == "anthropic/claude-haiku-4.5"
     assert mod.default_llm_model(" anthropic ") == "claude-haiku-4-5-20251001"
+
+
+def test_llm_limit_default_is_bounded_but_zero_still_means_unlimited():
+    mod = load_module()
+    parser = mod.build_arg_parser()
+    assert parser.parse_args([]).llm_limit == 40
+    assert parser.parse_args(["--llm-limit", "0"]).llm_limit == 0
+
+
+def test_cached_llm_extraction_requires_matching_input_hash():
+    mod = load_module()
+    con = sqlite3.connect(":memory:")
+    con.row_factory = sqlite3.Row
+    mod.ensure_llm_table(con)
+    r = row(source_site="zimo", source_id="abc")
+    text = long_desc()
+    fields = {"quartier_precis": "Technopole", "proximites": [], "routes_axes": [], "points_repere": []}
+    meta = {"input_hash": mod.llm_input_hash(text), "usage": {"input_tokens": 12, "output_tokens": 4}}
+    mod.upsert_llm_extraction(con, r, model="anthropic/claude-haiku-4.5", fields=fields, meta=meta, extracted_at="2026-07-29T00:00:00Z")
+    hit = mod.get_cached_llm_extraction(con, r, model="anthropic/claude-haiku-4.5", input_hash=meta["input_hash"])
+    assert hit is not None
+    assert hit["fields"]["quartier_precis"] == "Technopole"
+    assert hit["meta"]["llm"] == "cached"
+    assert mod.get_cached_llm_extraction(con, r, model="anthropic/claude-haiku-4.5", input_hash="stale") is None
