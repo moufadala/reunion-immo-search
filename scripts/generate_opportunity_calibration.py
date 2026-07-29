@@ -43,6 +43,27 @@ def main() -> int:
         member_ids=[mid for mid in (g.get('member_ids') or []) if mid in by_id]
         canonical_id=g.get('canonical_id') if g.get('canonical_id') in by_id else (member_ids[0] if member_ids else None)
         decision=g.get('decision') or ''
+        pair_auto_hide: set[str] = set()
+        # A mixed group can be globally `needs_review` because one member is only
+        # similar, while still containing an exact/strong auto_duplicate pair.
+        # Hide only the loser of those pair-level duplicates so the default grid
+        # does not show the exact same home twice, without suppressing the wider
+        # needs-review variant/canonical row.
+        source_priority = {'zimo': 0, 'seloger': 1, 'bienici': 2, 'ofim': 3, 'ofim_rss': 4, 'fnaim': 5}
+        for pair in g.get('pair_details') or []:
+            if pair.get('decision') != 'auto_duplicate':
+                continue
+            a, b = pair.get('a'), pair.get('b')
+            if a not in by_id or b not in by_id:
+                continue
+            if canonical_id in {a, b}:
+                loser = b if a == canonical_id else a
+            else:
+                def rank(mid: str) -> tuple[int, str]:
+                    x = by_id.get(mid) or {}
+                    return (source_priority.get(str(x.get('source') or x.get('source_site') or ''), 99), mid)
+                winner, loser = sorted([a, b], key=rank)
+            pair_auto_hide.add(loser)
         for mid in member_ids:
             own=by_id[mid].get('source') or by_id[mid].get('source_site')
             other=[s for s in sources if s != own]
@@ -56,10 +77,10 @@ def main() -> int:
             if explanations:
                 by_id[mid]['dedup_reason']=str(explanations[0])[:240]
             by_id[mid]['canonical_display_id']=canonical_id or mid
-            # Non-destructive display policy: only exact/strong auto_duplicate
-            # non-canonicals are hidden from the default grid. needs_review stays
-            # visible because it may represent two real flats in the same residence.
-            if decision == 'auto_duplicate' and canonical_id and mid != canonical_id:
+            # Non-destructive display policy: exact/strong duplicate rows are
+            # hidden from the default grid. Mixed needs_review groups stay visible
+            # except for their pair-level auto_duplicate losers.
+            if (decision == 'auto_duplicate' and canonical_id and mid != canonical_id) or mid in pair_auto_hide:
                 by_id[mid]['display_canonical']=False
             if other:
                 by_id[mid]['dedup_product_note']='Vu aussi sur '+', '.join(other[:4])
