@@ -6,7 +6,7 @@ set -euo pipefail
 
 umask 077
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
-export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/home/.cache/ms-playwright}"
+export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/.cache/ms-playwright}"
 
 PROJECT="/opt/data/projects/reunion-immo-search"
 PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
@@ -273,8 +273,8 @@ run_step product_v2_gate "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/
 
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
-run_step public_user_search_audit "$PY" "$PROJECT/tests/audit_user_search_cases.py"
-run_step public_changes_filter_audit "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
+run_step public_user_search_audit env IMMO_PUBLIC_URL="file://$PROJECT/artifacts/app/index.html" "$PY" "$PROJECT/tests/audit_user_search_cases.py"
+run_step public_changes_filter_audit env IMMO_CHANGES_URL="file://$PROJECT/artifacts/app/changes.html?rev=changes-audit" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
 run_step daily_summary "$PY" "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"
 # P0 Privacy: saved_search_admin writes to run_dir only; do not promote to public app.
