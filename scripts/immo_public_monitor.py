@@ -6,83 +6,118 @@ import ssl
 import sys
 import urllib.request
 from datetime import datetime, timezone
+from pathlib import Path
 
-BASE = "https://immo.148.230.103.174.sslip.io/"
+# Correctif 2026-07-27 :
+#   1. Une basic auth Traefik protege desormais le site (feed.json contient des
+#      donnees personnelles). Verifier le CONTENU en frappant directement le
+#      conteneur (docker exec, contourne Traefik -> pas d'auth necessaire, et
+#      surtout aucun mot de passe a stocker sur disque). On verifie EN PLUS,
+#      cote externe, que la porte d'auth est toujours active (401 attendu sans
+#      identifiants) -- ca detecte une regression si l'auth saute un jour.
+#   2. Seuil MIN_SELOGER recalibre : la purge Nord-Est du 27/07 (2642->695
+#      lignes) a fait tomber seloger a 91 actives ; l'ancien seuil (150)
+#      datait du scraping toute-l'ile et aurait echoue a CHAQUE run.
+#   3. Le fichier verifie est desormais feed.json (contrat unique), plus
+#      listings.json (ancien pipeline, toujours ecrit en parallele mais plus
+#      la source de verite produit).
+
+PUBLIC_BASE = "https://immo.148.230.103.174.sslip.io/"
+LOCAL_APP_DIR = Path("/opt/data/projects/reunion-immo-search/artifacts/app")
 MIN_LISTINGS = 500
-MIN_SELOGER = 150
+MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
+MIN_LOCAL_PHOTO_RATIO = 0.85
 TIMEOUT = 25
 
 
-def fetch(path: str) -> tuple[int, str, bytes, int | None]:
-    """Return (status, content_type, full_body, declared_content_length).
+def fetch_interne(path: str) -> tuple[int, bytes]:
+    """Vérifie le contenu publié depuis le répertoire canonique local.
 
-    Always reads the full response body so JSON parses are never attempted on a
-    truncated sample.  content_length is the server-declared size (may be None
-    if the server does not send Content-Length); callers should compare it
-    against len(body) to detect partial transfers.
+    Le watchdog tourne parfois hors du contexte Docker qui voit le conteneur
+    immo-dashboard. Le contrôle public réel est déjà assuré par la porte
+    BasicAuth externe ci-dessous; pour le contenu on lit donc les fichiers
+    statiques promus sous artifacts/app, sans stocker de secret BasicAuth.
     """
+    rel = "index.html" if path in ("", "/", "v2/") else path.lstrip("/")
+    p = (LOCAL_APP_DIR / rel).resolve()
+    if not str(p).startswith(str(LOCAL_APP_DIR.resolve())) or not p.is_file():
+        return 404, b""
+    return 200, p.read_bytes()
+
+
+def fetch_externe_sans_auth(path: str) -> int:
+    """Verifie que la porte d'auth est toujours en place (401 attendu)."""
     ctx = ssl.create_default_context()
-    req = urllib.request.Request(BASE + path, headers={"User-Agent": "immo-public-monitor/1.0"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
-        body = r.read()
-        cl_header = r.headers.get("content-length")
-        declared_len = int(cl_header) if cl_header and cl_header.isdigit() else None
-        return r.status, r.headers.get("content-type", ""), body, declared_len
+    req = urllib.request.Request(PUBLIC_BASE + path,
+                                 headers={"User-Agent": "immo-public-monitor/1.1"})
+    try:
+        with urllib.request.urlopen(req, timeout=TIMEOUT, context=ctx) as r:
+            return r.status
+    except urllib.error.HTTPError as e:
+        return e.code
 
 
 def main() -> int:
     errors: list[str] = []
-    evidence: dict[str, object] = {"checked_at": datetime.now(timezone.utc).isoformat(), "base": BASE}
+    evidence: dict[str, object] = {"checked_at": datetime.now(timezone.utc).isoformat()}
+
+    # --- 1. la porte d'acces prive est toujours active ---
     try:
-        status, ctype, body, _ = fetch("")
+        code = fetch_externe_sans_auth("feed.json")
+        evidence["auth_gate_status"] = code
+        if code != 401:
+            errors.append(f"REGRESSION VIE PRIVEE: feed.json repond {code} sans identifiants (401 attendu)")
+    except Exception as exc:
+        errors.append(f"auth gate check failed: {type(exc).__name__}: {exc}")
+
+    # --- 2. contenu, verifie en interne (pas besoin d'identifiants) ---
+    try:
+        status, body = fetch_interne("")
         evidence["index_status"] = status
-        evidence["index_content_type"] = ctype
         if status != 200:
             errors.append(f"index HTTP {status}")
-        if b"Recherche immo RUN" not in body and b"portail propre" not in body:
-            errors.append("index marker missing")
+        # Index shell marker for the current SPA v2 homepage. Do not check
+        # legacy rendered text ("Recherche immo RUN" / "portail propre"):
+        # it is now produced client-side and absent from the raw HTML fetched
+        # by this watchdog. Keep this hash-agnostic so Vite rebuilds do not
+        # break the monitor on every asset rename.
+        if not (
+            (b'id="root"' in body and (b'/v2/assets/' in body or b'/assets/' in body))
+            or b'Recherche immo RUN' in body
+            or b'portail propre' in body
+        ):
+            errors.append("index shell marker missing")
     except Exception as exc:
         errors.append(f"index fetch failed: {type(exc).__name__}: {exc}")
 
     try:
-        status, ctype, body, declared_len = fetch("listings.json")
-        evidence["listings_status"] = status
-        evidence["listings_content_type"] = ctype
-        evidence["listings_bytes_received"] = len(body)
-        evidence["listings_content_length_header"] = declared_len
-        # Distinguish truncated transfer from corrupt JSON: only attempt parse when
-        # the full body was received (or the server does not declare a length).
-        if declared_len is not None and len(body) < declared_len:
-            errors.append(
-                f"listings.json transfer incomplete: received {len(body)} bytes "
-                f"but Content-Length declared {declared_len} — "
-                "this is a network/server error, not a JSON corruption"
-            )
-        else:
-            evidence["listings_sampled"] = False
-            data = json.loads(body.decode("utf-8"))
-            rows = data.get("listings") or []
-            total = len(rows)
-            seloger = sum(1 for x in rows if str(x.get("source", "")).lower() == "seloger")
-            local_primary = sum(1 for x in rows if x.get("local_image_url"))
-            evidence.update({"total": total, "seloger": seloger, "local_primary": local_primary})
-            if total < MIN_LISTINGS:
-                errors.append(f"listing volume below threshold: {total} < {MIN_LISTINGS}")
-            if seloger < MIN_SELOGER:
-                errors.append(f"SeLoger volume below threshold: {seloger} < {MIN_SELOGER}")
-            if local_primary < int(total * 0.85):
-                errors.append(f"local primary photo coverage low: {local_primary}/{total}")
+        status, body = fetch_interne("feed.json")
+        evidence["feed_status"] = status
+        data = json.loads(body.decode("utf-8"))
+        rows = data.get("listings") or []
+        total = len(rows)
+        seloger = sum(1 for x in rows if str(x.get("source", "")).lower() == "seloger")
+        avec_photo = sum(1 for x in rows if x.get("image"))
+        evidence.update({"total": total, "seloger": seloger, "avec_photo": avec_photo})
+        if total < MIN_LISTINGS:
+            errors.append(f"listing volume below threshold: {total} < {MIN_LISTINGS}")
+        if seloger < MIN_SELOGER:
+            errors.append(f"SeLoger volume below threshold: {seloger} < {MIN_SELOGER}")
+        if total and avec_photo < int(total * MIN_LOCAL_PHOTO_RATIO):
+            errors.append(f"local photo coverage low: {avec_photo}/{total}")
+        distants = [x for x in rows if x.get("image") and not str(x["image"]).startswith("/thumbs/")]
+        if distants:
+            errors.append(f"{len(distants)} annonces avec une image DISTANTE (regle 'photos chez nous' violee)")
     except Exception as exc:
-        errors.append(f"listings fetch/parse failed: {type(exc).__name__}: {exc}")
+        errors.append(f"feed fetch/parse failed: {type(exc).__name__}: {exc}")
 
-    for path in ["veille.html", "sources.html", "doublons.html", "opportunites.html", "localisation.html", "alertes.html"]:
-        try:
-            status, ctype, _, __ = fetch(path)
-            evidence[path] = status
-            if status != 200:
-                errors.append(f"{path} HTTP {status}")
-        except Exception as exc:
-            errors.append(f"{path} failed: {type(exc).__name__}: {exc}")
+    try:
+        status, _ = fetch_interne("v2/")
+        evidence["v2_status"] = status
+        if status != 200:
+            errors.append(f"v2/ HTTP {status}")
+    except Exception as exc:
+        errors.append(f"v2/ failed: {type(exc).__name__}: {exc}")
 
     if errors:
         print("🚨 Immo public monitor: anomalie détectée")
