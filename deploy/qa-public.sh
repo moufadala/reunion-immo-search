@@ -3,9 +3,11 @@ set -euo pipefail
 IMMO_HOSTNAME=${IMMO_HOSTNAME:-immo.srv1723523.hstgr.cloud}
 IMMO_ALT_HOSTNAME=${IMMO_ALT_HOSTNAME:-immo.148.230.103.174.sslip.io}
 python3 - <<PY
-import urllib.request, ssl, json, socket
+import urllib.request, urllib.error, ssl, json, socket, subprocess, pathlib
 
 HOSTS = ['$IMMO_HOSTNAME', '$IMMO_ALT_HOSTNAME']
+APP = pathlib.Path('/opt/data/projects/reunion-immo-search/artifacts/app')
+CONTAINER_NAME = 'immo-dashboard'
 ctx=ssl.create_default_context()
 
 FORBIDDEN_HOME = [
@@ -37,29 +39,52 @@ def resolve_report(host):
         except Exception as e:
             print(' ', fam.name, 'NONE', str(e))
 
-def fetch(url, force_ipv4=False):
+def fetch(url, force_ipv4=False, allow_http_error=False):
     if force_ipv4:
         orig = socket.getaddrinfo
         socket.getaddrinfo = lambda host, port, family=0, type=0, proto=0, flags=0: orig(host, port, socket.AF_INET, type, proto, flags)
     try:
-        r=urllib.request.urlopen(url, timeout=25, context=ctx)
-        data=r.read()
-        print(url, 'STATUS', r.status, 'CT', r.headers.get('content-type'), 'LEN', len(data), 'FINAL', r.geturl())
-        return r, data
+        try:
+            r=urllib.request.urlopen(url, timeout=25, context=ctx)
+            data=r.read()
+            print(url, 'STATUS', r.status, 'CT', r.headers.get('content-type'), 'LEN', len(data), 'FINAL', r.geturl())
+            return r.status, r.headers.get('content-type'), data
+        except urllib.error.HTTPError as e:
+            data=e.read()
+            print(url, 'STATUS', e.code, 'CT', e.headers.get('content-type'), 'LEN', len(data), 'FINAL', e.geturl())
+            if allow_http_error:
+                return e.code, e.headers.get('content-type'), data
+            raise
     finally:
         if force_ipv4:
             socket.getaddrinfo = orig
 
+def read_app(path):
+    data=(APP / path).read_bytes()
+    print('LOCAL_APP', path, 'LEN', len(data))
+    return data
+
+
+def require_public_auth(host, force_ipv4=False):
+    status, _ct, _body = fetch(f'https://{host}/', force_ipv4=force_ipv4, allow_http_error=True)
+    assert status == 401, ('expected_401_without_basic_auth', host, status)
+
+
 def qa_host(host, force_ipv4=False):
-    r, html_raw = fetch(f'https://{host}/', force_ipv4=force_ipv4)
-    assert r.status == 200
+    # The portal is intentionally protected by Traefik BasicAuth because the
+    # public JSON contains private search/profile-derived data. We therefore
+    # verify the public unauthenticated boundary (401) and validate the exact
+    # mounted app content locally/inside the container instead of requiring a
+    # plaintext BasicAuth password in scripts or logs.
+    require_public_auth(host, force_ipv4=force_ipv4)
+    html_raw = read_app('index.html')
     html = html_raw.decode('utf-8', 'ignore')
     missing=[x for x in REQUIRED_HOME if x not in html]
     leaked=[x for x in FORBIDDEN_HOME if x in html]
     assert not missing, ('missing_home', missing)
     assert not leaked, ('forbidden_home', leaked)
 
-    rj, raw = fetch(f'https://{host}/listings.json', force_ipv4=force_ipv4)
+    raw = read_app('listings.json')
     data=json.loads(raw)
     items=data.get('listings') or []
     assert len(items) >= 500, len(items)
@@ -67,27 +92,23 @@ def qa_host(host, force_ipv4=False):
     local_multi=sum(1 for x in items if isinstance(x.get('local_image_urls'), list) and len(x.get('local_image_urls')) > 1)
     opp=sum(1 for x in items if x.get('opportunity_analysis') or x.get('opportunity_score') is not None)
     assert local_primary >= max(350, int(len(items) * 0.98)), (local_primary, len(items))
-    # Keep this aligned with the local clean_stage_gate in immo_daily_public_refresh.sh.
-    # The daily 2026-07-18 candidate had excellent primary photo coverage (534/542)
-    # and 147 multi-photo local galleries; the old 30% public-only floor rolled back
-    # an otherwise fresh ingestion. Preserve a scaling guard without making 30% a
-    # hidden promotion blocker.
     assert local_multi >= max(100, int(len(items) * 0.25)), (local_multi, len(items))
     assert opp == len(items), (opp, len(items))
 
     for path in REQUIRED_PATHS:
-        rp, body = fetch(f'https://{host}/{path}', force_ipv4=force_ipv4)
-        assert rp.status == 200 and len(body) > 100, (path, rp.status, len(body))
+        body = read_app(path)
+        assert len(body) > 100, (path, len(body))
 
-    cov=json.loads(fetch(f'https://{host}/coverage.json', force_ipv4=force_ipv4)[1])
+    cov=json.loads(read_app('coverage.json'))
     assert cov.get('gallery_photos', 0) >= max(100, int(len(items) * 0.25)), cov
     assert cov.get('count') == len(items), (cov.get('count'), len(items))
-    opp_payload=json.loads(fetch(f'https://{host}/opportunity.json', force_ipv4=force_ipv4)[1])
+    opp_payload=json.loads(read_app('opportunity.json'))
     assert len(opp_payload.get('top') or []) >= 20
-    loc_payload=json.loads(fetch(f'https://{host}/locations.json', force_ipv4=force_ipv4)[1])
+    loc_payload=json.loads(read_app('locations.json'))
     assert len(loc_payload.get('listings') or []) == len(items)
 
-    print('QA_CLEAN_LAYERS_OK host=', host, 'listings=', len(items), 'local_primary=', local_primary, 'local_multi=', local_multi, 'opportunity=', opp)
+    subprocess.run(['/usr/bin/docker','exec',CONTAINER_NAME,'sh','-lc','test -s /usr/share/nginx/html/index.html && test -s /usr/share/nginx/html/listings.json && test -s /usr/share/nginx/html/feed.json'], check=True)
+    print('QA_CLEAN_LAYERS_OK host=', host, 'listings=', len(items), 'local_primary=', local_primary, 'local_multi=', local_multi, 'opportunity=', opp, 'public_auth=401')
 
 for h in HOSTS:
     resolve_report(h)
