@@ -39,6 +39,65 @@ def native_apartment() -> dict:
     }
 
 
+def real_piotrv1001_apartment() -> dict:
+    """Reduced real item shape from piotrv1001/leboncoin-listings-scraper.
+
+    This is the shape that f72a436 missed: camelCase listId, seller, attributes
+    as a flat dict, and image dicts without a generic `url` key.
+    """
+    return {
+        "listId": 3239722405,
+        "title": "Studio St Denis Bellepierre",
+        "description": "Tres beau studio meuble de 32m2 avec parking...",
+        "url": "https://www.leboncoin.fr/ad/locations/3239722405",
+        "price": 680,
+        "firstPublicationDate": "2026-07-26 16:37:18",
+        "location": {"city": "Saint-Denis", "zipcode": "97400", "region": "Reunion"},
+        "seller": {"storeId": "1516927", "name": "arobase", "type": "private"},
+        "images": [{
+            "thumbnailUrl": "https://img.leboncoin.fr/thumb.jpg?rule=ad-thumb",
+            "imageUrl": "https://img.leboncoin.fr/image.jpg?rule=ad-image",
+            "largeUrl": "https://img.leboncoin.fr/large.jpg?rule=ad-large",
+        }],
+        "attributes": {
+            "real_estate_type": "Appartement", "square": "32 m2", "rooms": "1",
+            "bedrooms": "1 ch.", "floor_number": "1", "nb_floors_building": "5",
+            "floor_display": "Etage 1/5", "elevator": "Oui", "nb_bathrooms": "1",
+            "furnished": "Meuble", "monthly_charges": "50 EUR", "charges_included": "Oui",
+        },
+    }
+
+
+def test_maps_real_piotrv1001_item_shape() -> None:
+    listing = rms._map_leboncoin_item(real_piotrv1001_apartment())
+    assert listing is not None
+    assert listing.source_site == "leboncoin"
+    assert listing.source_id == "3239722405"
+    assert listing.property_type == "flat"
+    assert listing.rent_eur == 680
+    assert listing.charges_eur == 50
+    assert listing.rooms == 1
+    assert listing.bedrooms == 1
+    assert listing.surface_m2 == 32.0
+    assert listing.city == "Saint-Denis"
+    assert listing.agency_or_owner == "arobase"
+    assert listing.image_url == "https://img.leboncoin.fr/large.jpg?rule=ad-large"
+    assert listing.published_at == "2026-07-26 16:37:18"
+
+
+def test_real_mixed_batch_produces_nonzero_listings_and_filters_non_residential() -> None:
+    residential = real_piotrv1001_apartment()
+    land = real_piotrv1001_apartment()
+    land["listId"] = 3239722406
+    land["attributes"] = dict(land["attributes"], real_estate_type="Terrain")
+    parking = real_piotrv1001_apartment()
+    parking["listId"] = 3239722407
+    parking["attributes"] = dict(parking["attributes"], real_estate_type="Parking")
+    out = rms._leboncoin_listings([residential, land, parking])
+    assert len(out) == 1
+    assert out[0].source_id == "3239722405"
+
+
 def test_maps_native_residential_apartment() -> None:
     listing = rms._map_leboncoin_item(native_apartment())
     assert listing is not None
@@ -117,6 +176,8 @@ def test_listings_helper_filters_and_maps_mixed_dataset() -> None:
 
 def main() -> int:
     for test in [
+        test_maps_real_piotrv1001_item_shape,
+        test_real_mixed_batch_produces_nonzero_listings_and_filters_non_residential,
         test_maps_native_residential_apartment,
         test_maps_native_residential_house_type_1,
         test_filters_non_residential_land_and_parking,

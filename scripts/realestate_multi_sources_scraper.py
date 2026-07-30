@@ -810,7 +810,7 @@ def _to_int_or_none(v):
     try:
         return int(float(str(v).replace(',', '.')))
     except Exception:
-        return None
+        return to_int_price(v)
 
 
 def _to_float_or_none(v):
@@ -823,12 +823,20 @@ def _to_float_or_none(v):
 
 
 def _lbc_attr(item, key):
-    """Read a leboncoin attribute by key from either a flattened top-level field
-    or the native `attributes` list (each entry {key, value, value_label})."""
+    """Read a leboncoin attribute by key.
+
+    Supports the real piotrv1001 shape (`attributes` is a flat dict), the native
+    list shape (`[{key,value,value_label}]`), and already-flattened top-level
+    fields.
+    """
     val = item.get(key)
     if val not in (None, '') and not isinstance(val, (dict, list)):
         return val
-    for a in item.get('attributes') or []:
+    attrs = item.get('attributes')
+    if isinstance(attrs, dict):
+        v = attrs.get(key)
+        return v if v not in (None, '') else None
+    for a in attrs or []:
         if isinstance(a, dict) and a.get('key') == key:
             v = a.get('value')
             return v if v not in (None, '') else a.get('value_label')
@@ -836,7 +844,10 @@ def _lbc_attr(item, key):
 
 
 def _lbc_attr_label(item, key):
-    for a in item.get('attributes') or []:
+    attrs = item.get('attributes')
+    if isinstance(attrs, dict):
+        return None
+    for a in attrs or []:
         if isinstance(a, dict) and a.get('key') == key:
             return a.get('value_label') or a.get('value')
     lab = item.get(f'{key}_label')
@@ -880,7 +891,12 @@ def _lbc_image(item):
             return imgs.get('thumb_url')
     if isinstance(imgs, list) and imgs:
         first = imgs[0]
-        return first.get('url') if isinstance(first, dict) else str(first)
+        if isinstance(first, dict):
+            for k in ('largeUrl', 'imageUrl', 'url', 'smallUrl', 'thumbnailUrl'):
+                if first.get(k):
+                    return first.get(k)
+        elif first:
+            return str(first)
     for k in ('image', 'image_url', 'thumbnail'):
         v = item.get(k)
         if isinstance(v, str) and v:
@@ -904,7 +920,8 @@ def _map_leboncoin_item(item):
         x in lab for x in LEBONCOIN_RESIDENTIAL_TYPE_LABELS)
     if not residential:
         return None
-    native_id = item.get('list_id') or item.get('id') or item.get('ad_id')
+    native_id = (item.get('listId') or item.get('list_id')
+                 or item.get('id') or item.get('ad_id'))
     if native_id in (None, ''):
         return None
     sid = str(native_id)
@@ -923,13 +940,20 @@ def _map_leboncoin_item(item):
                  or item.get('index_date') or item.get('publication_date')
                  or item.get('published_at'))
     owner = item.get('owner') if isinstance(item.get('owner'), dict) else {}
-    agency = clean(owner.get('name')) or (owner.get('type') or None)
+    seller = item.get('seller') if isinstance(item.get('seller'), dict) else {}
+    agency = (clean(_lbc_attr(item, 'store_name')) or clean(owner.get('name'))
+              or clean(seller.get('name'))
+              or (owner.get('type') or seller.get('type') or None))
     image = _lbc_image(item)
+    charges = to_int_price(_lbc_attr(item, 'monthly_charges'))
     d = {'source': 'apify:leboncoin', 'list_id': sid, 'url': url, 'title': title,
          'city': city, 'price': rent, 'square': _lbc_attr(item, 'square'),
-         'rooms': rooms, 'real_estate_type': v, 'published_at': published, 'image': image}
+         'rooms': rooms, 'bedrooms': bedrooms, 'real_estate_type': v,
+         'published_at': published, 'image': image,
+         'agency_or_owner': agency, 'seller': seller, 'owner': owner,
+         'attributes': item.get('attributes'), 'raw': item}
     return Listing('leboncoin', sid, url, url, title, city, district, ptype,
-                   rooms, bedrooms, surface, rent, None, agency, published,
+                   rooms, bedrooms, surface, rent, charges, agency, published,
                    image, desc, save_raw('leboncoin', sid, d), hash_listing(d))
 
 

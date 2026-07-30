@@ -72,6 +72,14 @@ def test_round_rent_without_identity_does_not_group() -> None:
     assert ndb.duplicate_key(enriched(), a) != ndb.duplicate_key(enriched(), b)
 
 
+def test_generic_landlord_role_is_not_identity_signal() -> None:
+    a = row("a", "1", "T3", 900, 63.8, agency="private")
+    b = row("b", "2", "Appartement", 900, 64.0, agency="Particulier")
+    assert ndb.duplicate_identity_token(a) is None
+    assert ndb.duplicate_identity_token(b) is None
+    assert ndb.duplicate_key(enriched(), a) != ndb.duplicate_key(enriched(), b)
+
+
 def main() -> int:
     for test in [
         test_price_surface_only_stays_singleton,
@@ -79,6 +87,7 @@ def main() -> int:
         test_significant_title_words_are_identity_signal,
         test_exact_non_round_rent_is_identity_signal,
         test_round_rent_without_identity_does_not_group,
+        test_generic_landlord_role_is_not_identity_signal,
     ]:
         test()
     print("IDENTITY_DEDUP PASS")

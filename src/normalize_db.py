@@ -184,7 +184,7 @@ def duplicate_identity_token(row: dict[str, Any]) -> str | None:
     singletons and are not deduplicated by price+surface alone.
     """
     landlord = dup_norm(row.get("agency_or_owner"))
-    landlord_stop = {"immobilier", "immo", "agence", "gestion", "transaction", "transactions", "sarl", "sas", "ei"}
+    landlord_stop = {"immobilier", "immo", "agence", "gestion", "transaction", "transactions", "sarl", "sas", "ei", "pro", "private", "particulier", "particuliers", "professionnel", "proprietaire", "bailleur"}
     landlord_tokens = [t for t in landlord.split() if t not in landlord_stop]
     if landlord_tokens:
         return "landlord:" + " ".join(landlord_tokens[:4])
