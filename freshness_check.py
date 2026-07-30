@@ -23,6 +23,7 @@ ROOT = Path(__file__).resolve().parent
 DEFAULT_DB = ROOT / "data" / "socle_p0.sqlite"
 DEFAULT_STATE = Path("/opt/data/artifacts/socle-p0/phase-d/freshness_state.json")
 DEFAULT_SOURCE = "immo_listings"
+CAPACITY_ALERT_KINDS = {"disk_immo_artifacts", "disk_immo_root"}
 
 
 def utcnow() -> datetime:
@@ -206,17 +207,26 @@ def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_r
         root_usage_threshold_pct=root_usage_threshold_pct,
     ))
     con.close()
-    status = "down" if alerts else "ok"
-    msg = "OK immo freshness" if status == "ok" else "; ".join(a["message"] for a in alerts[:3])
+    data_alerts = [a for a in alerts if a.get("kind") not in CAPACITY_ALERT_KINDS]
+    capacity_alerts = [a for a in alerts if a.get("kind") in CAPACITY_ALERT_KINDS]
+    status = "down" if data_alerts else "ok"
+    if status == "ok" and capacity_alerts:
+        msg = "OK immo freshness; capacité à surveiller: " + "; ".join(a["message"] for a in capacity_alerts[:2])
+    else:
+        msg = "OK immo freshness" if status == "ok" else "; ".join(a["message"] for a in data_alerts[:3])
     return {
         "ok": status == "ok",
         "status": status,
+        "data_status": status,
+        "capacity_status": "warn" if capacity_alerts else "ok",
         "checked_at": iso(now),
         "db": str(db_path),
         "source": source,
         "latest_run": dict(latest) if latest else None,
         "latest_ok_run": dict(ok) if ok else None,
         "alerts": alerts,
+        "data_alerts": data_alerts,
+        "capacity_alerts": capacity_alerts,
         "message": msg,
     }
 
