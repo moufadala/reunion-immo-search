@@ -29,6 +29,7 @@ DEFAULT_HTML_OUT = ROOT / "artifacts" / "app" / "source_health.html"
 CRITICAL_SOURCES = {
     "seloger", "zimo", "bienici", "ofim_rss", "ofim", "domimmo", "fnaim",
     "citya", "immo974", "locamoi", "97immo", "alter", "superimmo",
+    "leboncoin", "adrezio",
 }
 # Conservative freshness thresholds for rental listings. Some portals do not
 # change every hour; stale here means "needs attention", not "delete rows".

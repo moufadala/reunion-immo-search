@@ -1,0 +1,133 @@
+#!/usr/bin/env python3
+"""Unit tests for Leboncoin Apify dataset -> Listing mapping.
+
+Pure mapping tests: no network and no DB. They pin the contract required by the
+brief: residential-only result filter, native stable source_id, distinct
+source_site='leboncoin', and tolerance for native + flattened Apify item shapes.
+"""
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+MOD_PATH = ROOT / "scripts" / "realestate_multi_sources_scraper.py"
+spec = importlib.util.spec_from_file_location("rms_scraper", MOD_PATH)
+assert spec is not None and spec.loader is not None
+rms = importlib.util.module_from_spec(spec)
+sys.modules["rms_scraper"] = rms
+spec.loader.exec_module(rms)
+
+
+def native_apartment() -> dict:
+    return {
+        "list_id": 2712345678,
+        "subject": "Appartement T3 lumineux",
+        "body": "Bel appartement proche centre.",
+        "url": "https://www.leboncoin.fr/ad/locations/2712345678",
+        "price": [850],
+        "firstPublicationDate": "2026-07-28T10:00:00Z",
+        "location": {"city": "Saint-Denis", "zipcode": "97400"},
+        "images": {"urls_large": ["https://img.leboncoin.fr/a.jpg"], "thumb_url": "https://img/t.jpg"},
+        "owner": {"name": "Agence Nord", "type": "pro"},
+        "attributes": [
+            {"key": "real_estate_type", "value": "2", "value_label": "Appartement"},
+            {"key": "rooms", "value": "3", "value_label": "3"},
+            {"key": "square", "value": "65", "value_label": "65 m²"},
+        ],
+    }
+
+
+def test_maps_native_residential_apartment() -> None:
+    listing = rms._map_leboncoin_item(native_apartment())
+    assert listing is not None
+    assert listing.source_site == "leboncoin"
+    assert listing.source_id == "2712345678"
+    assert listing.property_type == "flat"
+    assert listing.rent_eur == 850
+    assert listing.rooms == 3
+    assert listing.surface_m2 == 65.0
+    assert listing.city == "Saint-Denis"
+    assert listing.image_url == "https://img.leboncoin.fr/a.jpg"
+    assert listing.published_at == "2026-07-28T10:00:00Z"
+
+
+def test_maps_native_residential_house_type_1() -> None:
+    item = native_apartment()
+    item["list_id"] = 42
+    item["attributes"] = [{"key": "real_estate_type", "value": "1", "value_label": "Maison"}]
+    listing = rms._map_leboncoin_item(item)
+    assert listing is not None
+    assert listing.property_type == "house"
+    assert listing.source_id == "42"
+
+
+def test_filters_non_residential_land_and_parking() -> None:
+    for value, label in (("3", "Terrain"), ("4", "Parking")):
+        item = native_apartment()
+        item["attributes"] = [{"key": "real_estate_type", "value": value, "value_label": label}]
+        assert rms._map_leboncoin_item(item) is None
+
+
+def test_supports_flattened_item_shape_and_label_type() -> None:
+    flat = {
+        "id": "998877",
+        "title": "Studio meublé",
+        "description": "Studio",
+        "url": "https://www.leboncoin.fr/ad/locations/998877",
+        "price": 600,
+        "city": "Sainte-Marie",
+        "real_estate_type": "Appartement",
+        "rooms": "1",
+        "surface": "28",
+        "image_url": "https://img/x.jpg",
+    }
+    listing = rms._map_leboncoin_item(flat)
+    assert listing is not None
+    assert listing.source_id == "998877"
+    assert listing.property_type == "flat"
+    assert listing.rent_eur == 600
+    assert listing.surface_m2 == 28.0
+    assert listing.city == "Sainte-Marie"
+
+
+def test_actor_input_is_incremental_and_uses_handoff_slugs() -> None:
+    payload = rms._leboncoin_actor_input(40)
+    assert payload["sort"] == "time"
+    assert payload["maxItems"] == 40
+    assert payload["includeDetails"] is True
+    assert payload["categoryIds"] == ["10"]
+    assert payload["locations"] == [
+        "Saint-Denis_97400", "Sainte-Marie_97438",
+        "Sainte-Suzanne_97441", "Saint-André_97440",
+    ]
+    assert payload["proxyConfiguration"]["apifyProxyCountry"] == "FR"
+
+
+def test_listings_helper_filters_and_maps_mixed_dataset() -> None:
+    residential = native_apartment()
+    land = native_apartment()
+    land["list_id"] = 7
+    land["attributes"] = [{"key": "real_estate_type", "value": "3", "value_label": "Terrain"}]
+    out = rms._leboncoin_listings([residential, land, "not-a-dict", None])
+    assert [l.source_site for l in out] == ["leboncoin"]
+    assert out[0].source_id == "2712345678"
+
+
+def main() -> int:
+    for test in [
+        test_maps_native_residential_apartment,
+        test_maps_native_residential_house_type_1,
+        test_filters_non_residential_land_and_parking,
+        test_supports_flattened_item_shape_and_label_type,
+        test_actor_input_is_incremental_and_uses_handoff_slugs,
+        test_listings_helper_filters_and_maps_mixed_dataset,
+    ]:
+        test()
+    print("LEBONCOIN_APIFY_MAPPING PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

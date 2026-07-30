@@ -175,12 +175,44 @@ def dup_norm(s: Any) -> str:
     return " ".join(toks[:6])
 
 
+def duplicate_identity_token(row: dict[str, Any]) -> str | None:
+    """Identity signal required before grouping duplicates.
+
+    Numeric resemblance is not an identity proof on dense Réunion rentals. We use,
+    in order, normalized landlord, significant title words, then exact non-round
+    rent as a last-resort identity token. Rows without such a signal remain
+    singletons and are not deduplicated by price+surface alone.
+    """
+    landlord = dup_norm(row.get("agency_or_owner"))
+    landlord_stop = {"immobilier", "immo", "agence", "gestion", "transaction", "transactions", "sarl", "sas", "ei"}
+    landlord_tokens = [t for t in landlord.split() if t not in landlord_stop]
+    if landlord_tokens:
+        return "landlord:" + " ".join(landlord_tokens[:4])
+
+    title = dup_norm(row.get("title"))
+    title_stop = {"appartement", "maison", "villa", "location", "louer", "pieces", "piece", "saint", "denis", "sainte", "marie", "suzanne", "andre", "reunion", "974", "avec", "dans", "pour", "sur", "une", "des", "les", "proche"}
+    title_tokens = [t for t in title.split() if len(t) >= 4 and t not in title_stop]
+    if len(title_tokens) >= 2:
+        return "title:" + " ".join(title_tokens[:6])
+
+    rent = row.get("rent_eur")
+    if rent and int(rent) % 50 != 0:
+        return f"nonround-rent:{int(rent)}"
+    return None
+
+
 def duplicate_key(enriched: dict[str, Any], row: dict[str, Any]) -> str:
+    ident = duplicate_identity_token(row)
+    if not ident:
+        return f"single|{row['source_site']}|{row['source_id']}"
     surface = round((row.get("surface_m2") or 0) / 5) * 5 if row.get("surface_m2") else 0
-    rent = round((row.get("rent_eur") or 0) / 50) * 50 if row.get("rent_eur") else 0
+    # Exact non-round prices matter; otherwise use a broad bucket only *after*
+    # the identity signal above is present.
+    rent_value = row.get("rent_eur") or 0
+    rent = int(rent_value) if rent_value and int(rent_value) % 50 != 0 else (round(rent_value / 50) * 50 if rent_value else 0)
     return "|".join(map(str, [
         enriched["city_normalized"], enriched["property_type_normalized"], surface, rent,
-        row.get("rooms") or 0, dup_norm(row.get("title"))[:48],
+        row.get("rooms") or 0, ident[:80],
     ]))
 
 

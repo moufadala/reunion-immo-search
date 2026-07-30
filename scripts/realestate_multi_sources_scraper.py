@@ -10,7 +10,7 @@ Sources implemented:
 This is technical ingestion, not final alert criteria.
 """
 from __future__ import annotations
-import argparse, hashlib, html, json, re, sqlite3, ssl, time
+import argparse, hashlib, html, json, os, re, sqlite3, ssl, time
 from dataclasses import dataclass, asdict, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -783,6 +783,291 @@ def scrape_domimmo(max_items=150):
     return out
 
 
+# --- Leboncoin via Apify actor piotrv1001/leboncoin-listings-scraper ---------
+# Leboncoin blocks plain scraping, so we go through the Apify actor. The actor's
+# default dataset (native leboncoin ad objects) is what we map here. Two modes:
+#   * APIFY_LEBONCOIN_DATASET_ID set  -> read that existing dataset, no actor run
+#     (cheap, reproducible: reuse a run already paid for).
+#   * otherwise -> run the actor synchronously and read its default dataset.
+# The Apify token (APIFY_TOKEN) is sent ONLY in the Authorization header, never
+# in a URL nor in FETCH_LOG -- so it cannot leak into logs/summary output.
+APIFY_BASE = 'https://api.apify.com/v2'
+DEFAULT_LEBONCOIN_ACTOR = 'piotrv1001~leboncoin-listings-scraper'
+# 4 communes cibles (Nord+Est), memes que citya/97immo. (commune, code postal).
+LEBONCOIN_COMMUNES = [
+    ('Saint-Denis', '97400'), ('Sainte-Marie', '97438'),
+    ('Sainte-Suzanne', '97441'), ('Saint-André', '97440'),
+]
+# Leboncoin real_estate_type: 1=Maison, 2=Appartement (residentiel);
+# 3=Terrain, 4=Parking, 5=Autre (hors perimetre veille locative residentielle).
+LEBONCOIN_RESIDENTIAL_TYPE_VALUES = {'1', '2'}
+LEBONCOIN_RESIDENTIAL_TYPE_LABELS = ('maison', 'villa', 'appartement', 'studio', 'duplex')
+
+
+def _to_int_or_none(v):
+    if v in (None, ''):
+        return None
+    try:
+        return int(float(str(v).replace(',', '.')))
+    except Exception:
+        return None
+
+
+def _to_float_or_none(v):
+    if v in (None, ''):
+        return None
+    try:
+        return float(str(v).replace(',', '.'))
+    except Exception:
+        return parse_surface(v)
+
+
+def _lbc_attr(item, key):
+    """Read a leboncoin attribute by key from either a flattened top-level field
+    or the native `attributes` list (each entry {key, value, value_label})."""
+    val = item.get(key)
+    if val not in (None, '') and not isinstance(val, (dict, list)):
+        return val
+    for a in item.get('attributes') or []:
+        if isinstance(a, dict) and a.get('key') == key:
+            v = a.get('value')
+            return v if v not in (None, '') else a.get('value_label')
+    return None
+
+
+def _lbc_attr_label(item, key):
+    for a in item.get('attributes') or []:
+        if isinstance(a, dict) and a.get('key') == key:
+            return a.get('value_label') or a.get('value')
+    lab = item.get(f'{key}_label')
+    return lab if lab not in (None, '') else None
+
+
+def _lbc_property_type(value, label):
+    v = str(value or '').strip()
+    # Some Apify shapes expose real_estate_type directly as a label
+    # ("Appartement") instead of the native numeric code ("2"). Treat both
+    # representations as the same source-of-truth field.
+    lab = f'{label or ""} {v}'.lower()
+    if v == '1' or 'maison' in lab or 'villa' in lab:
+        return 'house'
+    if v == '2' or any(x in lab for x in ('appartement', 'studio', 'duplex')):
+        return 'flat'
+    return None
+
+
+def _lbc_price(item):
+    p = item.get('price')
+    if isinstance(p, list):
+        p = p[0] if p else None
+    val = to_int_price(p)
+    if val is None:
+        cents = item.get('price_cents')
+        try:
+            val = int(round(int(cents) / 100)) if cents not in (None, '') else None
+        except Exception:
+            val = None
+    return val
+
+
+def _lbc_image(item):
+    imgs = item.get('images')
+    if isinstance(imgs, dict):
+        urls = imgs.get('urls_large') or imgs.get('urls') or imgs.get('urls_thumb')
+        if isinstance(urls, list) and urls:
+            return urls[0]
+        if imgs.get('thumb_url'):
+            return imgs.get('thumb_url')
+    if isinstance(imgs, list) and imgs:
+        first = imgs[0]
+        return first.get('url') if isinstance(first, dict) else str(first)
+    for k in ('image', 'image_url', 'thumbnail'):
+        v = item.get(k)
+        if isinstance(v, str) and v:
+            return v
+    return None
+
+
+def _map_leboncoin_item(item):
+    """Map one Apify leboncoin dataset item to a Listing, or None when the ad is
+    not a residential rental (keeps land/parking/commercial out). Handles both
+    the native leboncoin ad shape (attributes list) and a flattened item shape."""
+    if not isinstance(item, dict):
+        return None
+    ret_value = (_lbc_attr(item, 'real_estate_type')
+                 or _lbc_attr(item, 'realEstateType'))
+    ret_label = (_lbc_attr_label(item, 'real_estate_type')
+                 or _lbc_attr_label(item, 'realEstateType'))
+    v = str(ret_value).strip() if ret_value is not None else ''
+    lab = f'{ret_label or ""} {v}'.lower()
+    residential = v in LEBONCOIN_RESIDENTIAL_TYPE_VALUES or any(
+        x in lab for x in LEBONCOIN_RESIDENTIAL_TYPE_LABELS)
+    if not residential:
+        return None
+    native_id = item.get('list_id') or item.get('id') or item.get('ad_id')
+    if native_id in (None, ''):
+        return None
+    sid = str(native_id)
+    url = item.get('url') or item.get('link') or f'https://www.leboncoin.fr/ad/locations/{sid}'
+    title = clean(item.get('subject') or item.get('title'))
+    desc = clean(item.get('body') or item.get('description'))
+    loc = item.get('location') if isinstance(item.get('location'), dict) else {}
+    city = clean(loc.get('city') or item.get('city'))
+    district = clean(loc.get('district') or loc.get('city_label')) or None
+    ptype = _lbc_property_type(v, lab)
+    rooms = _to_int_or_none(_lbc_attr(item, 'rooms') or _lbc_attr(item, 'nb_rooms'))
+    bedrooms = _to_int_or_none(_lbc_attr(item, 'bedrooms') or _lbc_attr(item, 'nb_bedrooms'))
+    surface = _to_float_or_none(_lbc_attr(item, 'square') or item.get('surface') or item.get('surface_m2'))
+    rent = _lbc_price(item)
+    published = (item.get('firstPublicationDate') or item.get('first_publication_date')
+                 or item.get('index_date') or item.get('publication_date')
+                 or item.get('published_at'))
+    owner = item.get('owner') if isinstance(item.get('owner'), dict) else {}
+    agency = clean(owner.get('name')) or (owner.get('type') or None)
+    image = _lbc_image(item)
+    d = {'source': 'apify:leboncoin', 'list_id': sid, 'url': url, 'title': title,
+         'city': city, 'price': rent, 'square': _lbc_attr(item, 'square'),
+         'rooms': rooms, 'real_estate_type': v, 'published_at': published, 'image': image}
+    return Listing('leboncoin', sid, url, url, title, city, district, ptype,
+                   rooms, bedrooms, surface, rent, None, agency, published,
+                   image, desc, save_raw('leboncoin', sid, d), hash_listing(d))
+
+
+def _leboncoin_listings(items):
+    out = []
+    for item in items or []:
+        listing = _map_leboncoin_item(item)
+        if listing is not None:
+            out.append(listing)
+    return out
+
+
+def _apify_json(url, token, payload=None, timeout=180):
+    """Minimal Apify REST call. Token travels ONLY in the Authorization header;
+    it is deliberately not passed through fetch()/FETCH_LOG so it can never leak
+    into logs or the printed summary."""
+    headers = {'User-Agent': UA, 'Accept': 'application/json',
+               'Authorization': f'Bearer {token}'}
+    body = None
+    method = 'GET'
+    if payload is not None:
+        body = json.dumps(payload).encode()
+        headers['Content-Type'] = 'application/json'
+        method = 'POST'
+    req = Request(url, data=body, headers=headers, method=method)
+    with urlopen(req, timeout=timeout, context=CTX) as r:
+        raw = r.read().decode('utf-8', 'replace')
+    return json.loads(raw) if raw.strip() else []
+
+
+def _leboncoin_actor_input(max_items):
+    return {
+        # Actor piotrv1001 expects Leboncoin location slugs as strings
+        # (validated in the PC handoff), not our internal commune dicts.
+        'locations': [f'{c}_{z}' for c, z in LEBONCOIN_COMMUNES],
+        'categoryIds': ['10'],
+        'maxItems': max_items,
+        'includeDetails': True,
+        'sort': 'time',
+        'proxyConfiguration': {
+            'useApifyProxy': True,
+            'apifyProxyGroups': ['RESIDENTIAL'],
+            'apifyProxyCountry': 'FR',
+        },
+    }
+
+
+def scrape_leboncoin_apify_dataset():
+    """Leboncoin residential rentals via Apify (piotrv1001/leboncoin-listings-scraper).
+
+    Env:
+      APIFY_TOKEN              (required) Apify API token, sent as Bearer header only.
+      APIFY_LEBONCOIN_DATASET_ID (opt) read an existing dataset instead of running.
+      APIFY_LEBONCOIN_MAX_ITEMS  (opt) default 40.
+      APIFY_LEBONCOIN_ACTOR      (opt) override actor id (default piotrv1001~...).
+    Non-residential ads are filtered out on the result; source_site is 'leboncoin'
+    and source_id is the native leboncoin list_id (stable across runs).
+    """
+    token = os.environ.get('APIFY_TOKEN', '').strip()
+    dataset_id = os.environ.get('APIFY_LEBONCOIN_DATASET_ID', '').strip()
+    try:
+        max_items = int(os.environ.get('APIFY_LEBONCOIN_MAX_ITEMS', '') or 40)
+    except ValueError:
+        max_items = 40
+    if not token:
+        raise RuntimeError('APIFY_TOKEN missing: cannot query Apify (leboncoin)')
+    if dataset_id:
+        url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
+               f'?clean=true&format=json&limit={max_items}')
+        items = _apify_json(url, token)
+    else:
+        actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
+        url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/run-sync-get-dataset-items'
+               f'?clean=true&format=json')
+        items = _apify_json(url, token, payload=_leboncoin_actor_input(max_items))
+    if isinstance(items, dict):
+        items = items.get('items') or items.get('data') or []
+    return _leboncoin_listings(items if isinstance(items, list) else [])
+
+
+# --- Adrezio (agence Reunion) : pages liste statiques, fetch() HTTP simple -----
+# Trouve : Adrezio publie ses locations sur des pages de liste par commune et par
+# type, /reunion/location/{appartement,maison}/{commune-slug}?page=N. Le HTML est
+# statique (pas de rendu JS) -> fetch() urllib suffit, PAS de Playwright/CDP. La
+# commune interrogee est le signal SUR (comme citya/97immo), on l'impose sur le
+# resultat plutot que de la deviner depuis le texte de detail.
+ADREZIO_BASE = 'https://adrezio.fr'
+ADREZIO_COMMUNES = {
+    'Saint-Denis': 'saint-denis', 'Sainte-Marie': 'sainte-marie',
+    'Sainte-Suzanne': 'sainte-suzanne', 'Saint-André': 'saint-andre',
+}
+ADREZIO_TYPES = {'appartement': 'flat', 'maison': 'house'}
+
+
+def scrape_adrezio(max_items=90, max_pages=4, delay=1.5):
+    found = []  # (url, ptype, commune)
+    seen = set()
+    commune_slugs = set(ADREZIO_COMMUNES.values())
+    for commune, slug in ADREZIO_COMMUNES.items():
+        for tslug, ptype in ADREZIO_TYPES.items():
+            for page in range(1, max_pages + 1):
+                url = f'{ADREZIO_BASE}/reunion/location/{tslug}/{slug}'
+                if page > 1:
+                    url += f'?page={page}'
+                try:
+                    text, _ = fetch(url)
+                except Exception:
+                    break
+                time.sleep(delay)
+                # Listing cards link to stable detail URLs /annonces/<property_id>.
+                links = unique_links(
+                    text,
+                    r'href=["\'](/annonces/[a-z0-9]+)["\']',
+                    ADREZIO_BASE, 50)
+                new = [u for u in links if u not in seen]
+                if not new:
+                    break
+                for u in new:
+                    seen.add(u)
+                    found.append((u, ptype, commune))
+                if len(found) >= max_items:
+                    break
+            if len(found) >= max_items:
+                break
+        if len(found) >= max_items:
+            break
+    out = []
+    for u, ptype, commune in found[:max_items]:
+        sid = u.rstrip('/').split('/')[-1]
+        try:
+            listing = detail_listing('adrezio', u, ptype, sid)
+            out.append(replace(listing, city=commune))
+        except Exception:
+            pass
+        time.sleep(delay)
+    return out
+
+
 def init_db(conn):
     conn.execute('''CREATE TABLE IF NOT EXISTS rental_listings (
         source_site TEXT NOT NULL, source_id TEXT NOT NULL, url TEXT NOT NULL, canonical_url TEXT, title TEXT, city TEXT, district TEXT, property_type TEXT, rooms INTEGER, bedrooms INTEGER, surface_m2 REAL, rent_eur INTEGER, charges_eur INTEGER, agency_or_owner TEXT, published_at TEXT, seen_first_at TEXT NOT NULL, seen_last_at TEXT NOT NULL, image_url TEXT, description TEXT, raw_json_path TEXT, content_hash TEXT, is_active INTEGER DEFAULT 1, PRIMARY KEY(source_site, source_id))''')
@@ -806,7 +1091,7 @@ def main():
     if _sf is not None:
         SCRAPLING_MODE=_sf.resolve_mode(getattr(args,'scrapling_mode','auto'))
         SCRAPLING_ENGINE=getattr(args,'scrapling_engine','http')
-    funcs=[scrape_domimmo,scrape_locamoi,scrape_citya,scrape_zimo,scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_superimmo]
+    funcs=[scrape_domimmo,scrape_locamoi,scrape_citya,scrape_zimo,scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_superimmo,scrape_leboncoin_apify_dataset,scrape_adrezio]
     events=[]; errors=[]
     conn=None
     if not args.dry_run:
