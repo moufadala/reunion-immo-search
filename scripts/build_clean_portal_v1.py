@@ -152,6 +152,23 @@ def analyze_description(it: dict) -> dict:
         'proximity': {'raw_mentions': proximity},
     }
 
+
+def bathroom_state(it: dict) -> dict:
+    raw = it.get('bathroom')
+    src = raw if isinstance(raw, dict) else {}
+    if src.get('state') and src.get('label'):
+        return {'state': src.get('state'), 'label': src.get('label')}
+    bathtub = it.get('bathtub')
+    nb_sdb = it.get('nb_sdb')
+    if bathtub == 1:
+        return {'state': 'baignoire', 'label': 'baignoire'}
+    if bathtub == 0:
+        return {'state': 'douche_seulement', 'label': 'douche seulement'}
+    if nb_sdb:
+        return {'state': 'salle_de_bain_equipement_inconnu', 'label': 'salle de bain, équipement non précisé'}
+    return {'state': 'non_precise', 'label': 'non précisé'}
+
+
 clean=[]
 for it in items:
     price = it.get('rent_eur') or it.get('price_eur') or it.get('price')
@@ -169,6 +186,7 @@ for it in items:
     precise_location = loc_intel.get('precise_location_label') or it.get('location_label') or it.get('commune') or it.get('city') or ''
     analysis = analyze_description({**it, 'price': int(price) if isinstance(price,(int,float)) else price})
     feature_tags = []
+    bath = bathroom_state(it)
     furnished_status = ((analysis.get('property_state') or {}).get('furnished') or {}).get('status')
     if furnished_status == 'meuble':
         feature_tags.append('Meublé')
@@ -185,6 +203,8 @@ for it in items:
         feature_tags.append('Jardin')
     if 'pool' in outdoor_rules:
         feature_tags.append('Piscine')
+    if bath.get('state') and bath.get('state') != 'non_precise':
+        feature_tags.append(bath['label'])
     feature_tags = uniq(feature_tags)
     image_quality = {
         'version': 'image_quality_v1',
@@ -217,6 +237,7 @@ for it in items:
         'rooms': rooms,
         'bedrooms': bedrooms,
         'furnished': it.get('furnished') or 'Non précisé',
+        'bathroom': bath,
         'agency': it.get('agency_or_owner') or '',
         'image_url': it.get('image_url'),
         'image_urls': external_gallery,
@@ -239,7 +260,7 @@ for it in items:
 clean.sort(key=lambda x: (x.get('score') or 0, x.get('seen_last_at') or ''), reverse=True)
 export = {'generated_at': datetime.now(timezone.utc).isoformat(), 'count': len(clean), 'listings': clean}
 (OUT / 'listings.json').write_text(json.dumps(export, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
-INDEX_FIELDS = ('id', 'source', 'source_id', 'title', 'city', 'location', 'region', 'type', 'price', 'surface', 'rooms', 'bedrooms', 'score', 'local_image_url', 'seen_last_at')
+INDEX_FIELDS = ('id', 'source', 'source_id', 'title', 'city', 'location', 'region', 'type', 'price', 'surface', 'rooms', 'bedrooms', 'bathroom', 'score', 'local_image_url', 'seen_last_at')
 index_items = [{k: x.get(k) for k in INDEX_FIELDS if x.get(k) not in (None, '', [])} for x in clean]
 index_export = {'generated_at': export['generated_at'], 'count': len(index_items), 'listings': index_items, 'note': 'Index léger pour recherche/liste mobile; les fiches complètes restent dans listings.json.'}
 (OUT / 'listings_index.json').write_text(json.dumps(index_export, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
@@ -404,7 +425,8 @@ function apply(updateUrl=true){
  res.sort((a,b)=> s==='price_asc'?(a.price||9e9)-(b.price||9e9):s==='price_desc'?(b.price||0)-(a.price||0):s==='surface_desc'?(b.surface||0)-(a.surface||0):s==='recent'?String(b.seen_last_at||'').localeCompare(String(a.seen_last_at||'')):(relevance(b,parsed.tokens)*100+(b.opportunity_score||b.score||0))-(relevance(a,parsed.tokens)*100+(a.opportunity_score||a.score||0)));
  render(res); if(updateUrl) syncUrl(); return res;
 }
-function card(x){const imgs=gallery(x), src=imgs[0]; const more=imgs.length>1?`<span class="galleryCount">+${imgs.length-1} photos</span>`:''; const safeTitle=esc(x.title||'Annonce immobilière'); const safeLocation=esc(x.location||x.city||''); const safeSource=esc(x.source||'source'); const safeType=esc(x.type||'Bien'); const safeUrl=attr(x.url||'#'); const safeId=attr(x.id); const map=x.map_url?`<a class="mapLink" href="${attr(x.map_url)}" target="_blank" rel="noreferrer" data-stop-card>Carte</a>`:''; return `<article class="card" data-id="${safeId}"><div class="photo">${src?`<img loading="lazy" src="${attr(src)}" alt="${attr(x.title||'Annonce immobilière')}">`:'<div class="no-photo">Photo indisponible</div>'}${more}<span class="badge">${safeSource}</span><button class="fav ${favs.has(x.id)?'on':''}" data-fav="${safeId}" title="Favori">♥</button></div><div class="body"><div class="price">${fmtPrice(x.price)}</div><div class="loc">${safeLocation}</div><div class="title">${safeTitle}</div><div class="meta"><span class="pill">${safeType}</span>${x.surface?`<span class="pill">${esc(x.surface)} m²</span>`:''}${x.rooms?`<span class="pill">${esc(x.rooms)} p.</span>`:''}${x.bedrooms?`<span class="pill">${esc(x.bedrooms)} ch.</span>`:''}${x.location_intelligence?.quality?`<span class="pill">loc. ${esc(x.location_intelligence.quality)}</span>`:''}</div><div class="actions"><a href="${safeUrl}" target="_blank" rel="noreferrer" data-stop-card>Source</a><button data-open="${safeId}">Analyse</button>${map}<button data-hide="${safeId}" type="button">Masquer</button></div></div></article>`}
+function bathroomLabel(x){return x.bathroom?.state==='non_precise'?'':(x.bathroom?.label||'');}
+function card(x){const imgs=gallery(x), src=imgs[0]; const more=imgs.length>1?`<span class="galleryCount">+${imgs.length-1} photos</span>`:''; const safeTitle=esc(x.title||'Annonce immobilière'); const safeLocation=esc(x.location||x.city||''); const safeSource=esc(x.source||'source'); const safeType=esc(x.type||'Bien'); const safeUrl=attr(x.url||'#'); const safeId=attr(x.id); const bath=bathroomLabel(x); const map=x.map_url?`<a class="mapLink" href="${attr(x.map_url)}" target="_blank" rel="noreferrer" data-stop-card>Carte</a>`:''; return `<article class="card" data-id="${safeId}"><div class="photo">${src?`<img loading="lazy" src="${attr(src)}" alt="${attr(x.title||'Annonce immobilière')}">`:'<div class="no-photo">Photo indisponible</div>'}${more}<span class="badge">${safeSource}</span><button class="fav ${favs.has(x.id)?'on':''}" data-fav="${safeId}" title="Favori">♥</button></div><div class="body"><div class="price">${fmtPrice(x.price)}</div><div class="loc">${safeLocation}</div><div class="title">${safeTitle}</div><div class="meta"><span class="pill">${safeType}</span>${x.surface?`<span class="pill">${esc(x.surface)} m²</span>`:''}${x.rooms?`<span class="pill">${esc(x.rooms)} p.</span>`:''}${x.bedrooms?`<span class="pill">${esc(x.bedrooms)} ch.</span>`:''}${bath?`<span class="pill">${esc(bath)}</span>`:''}${x.location_intelligence?.quality?`<span class="pill">loc. ${esc(x.location_intelligence.quality)}</span>`:''}</div><div class="actions"><a href="${safeUrl}" target="_blank" rel="noreferrer" data-stop-card>Source</a><button data-open="${safeId}">Analyse</button>${map}<button data-hide="${safeId}" type="button">Masquer</button></div></div></article>`}
 let displayLimit=120, lastResults=[];
 function activeFilterCount(){return [state.city,state.maxPrice,state.minPrice,state.type,state.minSurface,state.minRooms,state.minBedrooms,state.minScore,state.q,state.zones].filter(v=>String(v||'').trim()).length + (state.region?1:0)}
 function updateMobileUx(){const n=activeFilterCount(); document.body.classList.toggle('hasActiveFilters',n>0); const b=$('#filterToggle'); if(b)b.textContent=n?`Filtres (${n})`:'Filtres'; const reset=$('#resetBtn'); if(reset)reset.classList.toggle('hidden',n===0);}

@@ -112,6 +112,24 @@ def commune_of(city_norm, enrich_city):
     return None
 
 
+def bathroom_state(detail: dict) -> dict:
+    """Public, non-filtering bathroom display state.
+
+    Moufadal arbitration 2026-07-30: a bathtub is a preference, never an
+    exclusion criterion. We only expose what we know so cards can display one of
+    four human states without inventing a filter.
+    """
+    bathtub = detail.get('bathtub')
+    nb_sdb = detail.get('nb_sdb')
+    if bathtub == 1:
+        return {'state': 'baignoire', 'label': 'baignoire'}
+    if bathtub == 0:
+        return {'state': 'douche_seulement', 'label': 'douche seulement'}
+    if nb_sdb:
+        return {'state': 'salle_de_bain_equipement_inconnu', 'label': 'salle de bain, équipement non précisé'}
+    return {'state': 'non_precise', 'label': 'non précisé'}
+
+
 # Valeurs qui ne veulent rien dire : elles ne doivent pas devenir un libelle.
 # NB : norm() remplace les separateurs par des TIRETS -- ces cles doivent donc
 # etre ecrites avec des tirets, sinon la comparaison echoue silencieusement.
@@ -362,6 +380,7 @@ def main():
             'floor': d.get('floor'),
             'elevator': d.get('has_elevator'),
             'bathtub': d.get('bathtub'),
+            'bathroom': bathroom_state(d),
             'furnished': d.get('furnished'),
             # confort interieur (demande du 27/07)
             'nb_sdb': d.get('nb_sdb'), 'nb_wc': d.get('nb_wc'),

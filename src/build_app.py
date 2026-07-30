@@ -195,6 +195,18 @@ def score_default(item):
     if item['image_url']: score+=10
     return score
 
+def bathroom_state_from_row(row):
+    bathtub = row.get('detail_bathtub')
+    nb_sdb = row.get('detail_nb_sdb')
+    if bathtub == 1:
+        return {'state': 'baignoire', 'label': 'baignoire'}
+    if bathtub == 0:
+        return {'state': 'douche_seulement', 'label': 'douche seulement'}
+    if nb_sdb:
+        return {'state': 'salle_de_bain_equipement_inconnu', 'label': 'salle de bain, équipement non précisé'}
+    return {'state': 'non_precise', 'label': 'non précisé'}
+
+
 def variant_tags(item):
     tags=[]
     in_target=item['primary_zone'] in ['Moufia','La Bretagne','Sainte-Marie','Saint-Denis']
@@ -210,7 +222,17 @@ def variant_tags(item):
 
 enrichment_report=refresh_product_enrichment(DB)
 con=sqlite3.connect(DB); con.row_factory=sqlite3.Row
-rows=[dict(r) for r in con.execute("SELECT * FROM rental_listings_product WHERE COALESCE(is_active,1)=1 AND image_url IS NOT NULL AND TRIM(image_url)!=''")]
+rows=[dict(r) for r in con.execute("""
+    SELECT p.*,
+           d.bathtub AS detail_bathtub,
+           d.nb_sdb AS detail_nb_sdb,
+           d.nb_wc AS detail_nb_wc,
+           d.has_elevator AS detail_has_elevator,
+           d.furnished AS detail_furnished
+    FROM rental_listings_product p
+    LEFT JOIN listing_detail d ON d.source_site=p.source_site AND d.source_id=p.source_id
+    WHERE COALESCE(p.is_active,1)=1 AND p.image_url IS NOT NULL AND TRIM(p.image_url)!=''
+""")]
 def build_item(r):
     db_zones=[]
     if r.get('zones_json'):
@@ -240,6 +262,11 @@ def build_item(r):
         'surface_m2': float(r['surface_m2']) if r.get('surface_m2') is not None else None,
         'rent_eur': int(r['rent_eur']) if r.get('rent_eur') is not None else None,
         'furnished': furnished_status(r),
+        'bathroom': bathroom_state_from_row(r),
+        'bathtub': r.get('detail_bathtub'),
+        'nb_sdb': r.get('detail_nb_sdb'),
+        'nb_wc': r.get('detail_nb_wc'),
+        'elevator': r.get('detail_has_elevator'),
         'agency_or_owner': clean(r.get('agency_or_owner')),
         'image_url': r['image_url'],
         'seen_last_at': r.get('seen_last_at'),

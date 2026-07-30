@@ -16,7 +16,7 @@ DEFAULT_APP = Path('/opt/data/projects/reunion-immo-search/artifacts/app')
 KEEP_TOP = {
     'id','source','source_id','url','title','city','district','region','location',
     'location_intelligence','map_point','map_url','type','price','surface','rooms','bedrooms',
-    'furnished','agency','image_url','local_image_url','local_image_urls','description',
+    'furnished','bathroom','agency','image_url','local_image_url','local_image_urls','description',
     'description_status','description_analysis','seen_last_at','published_at','score',
     'opportunity_score','opportunity_analysis','feature_tags','geo_quality','image_quality','seen_also_on','dedup_product_note',
     'dedup_group_id','dedup_decision','dedup_confidence','dedup_role','dedup_reason','dedup_sources','canonical_display_id','display_canonical','housing_details'
@@ -98,7 +98,7 @@ def public_price_ok(x):
 INDEX_FIELDS = (
     'id', 'source', 'source_id', 'title', 'city', 'district', 'location', 'region',
     'type', 'price', 'surface', 'rooms', 'bedrooms', 'furnished', 'score',
-    'opportunity_score', 'local_image_url', 'seen_last_at', 'feature_tags',
+    'opportunity_score','local_image_url','seen_last_at','feature_tags','bathroom',
 )
 
 def write_light_index(app: Path, generated_at, items: list[dict]) -> None:
