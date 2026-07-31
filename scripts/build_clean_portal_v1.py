@@ -29,36 +29,17 @@ if THUMBS.exists():
 SIDECAR_FILES = [
     'changes.html', 'changes.json',
     'source_health.html', 'source_health.json',
-    'dedup.html', 'dedup_groups.json',
+    'dedup_groups.json',
     'opportunity.html', 'opportunity.json',
     'locations.html', 'locations.json',
     'alertes_cours.html',
     'ops.html', 'ops_status.json',
-    # Family-facing aliases used from the clean homepage. Keep technical filenames too
-    # for backward compatibility and direct QA, but do not expose them as raw labels.
-    'veille.html', 'sources.html', 'doublons.html',
-    'opportunites.html', 'localisation.html', 'alertes.html',
 ]
 
 for name in SIDECAR_FILES:
     src = SRC_APP / name
     if src.exists() and src.is_file():
         shutil.copy2(src, OUT / name)
-
-ALIASES = {
-    'changes.html': 'veille.html',
-    'source_health.html': 'sources.html',
-    'dedup.html': 'doublons.html',
-    'opportunity.html': 'opportunites.html',
-    'locations.html': 'localisation.html',
-    'alertes_cours.html': 'alertes.html',
-}
-for src_name, alias_name in ALIASES.items():
-    src = OUT / src_name
-    alias = OUT / alias_name
-    if src.exists() and not alias.exists():
-        shutil.copy2(src, alias)
-
 
 def find_local(url: str | None) -> str | None:
     if not url:
@@ -315,7 +296,7 @@ search_ontology = {
 }
 (OUT / 'search_ontology.json').write_text(json.dumps(search_ontology, ensure_ascii=False, indent=2), encoding='utf-8')
 PUBLIC_BASE = 'https://immo.148.230.103.174.sslip.io'
-PUBLIC_PAGES = ['', 'veille.html', 'sources.html', 'doublons.html', 'opportunites.html', 'localisation.html', 'alertes.html']
+PUBLIC_PAGES = ['']
 sitemap_urls = '\n'.join(
     f"  <url><loc>{PUBLIC_BASE}/{page}</loc><changefreq>daily</changefreq><priority>{'1.0' if not page else '0.7'}</priority></url>"
     for page in PUBLIC_PAGES
@@ -348,7 +329,7 @@ html = r'''<!doctype html>
 <body>
 <header class="top"><div class="bar"><div class="logo">Recherche immo <span>RUN</span></div><button class="btn secondary filterToggle" id="filterToggle" type="button" aria-controls="filtersPanel" aria-expanded="false">Filtres</button><div class="search"><input id="q" placeholder="Ex: T2 Saint-Denis moins 900€ meublé parking"/><button id="searchBtn">Rechercher</button></div><button class="btn secondary" id="resetBtn">Réinitialiser</button></div></header>
 <main>
-<section class="hero"><div class="panel intro"><h1>Un portail immo simple, alimenté par notre base scrapée.</h1><p>Portail propre avec recherche naturelle : tape un quartier, un budget, F4/T4, meublé/non meublé, puis vérifie les critères compris avant d’ouvrir la source.</p><div class="layerLinks" aria-label="Couches de veille immo"><a href="veille.html">Veille</a><a href="sources.html">Sources</a><a href="doublons.html">Doublons</a><a href="opportunites.html">Opportunités</a><a href="localisation.html">Localisation</a><a href="alertes.html">Alertes</a></div></div><div class="panel stats"><div class="stat"><b id="total">—</b><span>annonces dans la base</span></div><div class="stat"><b id="shown">—</b><span>résultats affichés</span></div><div class="stat"><b id="photos">—</b><span>photos principales locales</span></div><div class="stat"><b id="updated">—</b><span>dernière génération</span></div></div></section>
+<section class="hero"><div class="panel intro"><h1>Un portail immo simple, alimenté par notre base scrapée.</h1><p>Portail propre avec recherche naturelle : tape un quartier, un budget, F4/T4, meublé/non meublé, puis vérifie les critères compris avant d’ouvrir la source.</p></div><div class="panel stats"><div class="stat"><b id="total">—</b><span>annonces dans la base</span></div><div class="stat"><b id="shown">—</b><span>résultats affichés</span></div><div class="stat"><b id="photos">—</b><span>photos principales locales</span></div><div class="stat"><b id="updated">—</b><span>dernière génération</span></div></div></section>
 <section class="panel filters" id="filtersPanel" aria-label="Filtres avancés"><div class="filterSheetHead"><strong>Filtres</strong><button class="btn ghost" id="closeFilters" type="button">Fermer</button></div><div class="filter-grid"><div class="field"><label>Ville / commune</label><select id="city"><option value="">Toutes</option></select></div><div class="field"><label>Budget max</label><input id="maxPrice" type="number" inputmode="numeric" placeholder="ex: 1200"/></div><div class="field"><label>Type</label><select id="type"><option value="">Tous</option></select></div><div class="field"><label>Surface min.</label><input id="minSurface" type="number" inputmode="numeric" placeholder="ex: 40"/></div><div class="field"><label>Pièces min.</label><select id="minRooms"><option value="">Toutes</option><option value="1">Studio / 1+</option><option value="2">2+</option><option value="3">3+</option><option value="4">4+</option><option value="5">5+</option></select></div><div class="field"><label>Tri</label><select id="sort"><option value="recommended">Recommandé</option><option value="price_asc">Prix croissant</option><option value="price_desc">Prix décroissant</option><option value="surface_desc">Surface</option><option value="recent">Récent</option></select></div></div><div class="chips" id="chips"></div></section><div class="filterScrim" id="filterScrim" hidden></div>
 <section class="searchFeedback" aria-live="polite"><div class="nlChips" id="nlChips"></div><div class="understood" id="understood"></div><div class="suggestions" id="suggestions"></div><div id="matchReasons" hidden></div><div id="geoHint" hidden></div></section>
 <div class="toolbar"><h2>Résultats</h2><div class="muted" id="summary">Chargement…</div></div>

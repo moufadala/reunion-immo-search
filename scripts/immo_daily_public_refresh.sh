@@ -256,8 +256,11 @@ run_step clean_stage_gate bash -lc '
   stage="$1"
   test -s "$stage/index.html"
   test -s "$stage/listings.json"
-  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html changes.html source_health.html dedup.html opportunity.html locations.html alertes_cours.html ops.html ops_status.json; do
+  for p in changes.html changes.json source_health.html source_health.json dedup_groups.json opportunity.html opportunity.json locations.html locations.json alertes_cours.html ops.html ops_status.json; do
     test -s "$stage/$p"
+  done
+  for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html dedup.html; do
+    test ! -e "$stage/$p"
   done
   chmod -R a+rX "$stage"
   ! grep -q "Recherche immo Réunion — moteur visuel" "$stage/index.html"
@@ -349,7 +352,7 @@ report_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJEC
 run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
 report_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
-run_step public_v2_qa "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2.json"
+run_step public_v2_qa env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2.json"
 report_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 LOCAL_AUDIT_PORT="${IMMO_LOCAL_AUDIT_PORT:-18089}"
 (cd "$PROJECT/artifacts/app" && "$PY" -m http.server "$LOCAL_AUDIT_PORT" --bind 127.0.0.1 >"$RUN_DIR/local_audit_server.stdout" 2>"$RUN_DIR/local_audit_server.stderr") &

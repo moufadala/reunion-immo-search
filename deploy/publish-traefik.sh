@@ -28,13 +28,13 @@ if [ ! -s "$BASICAUTH_FILE" ]; then
 fi
 BASICAUTH_USERS=$(cat "$BASICAUTH_FILE")
 
-if [ ! -s "$HERMES_APP_DIR/index.html" ] || [ ! -s "$HERMES_APP_DIR/listings.json" ]; then
+if [ ! -s "$HERMES_APP_DIR/index.html" ] || [ ! -s "$HERMES_APP_DIR/feed.json" ] || [ ! -s "$HERMES_APP_DIR/v2/index.html" ]; then
   echo "ERROR: app files missing under Hermes path: $HERMES_APP_DIR" >&2
   exit 1
 fi
 
 # Verify the Docker daemon can see the host path before recreating the app.
-if ! docker run --rm -v "$HOST_APP_DIR:/check:ro" alpine:3.20 sh -lc 'test -s /check/index.html && test -s /check/listings.json' >/dev/null 2>&1; then
+if ! docker run --rm -v "$HOST_APP_DIR:/check:ro" alpine:3.20 sh -lc 'test -s /check/index.html && test -s /check/feed.json && test -s /check/v2/index.html' >/dev/null 2>&1; then
   echo "ERROR: Docker daemon cannot see app files under host path: $HOST_APP_DIR" >&2
   exit 1
 fi
@@ -82,7 +82,7 @@ docker run -d \
 
 sleep 2
 docker ps --filter "name=^/$CONTAINER_NAME$" --format 'container={{.Names}} status={{.Status}} ports={{.Ports}}'
-docker exec "$CONTAINER_NAME" sh -lc 'test -s /usr/share/nginx/html/index.html && test -s /usr/share/nginx/html/listings.json && echo FILES_OK'
+docker exec "$CONTAINER_NAME" sh -lc 'test -s /usr/share/nginx/html/index.html && test -s /usr/share/nginx/html/feed.json && test -s /usr/share/nginx/html/v2/index.html && echo FILES_OK'
 docker exec "$CONTAINER_NAME" nginx -t
 echo "URL=https://$IMMO_HOSTNAME/"
 echo "ALT_URL=https://$IMMO_ALT_HOSTNAME/"
