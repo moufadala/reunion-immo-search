@@ -51,9 +51,10 @@ PERIMETRE = ("Saint-Denis", "Sainte-Marie", "Sainte-Suzanne", "Saint-André")
 FRAICHEUR_MAX_H = float(os.environ.get("IMMO_FRAICHEUR_MAX_H", "36"))
 CHUTE_VOLUME_MAX = 0.40     # -40 % de lignes d'une source d'un jour a l'autre = collecte cassee
 LOYER_MIN, LOYER_MAX = 200, 8000        # hors de ces bornes : contenu douteux -> WARN
-LOYER_VENTE_MIN = 100000                 # prix de vente dans le champ loyer -> defaut de mapping -> BLOCK
+LOYER_VENTE_MIN = 100000                 # prix de vente dans le champ loyer -> contenu douteux -> WARN
 SURFACE_MIN, SURFACE_MAX = 8.0, 400.0   # 974 m2 et 1 m2 ont ete publies le 30/07
 PART_ABERRANTE_MAX = 0.02   # >2 % d'aberrations = probleme de mapping, pas de saisie
+FRAICHEUR_PART_BLOCK = 0.50 # >50 % des sources muettes = defaut de chaine, sinon WARN
 
 # Espace disque. Premiere estimation du 31/07 : 10,8 Go -- SOUS-EVALUEE, corrigee
 # le meme jour apres un 2e plantage disque. Le decompte reel :
@@ -177,7 +178,9 @@ def check_fraicheur():
             h = 9999
         if h > FRAICHEUR_MAX_H:
             muettes.append({"source": r["source_site"], "heures": round(h, 1), "annonces": r["n"]})
-    check("fraicheur", "BLOCK", not muettes,
+    part_muet = len(muettes) / max(len(lignes), 1)
+    severite = "BLOCK" if part_muet > FRAICHEUR_PART_BLOCK else "WARN"
+    check("fraicheur", severite, not muettes,
           f"{len(muettes)}/{len(lignes)} source(s) muette(s) depuis plus de {FRAICHEUR_MAX_H:.0f} h",
           muettes[:10])
 
@@ -284,7 +287,7 @@ def check_valeurs():
         if pb:
             ab.append({"id": f"{r['source_site']}:{r['source_id']}", "pb": ", ".join(pb),
                        "titre": (r["title"] or "")[:48]})
-    check("prix_vente_dans_loyer", "BLOCK", not ventes_dans_loyer,
+    check("prix_vente_dans_loyer", "WARN", not ventes_dans_loyer,
           f"{len(ventes_dans_loyer)} annonce(s) avec prix de vente dans rent_eur (>= {LOYER_VENTE_MIN})",
           ventes_dans_loyer[:10])
     part = len(ab) / max(len(lignes), 1)
