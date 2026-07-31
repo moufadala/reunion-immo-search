@@ -92,18 +92,54 @@ def combined_text(row: dict[str, Any]) -> str:
     return norm(" ".join(clean(row.get(k)) for k in ["city", "district", "title", "description", "url", "canonical_url"]))
 
 
-def detect_commune(row: dict[str, Any]) -> str:
-    text = combined_text(row)
-    raw_city = norm(row.get("city"))
-    for postal, commune in POSTAL_TO_COMMUNE.items():
-        if postal in text or raw_city == postal:
-            return commune
+def location_text(row: dict[str, Any], keys: list[str]) -> str:
+    """Localisation-only text for commune detection.
+
+    Important: do not use the long source description for commune detection.
+    Agency boilerplate contains CPI numbers and fee-schedule postal codes that
+    look like real Réunion postcodes but describe the agency, not the listing.
+    """
+    return norm(" ".join(clean(row.get(k)) for k in keys))
+
+
+def _has_token(text: str, token: str) -> bool:
+    return bool(re.search(rf"(?<!\w){re.escape(token)}(?!\w)", text))
+
+
+def _has_postal(text: str, postal: str) -> bool:
+    return bool(re.search(rf"(?<!\d){re.escape(postal)}(?!\d)", text))
+
+
+def _commune_from_text(text: str, *, allow_postal: bool) -> str | None:
+    # Prefer explicit names/aliases over postcodes: some source URLs contain
+    # contradictory slugs like "le-tampon-97422". A commune name is stronger
+    # evidence than a naked postal code in these feeds.
     for alias, commune in ALIASES.items():
-        if re.search(rf"(?<!\w){re.escape(alias)}(?!\w)", text):
+        if _has_token(text, alias):
             return commune
     for commune in COMMUNES:
-        if norm(commune) in text:
+        if _has_token(text, norm(commune)):
             return commune
+    if allow_postal:
+        for postal, commune in POSTAL_TO_COMMUNE.items():
+            if _has_postal(text, postal):
+                return commune
+    return None
+
+
+def detect_commune(row: dict[str, Any]) -> str:
+    # Source-of-truth hierarchy:
+    # 1) district/portal structured locality when present;
+    # 2) listing title, which often carries the advertised city;
+    # 3) raw city only as fallback because some sources store the agency city;
+    # 4) URL slug/postcode last. Never use long description: it contains agency
+    # boilerplate, CPI numbers and fee-schedule postcodes unrelated to the good.
+    for keys in (["district"], ["title"], ["city"], ["url", "canonical_url"]):
+        text = location_text(row, keys)
+        commune = _commune_from_text(text, allow_postal=True)
+        if commune:
+            return commune
+
     return clean(row.get("city")) or "Non précisée"
 
 

@@ -53,8 +53,8 @@ with tempfile.TemporaryDirectory() as td:
 
     dry = run([sys.executable, str(SCRIPT), "--artifacts", str(art)])
     dry_report = json.loads(dry.stdout)
-    if dry_report["mode"] != "dry-run" or dry_report["delete_count"] != 9:
-        errors.append(f"dry-run expected 9 delete candidates, got {dry_report.get('delete_count')}")
+    if dry_report["mode"] != "dry-run" or dry_report["delete_count"] != 13:
+        errors.append(f"dry-run expected 13 delete candidates, got {dry_report.get('delete_count')}")
     if not all(not x["deleted"] for x in dry_report["delete_candidates"]):
         errors.append("dry-run must not delete")
     for protected in ["app/KEEP", ".git/KEEP", "src/KEEP", "vault/KEEP", "vaults/KEEP", "state.db"]:
@@ -66,7 +66,7 @@ with tempfile.TemporaryDirectory() as td:
     second = run([sys.executable, str(SCRIPT), "--artifacts", str(art), "--apply"])
     second_report = json.loads(second.stdout)
     after = second_report["after"]
-    if after["daily_clean_count"] > 3 or after["daily_tech_count"] > 3 or after["app_pre_promote_count"] > 1 or after["bak_count"] != 0:
+    if after["daily_clean_count"] > 1 or after["daily_tech_count"] > 1 or after["app_pre_promote_count"] > 1 or after["bak_count"] != 0:
         errors.append(f"retention bounds failed after two runs: {after}")
     if second_report["delete_count"] != 0:
         errors.append(f"second apply should be idempotent, got delete_count={second_report['delete_count']}")

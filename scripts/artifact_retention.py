@@ -79,18 +79,34 @@ def assert_safe_candidate(path: Path, artifacts_root: Path) -> None:
         raise ValueError(f"refuse non-whitelisted artifact path: {path}")
 
 
-def retention_candidates(artifacts_root: Path, *, keep_daily: int = 3, keep_pre_promote: int = 1) -> list[Candidate]:
+def retention_candidates(
+    artifacts_root: Path,
+    *,
+    keep_daily: int = 1,
+    keep_pre_promote: int = 1,
+    protected_paths: set[Path] | None = None,
+) -> list[Candidate]:
     if keep_daily < 0 or keep_pre_promote < 0:
         raise ValueError("keep counts must be >= 0")
+    protected_paths = {p.resolve() for p in (protected_paths or set())}
     candidates: list[Candidate] = []
     for prefix, keep in (("daily-clean-stage-", keep_daily), ("daily-tech-stage-", keep_daily), ("app.pre-promote-", keep_pre_promote)):
         items = [p for p in artifacts_root.iterdir() if p.name.startswith(prefix)] if artifacts_root.exists() else []
         items = sorted(items, key=newest_key, reverse=True)
-        for old in items[keep:]:
+        kept = 0
+        for old in items:
+            if old.resolve() in protected_paths:
+                kept += 1
+                continue
+            if kept < keep:
+                kept += 1
+                continue
             assert_safe_candidate(old, artifacts_root)
             candidates.append(Candidate(old, f"retention:{prefix}:keep={keep}", path_size(old)))
     if artifacts_root.exists():
         for bak in sorted(artifacts_root.rglob(".bak.*"), key=lambda p: str(p)):
+            if bak.resolve() in protected_paths:
+                continue
             assert_safe_candidate(bak, artifacts_root)
             candidates.append(Candidate(bak, "remove:.bak.*", path_size(bak)))
     # Deduplicate while preserving deterministic order.
@@ -132,9 +148,22 @@ def summarize(artifacts_root: Path) -> dict[str, Any]:
     }
 
 
-def run(artifacts_root: Path, *, apply: bool, keep_daily: int = 3, keep_pre_promote: int = 1) -> dict[str, Any]:
+def run(
+    artifacts_root: Path,
+    *,
+    apply: bool,
+    keep_daily: int = 1,
+    keep_pre_promote: int = 1,
+    protected_paths: set[Path] | None = None,
+) -> dict[str, Any]:
     artifacts_root = artifacts_root.resolve()
-    candidates = retention_candidates(artifacts_root, keep_daily=keep_daily, keep_pre_promote=keep_pre_promote)
+    protected_paths = {p.resolve() for p in (protected_paths or set())}
+    candidates = retention_candidates(
+        artifacts_root,
+        keep_daily=keep_daily,
+        keep_pre_promote=keep_pre_promote,
+        protected_paths=protected_paths,
+    )
     before = summarize(artifacts_root)
     deleted: list[dict[str, Any]] = []
     for c in candidates:
@@ -155,6 +184,7 @@ def run(artifacts_root: Path, *, apply: bool, keep_daily: int = 3, keep_pre_prom
         "protected_names": sorted(PROTECTED_NAMES),
         "keep_daily": keep_daily,
         "keep_pre_promote": keep_pre_promote,
+        "protected_paths": [str(p) for p in sorted(protected_paths, key=str)],
         "before": before,
         "delete_count": len(deleted),
         "delete_candidates": deleted,
@@ -165,12 +195,19 @@ def run(artifacts_root: Path, *, apply: bool, keep_daily: int = 3, keep_pre_prom
 def main() -> int:
     ap = argparse.ArgumentParser(description="Phase E artifact retention")
     ap.add_argument("--artifacts", default=str(DEFAULT_ARTIFACTS))
-    ap.add_argument("--keep-daily", type=int, default=3)
+    ap.add_argument("--keep-daily", type=int, default=1)
     ap.add_argument("--keep-pre-promote", type=int, default=1)
+    ap.add_argument("--protect", action="append", default=[], help="extra artifact path to protect from deletion; may be repeated")
     ap.add_argument("--apply", action="store_true", help="actually delete candidates; default is dry-run")
     ap.add_argument("--json-out")
     args = ap.parse_args()
-    report = run(Path(args.artifacts), apply=args.apply, keep_daily=args.keep_daily, keep_pre_promote=args.keep_pre_promote)
+    report = run(
+        Path(args.artifacts),
+        apply=args.apply,
+        keep_daily=args.keep_daily,
+        keep_pre_promote=args.keep_pre_promote,
+        protected_paths={Path(p) for p in args.protect},
+    )
     text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if args.json_out:
         Path(args.json_out).parent.mkdir(parents=True, exist_ok=True)
