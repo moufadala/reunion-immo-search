@@ -174,6 +174,21 @@ def test_listings_helper_filters_and_maps_mixed_dataset() -> None:
     assert out[0].source_id == "2712345678"
 
 
+def test_raw_writes_can_be_isolated_with_env(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("IMMO_RAW_DIR", str(tmp_path))
+    spec2 = importlib.util.spec_from_file_location("rms_scraper_isolated", MOD_PATH)
+    assert spec2 is not None and spec2.loader is not None
+    mod = importlib.util.module_from_spec(spec2)
+    sys.modules["rms_scraper_isolated"] = mod
+    spec2.loader.exec_module(mod)
+
+    listing = mod._map_leboncoin_item(native_apartment())
+    assert listing is not None
+    assert listing.raw_json_path is not None
+    assert Path(listing.raw_json_path).parent == tmp_path
+    assert (tmp_path / "leboncoin_2712345678.json").exists()
+
+
 def main() -> int:
     for test in [
         test_maps_real_piotrv1001_item_shape,

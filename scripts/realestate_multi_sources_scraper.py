@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit, quote, urlencode
 from urllib.error import HTTPError
 
 UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125 Safari/537.36 HermesPersonalWatcher/1.0'
-RAW=Path('/opt/data/artifacts/realestate/multi_sources/raw')
+RAW=Path(os.environ.get('IMMO_RAW_DIR', '/opt/data/artifacts/realestate/multi_sources/raw'))
 CTX=ssl.create_default_context()
 
 # --- Scrapling pilot wiring (optional, with graceful fallback) -------------

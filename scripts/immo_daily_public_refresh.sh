@@ -14,6 +14,7 @@ if [ ! -x "$PY" ]; then PY=python3; fi
 export PY
 CLEAN_PROJECT="/opt/data/projects/reunion-immo-clean-app"
 ROOT="/opt/data"
+export IMMO_DATA_ROOT="/opt/data"
 STAMP="${IMMO_REFRESH_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
 RUN_DIR="${IMMO_REFRESH_RUN_DIR:-/opt/data/artifacts/immo-public-refresh/${STAMP}}"
 PROD_DB="${IMMO_DB_PATH:-/opt/data/data/reunion_watch.db}"
@@ -103,6 +104,9 @@ print(json.dumps(payload, ensure_ascii=False))
 if not payload['ok']:
     raise SystemExit(f"disk guard failed: free_gb={free_gb:.2f} < min_free_gb={min_gb:.2f}")
 PY
+
+run_step pipeline_invariants "$PY" "$PROJECT/tests/test_pipeline_invariants.py"
+run_step mapping_golden_regression "$PY" "$PROJECT/tests/test_mapping_golden.py"
 
 # Roll back source-detail/stage DB and public-app mutations if a downstream gate fails.
 ENRICHMENT_DB_BACKUP=""
@@ -342,6 +346,7 @@ run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --ba
 run_step build_product_v2 env IMMO_V2_AS_ROOT=1 IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 bash "$PROJECT/scripts/build_product_v2.sh"
 
 run_step product_v2_gate env IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/artifacts/app"
+run_step immo_health_gate "$PY" "$PROJECT/scripts/immo_health_checks.py" --gate-chain --json "$RUN_DIR/immo_health_checks.json"
 
 run_step clean_portal_audit bash -lc '"$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) clean_portal_audit rc=$rc non-bloquant: audit legacy racine incompatible avec IMMO_V2_AS_ROOT=1" >&2; exit 0' "$PY" "$PROJECT/tests/audit_clean_portal.py"
 run_step description_quality_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$PROJECT/artifacts/app"
@@ -372,6 +377,7 @@ report_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" 
 report_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 report_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
 run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --apply --json-out "$RUN_DIR/artifact_retention.json"
+run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" --warn-only --save-state --json "$RUN_DIR/immo_health_state_save.json"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1
