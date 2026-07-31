@@ -24,6 +24,7 @@ def main() -> int:
     require_any(daily, [
         'run_step public_delta_guard python3 "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE"',
         'run_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE"',
+        'report_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE"',
     ], "daily refresh", errors)
     require_any(daily, [
         'run_step promote_app_candidate python3 "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE"',

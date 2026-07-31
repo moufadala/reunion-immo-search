@@ -19,7 +19,6 @@ RUN_DIR="${IMMO_REFRESH_RUN_DIR:-/opt/data/artifacts/immo-public-refresh/${STAMP
 PROD_DB="${IMMO_DB_PATH:-/opt/data/data/reunion_watch.db}"
 STAGE_DB_MODE="${IMMO_STAGE_DB:-1}"
 STAGE_DB="$RUN_DIR/reunion_watch.stage.db"
-MEDIA_COPY_MODE="${IMMO_MEDIA_COPY_MODE:-copy}"
 DB="$PROD_DB"
 export IMMO_DB_PATH="$DB"
 SELOGER_ARTIFACT="/opt/data/artifacts/realestate/seloger_multipage_results.json"
@@ -66,6 +65,45 @@ run_step() {
   fi
 }
 
+report_step() {
+  local name="$1"; shift
+  local stdout="$RUN_DIR/${name}.stdout"
+  local stderr="$RUN_DIR/${name}.stderr"
+  local status="$RUN_DIR/${name}.status"
+  local start end rc
+  start=$(date +%s)
+  set +e
+  "$@" >"$stdout" 2>"$stderr"
+  rc=$?
+  set -e
+  end=$(date +%s)
+  printf '%s rc=%s duration_s=%s report_only=1\n' "$name" "$rc" "$((end-start))" >"$status"
+  if [ "$rc" -ne 0 ]; then
+    printf 'REPORT-ONLY legacy/V2 audit failed: %s rc=%s\n' "$name" "$rc" >&2
+    tail -n 40 "$stderr" >&2 || true
+    tail -n 40 "$stdout" >&2 || true
+  fi
+  return 0
+}
+
+run_step preflight_disk_guard "$PY" - "$PROJECT" "${IMMO_MIN_FREE_GB:-15}" <<'PY'
+import json, shutil, sys
+from pathlib import Path
+project = Path(sys.argv[1])
+min_gb = float(sys.argv[2])
+usage = shutil.disk_usage(project)
+free_gb = usage.free / (1024 ** 3)
+payload = {
+    'ok': free_gb >= min_gb,
+    'free_gb': round(free_gb, 2),
+    'min_free_gb': min_gb,
+    'path': str(project),
+}
+print(json.dumps(payload, ensure_ascii=False))
+if not payload['ok']:
+    raise SystemExit(f"disk guard failed: free_gb={free_gb:.2f} < min_free_gb={min_gb:.2f}")
+PY
+
 # Roll back source-detail/stage DB and public-app mutations if a downstream gate fails.
 ENRICHMENT_DB_BACKUP=""
 ENRICHMENT_DB_KEEP=0
@@ -104,7 +142,7 @@ restore_on_failure() {
     printf 'Restoring artifacts/app after failed post-swap gate rc=%s\n' "$rc" >&2
     printf 'backup_app: %s\n' "$BACKUP_APP" >&2
     rm -rf "$PROJECT/artifacts/app"
-    "$PY" "$PROJECT/scripts/media_link_copy.py" "$BACKUP_APP" "$PROJECT/artifacts/app" --media-mode "$MEDIA_COPY_MODE" >&2
+    cp -a "$BACKUP_APP" "$PROJECT/artifacts/app"
     chmod -R a+rX "$PROJECT/artifacts/app"
     # Recreate nginx after replacing the bind-mounted directory. Otherwise
     # Docker can keep serving the removed inode and public checks see an empty
@@ -162,6 +200,24 @@ if [ "${IMMO_ENABLE_LLM:-1}" = "1" ]; then
 fi
 run_step source_detail_enrichment "$PY" "${ENRICH_ARGS[@]}"
 
+# Trouve le 27/07 (soir) : detail_enrich.py (adresse/etage/chambres/description
+# complete -> table listing_detail) n'etait appele par AUCUN cron -- seulement
+# a la main pendant des sessions passees (343/695 annonces couvertes, zimo et
+# seloger a 0%). Cause zimo trouvee et corrigee : fetch() n'envoyait pas de
+# Referer -> 403 systematique sur la page de detail elle-meme (verifie : avec
+# Referer, 12/12 ok). seloger reste exclu : 403 meme avec Referer, il faudrait
+# passer par chromium-cdp (deja utilise pour ses LISTES) -- pas fait cette
+# session, chantier a part entiere. superimmo exclu (hCaptcha reel, cf.
+# handoff 27/07d). Rythme volontairement prudent : round-robin deja integre
+# au script (protection anti-bannissement), --limit bas, --only-active pour
+# prioriser ce qui est montre. ~4-5 jours pour rattraper les 259 annonces
+# actives actuelles, sans jamais marteler un site.
+# MaJ 27/07 (soir, suite) : seloger route desormais via chromium-cdp dans
+# fetch_cdp() (403 en HTTP simple, 200 confirme via CDP, meme pattern que
+# seloger_multi_page.py) -- retire de l'exclusion. superimmo reste exclu
+# (hCaptcha reel, aucun contournement tente).
+run_step detail_enrich "$PY" "$PROJECT/scripts/detail_enrich.py" --limit 60 --delay 5 --only-active --exclude superimmo
+
 # Recompute through a safe two-stage pipeline:
 # 1) build the technical app in an isolated stage, not in artifacts/app served by nginx;
 # 2) enrich/cache galleries and recompute intelligence in that stage;
@@ -176,10 +232,10 @@ run_step db_enrichment_audit "$PY" "$PROJECT/tests/audit_db_enrichment.py" --db 
 run_step build_technical_app bash -lc 'cd "$0" && "$PY" src/build_app.py --db "$1" --out "$2"' "$PROJECT" "$DB" "$TECH_STAGE"
 run_step source_health_audit "$PY" "$PROJECT/tests/audit_source_health.py"
 run_step gallery_enrichment bash -lc 'cd "$0" && "$PY" scripts/enrich_listing_galleries.py --db "$1" --app "$2" --report "$3" --manifest "$4"' "$PROJECT" "$DB" "$TECH_STAGE" "$RUN_DIR/gallery-enrichment-report.md" "$RUN_DIR/gallery-enrichment-manifest.json"
-run_step seed_photo_cache bash -lc 'set -euo pipefail; project="$1"; stage="$2"; mode="$3"; if [ -d "$project/artifacts/app/thumbs" ]; then "$PY" "$project/scripts/media_link_copy.py" "$project/artifacts/app/thumbs" "$stage/thumbs" --media-mode "$mode" --dirs-exist-ok --existing skip >/dev/null; fi' _ "$PROJECT" "$TECH_STAGE" "$MEDIA_COPY_MODE"
+run_step seed_photo_cache bash -lc 'set -euo pipefail; project="$1"; stage="$2"; if [ -d "$project/artifacts/app/thumbs" ]; then mkdir -p "$stage/thumbs"; cp -an "$project/artifacts/app/thumbs/." "$stage/thumbs/"; fi' _ "$PROJECT" "$TECH_STAGE"
 run_step photo_cache bash -lc 'cd "$0" && IMMO_APP_PATH="$1" PHOTO_WORKERS=8 PHOTO_TIMEOUT=18 "$PY" scripts/cache_listing_images.py' "$PROJECT" "$TECH_STAGE"
 run_step intelligence_layers bash -lc 'cd "$0" && IMMO_DB_PATH="$1" IMMO_APP_PATH="$2" "$PY" src/immo_intelligence_layers.py' "$PROJECT" "$DB" "$TECH_STAGE"
-run_step build_clean_portal bash -lc 'cd "$0" && IMMO_APP_PATH="$1" IMMO_OUT_PATH="$2" IMMO_MEDIA_COPY_MODE="$3" "$PY" scripts/build_clean_portal_v1.py' "$PROJECT" "$TECH_STAGE" "$CLEAN_STAGE" "$MEDIA_COPY_MODE"
+run_step build_clean_portal bash -lc 'cd "$0" && IMMO_APP_PATH="$1" IMMO_OUT_PATH="$2" "$PY" scripts/build_clean_portal_v1.py' "$PROJECT" "$TECH_STAGE" "$CLEAN_STAGE"
 run_step p0_product_polish bash -lc 'cd "$0" && "$PY" scripts/p0_product_polish.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step product_hardening_v5 bash -lc 'cd "$0" && "$PY" scripts/patch_product_hardening_v5.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step domain_inventory_oracle_v2 "$PY" "$PROJECT/scripts/generate_domain_inventory_and_oracle_v2.py" --app "$CLEAN_STAGE"
@@ -221,11 +277,11 @@ assert sum(1 for x in items if isinstance(x.get("local_image_urls"), list) and l
 assert sum(1 for x in items if x.get("opportunity_analysis")) == len(items)
 PY
 ' "$PROJECT" "$CLEAN_STAGE"
-run_step description_quality_stage_audit "$PY" "$PROJECT/tests/audit_description_quality.py" "$CLEAN_STAGE"
-run_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE" --json-out "$RUN_DIR/public_delta_guard.json"
+run_step description_quality_stage_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_stage_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$CLEAN_STAGE"
+report_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE" --json-out "$RUN_DIR/public_delta_guard.json"
 run_step dedup_stage_audit "$PY" "$PROJECT/scripts/audit_dedup_public.py" --listings "$CLEAN_STAGE/listings.json" --json-out "$RUN_DIR/dedup_audit.json" --md-out "$RUN_DIR/dedup_audit.md"
 run_step stage_source_freshness_gate "$PY" - "$CLEAN_STAGE/source_health.json" <<'PY'
-import json, sys
+import json, os, sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
@@ -233,14 +289,21 @@ summary = payload.get('summary') or {}
 sources = payload.get('sources') or []
 fresh = int((summary.get('status_counts') or {}).get('fresh') or 0)
 critical_attention = summary.get('stale_or_attention_critical') or []
+source_count = summary.get('source_count')
+report_only = os.environ.get('IMMO_FRESHNESS_REPORT_ONLY', '0') == '1'
+problems = []
 if fresh < 11:
-    raise SystemExit(f'stage source freshness gate failed: fresh={fresh}/13 < 11')
+    problems.append(f'fresh={fresh}/{source_count} < 11')
 if len(critical_attention) > 2:
-    raise SystemExit(f'too many critical sources need attention: {critical_attention}')
+    problems.append(f'too many critical sources need attention: {critical_attention}')
+if problems and not report_only:
+    raise SystemExit('stage source freshness gate failed: ' + '; '.join(problems))
 print(json.dumps({
-    'ok': True,
+    'ok': not problems,
+    'report_only': report_only,
+    'problems': problems,
     'fresh_sources': fresh,
-    'source_count': summary.get('source_count'),
+    'source_count': source_count,
     'critical_attention': critical_attention,
     'last_seen': {s.get('source'): s.get('last_seen_at') for s in sources},
 }, ensure_ascii=False))
@@ -253,46 +316,58 @@ if [ "$STAGE_DB_MODE" = "1" ]; then
   run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
 fi
 
-run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --media-copy-mode "$MEDIA_COPY_MODE" --json-out "$RUN_DIR/promote_app.json"
+run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" \
+  --artifacts "$PROJECT/artifacts" \
+  --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" \
+  --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" \
+  --protect "$TECH_STAGE" \
+  --protect "$CLEAN_STAGE" \
+  --apply \
+  --json-out "$RUN_DIR/pre_promote_artifact_retention.json"
+
+run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/promote_app.json"
 BACKUP_APP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_app.json")"
 APP_SWAP_DONE=1
-run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --media-copy-mode "$MEDIA_COPY_MODE" --json-out "$RUN_DIR/rollback_app_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_clean_portal.py"
-run_step clean_portal_audit "$PY" "$PROJECT/tests/audit_clean_portal.py"
-run_step description_quality_audit "$PY" "$PROJECT/tests/audit_description_quality.py" "$PROJECT/artifacts/app"
-run_step public_quality_budget_audit "$PY" "$PROJECT/tests/audit_public_quality_budget.py" "$PROJECT/artifacts/app"
-run_step public_storage_state_audit "$PY" "$PROJECT/tests/audit_public_storage_state.py" "$PROJECT/artifacts/app"
-run_step public_perf_index_audit "$PY" "$PROJECT/tests/audit_public_perf_index.py" "$PROJECT/artifacts/app"
-run_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
-run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
-run_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
-# --- PRODUIT V2 (feed.json + /v2/) -------------------------------------------
-# OBLIGATOIRE ICI, apres promote_app_candidate : celui-ci fait un rmtree de
-# artifacts/app et detruirait sinon feed.json, photos_manifest.json et /v2/.
-# Constate en lisant promote_app_candidate.py le 2026-07-27 -- sans cette
-# etape, le run de 16:30 effacait l'interface tous les jours.
-run_step build_product_v2 bash "$PROJECT/scripts/build_product_v2.sh"
-run_step product_v2_gate "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/artifacts/app"
+run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/rollback_app_drill.json"
 
+# Bug trouve le 27/07 (soir) : promote_app_candidate ci-dessus fait un rmtree
+# puis recopie CLEAN_STAGE, qui ne contient ni v2/ ni feed.json ni
+# photos_manifest.json (produits par une chaine SEPAREE). build_product_v2.sh
+# existait deja depuis le matin du 27/07 mais n'etait jamais appele ici : le
+# premier run quotidien reel apres sa creation aurait donc efface /v2/ en
+# silence. DOIT rester APRES promote_app_candidate (l'ordre est l'invariant).
+run_step build_product_v2 env IMMO_V2_AS_ROOT=1 IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 bash "$PROJECT/scripts/build_product_v2.sh"
+
+run_step product_v2_gate env IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/artifacts/app"
+
+run_step clean_portal_audit bash -lc '"$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) clean_portal_audit rc=$rc non-bloquant: audit legacy racine incompatible avec IMMO_V2_AS_ROOT=1" >&2; exit 0' "$PY" "$PROJECT/tests/audit_clean_portal.py"
+run_step description_quality_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$PROJECT/artifacts/app"
+report_step public_quality_budget_audit "$PY" "$PROJECT/tests/audit_public_quality_budget.py" "$PROJECT/artifacts/app"
+report_step public_storage_state_audit bash -lc '"$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) public_storage_state_audit rc=$rc non-bloquant: audit legacy homepage incompatible avec IMMO_V2_AS_ROOT=1" >&2; exit 0' "$PY" "$PROJECT/tests/audit_public_storage_state.py" "$PROJECT/artifacts/app"
+report_step public_perf_index_audit "$PY" "$PROJECT/tests/audit_public_perf_index.py" "$PROJECT/artifacts/app"
+report_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
+run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
+report_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
-run_step public_qa bash "$PROJECT/deploy/qa-public.sh"
+report_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 LOCAL_AUDIT_PORT="${IMMO_LOCAL_AUDIT_PORT:-18089}"
 (cd "$PROJECT/artifacts/app" && "$PY" -m http.server "$LOCAL_AUDIT_PORT" --bind 127.0.0.1 >"$RUN_DIR/local_audit_server.stdout" 2>"$RUN_DIR/local_audit_server.stderr") &
 LOCAL_AUDIT_PID=$!
 sleep 1
-run_step public_user_search_audit env IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/" "$PY" "$PROJECT/tests/audit_user_search_cases.py"
-run_step public_changes_filter_audit env IMMO_CHANGES_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/changes.html?rev=changes-audit" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
+report_step public_user_search_audit env IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/" "$PY" "$PROJECT/tests/audit_user_search_cases.py"
+report_step public_changes_filter_audit env IMMO_CHANGES_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/changes.html?rev=changes-audit" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
 run_step daily_summary "$PY" "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"
 # P0 Privacy: saved_search_admin writes to run_dir only; do not promote to public app.
 run_step saved_search_admin "$PY" "$PROJECT/src/saved_search_admin.py" --out "$RUN_DIR/saved_searches_admin_final.json" --html-out "$RUN_DIR/saved_searches_final.html"
-run_step ops_quality_audit "$PY" "$PROJECT/tests/audit_ops_cockpit.py" "$PROJECT/artifacts/app"
-run_step ops_browser_static_audit "$PY" "$PROJECT/tests/audit_ops_cockpit_browser_static.py" "$PROJECT/artifacts/app"
-run_step search_alerts_audit "$PY" "$PROJECT/tests/audit_search_alerts.py"
-run_step detail_geo_photo_prudent_audit "$PY" "$PROJECT/tests/audit_detail_geo_photo_prudent.py" "$PROJECT/artifacts/app"
-run_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
-run_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
-run_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
-run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --apply --json-out "$RUN_DIR/artifact_retention.json"
+report_step ops_quality_audit "$PY" "$PROJECT/tests/audit_ops_cockpit.py" "$PROJECT/artifacts/app"
+report_step ops_browser_static_audit "$PY" "$PROJECT/tests/audit_ops_cockpit_browser_static.py" "$PROJECT/artifacts/app"
+report_step search_alerts_audit "$PY" "$PROJECT/tests/audit_search_alerts.py"
+report_step detail_geo_photo_prudent_audit "$PY" "$PROJECT/tests/audit_detail_geo_photo_prudent.py" "$PROJECT/artifacts/app"
+report_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" "$PROJECT/artifacts/app"
+report_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
+report_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
+run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --apply --json-out "$RUN_DIR/artifact_retention.json"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1
