@@ -49,6 +49,12 @@ DB = os.path.join(ROOT, "data", "reunion_watch.db")
 # tournent encore (ils sont censes etre sortis du pipeline en C.2).
 LEGACY = ("veille.html", "sources.html", "doublons.html", "opportunites.html",
           "localisation.html", "alertes.html", "dedup.html")
+# C.2 voie (b): fichiers legacy produits par l'ancien portail headless qui ne
+# doivent plus etre publies dans artifacts/app. listings.json reste le bus.
+LEGACY_PUBLISHED_FILES = ("ops.html", "locations.html", "locations.json",
+                          "opportunity.html", "opportunity.json",
+                          "source_health.html", "dedup_groups.json",
+                          "alertes_cours.html", "changes.html")
 # Marqueur textuel de l'ancien portail.
 TITRE_LEGACY = "portail propre"
 
@@ -136,16 +142,22 @@ def qa_feed():
 
 def qa_pas_de_legacy():
     presents = [f for f in LEGACY if os.path.exists(os.path.join(APP, f))]
+    legacy_files = [f for f in LEGACY_PUBLISHED_FILES if os.path.exists(os.path.join(APP, f))]
     # C.1b rend la QA V2 bloquante pour racine/assets/feed/exploitabilité.
     # Les 7 pages legacy sont encore volontairement hors périmètre jusqu'à C.2 :
     # on les inventorie en WARN par défaut pour ne pas recréer un rc=1 chronique.
     # C.2 devra lancer ce même script avec IMMO_QA_STRICT_LEGACY=1 ou
     # --strict-legacy pour transformer ce WARN en échec bloquant.
     strict = os.environ.get("IMMO_QA_STRICT_LEGACY") == "1"
+    severity = "blocking" if strict else "warn"
     check("pas_de_pages_legacy", not presents,
           f"{len(presents)} page(s) de l'ancien portail regeneree(s)" if presents
           else "aucune page de l'ancien portail", presents,
-          severity="blocking" if strict else "warn")
+          severity=severity)
+    check("pas_de_fichiers_legacy", not legacy_files,
+          f"{len(legacy_files)} fichier(s) legacy encore publie(s)" if legacy_files
+          else "aucun fichier legacy publie hors bus listings.json", legacy_files,
+          severity=severity)
 
 
 def qa_http(url: str, auth: str | None):

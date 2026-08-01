@@ -248,7 +248,6 @@ run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --limit 80 --ou
 run_step enhance_changes_decision "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" --app "$CLEAN_STAGE"
 run_step wave2_detail_geo_photo "$PY" "$PROJECT/scripts/patch_wave2_lot_c_detail_geo_photo.py" --app "$CLEAN_STAGE"
 run_step opportunity_dedup_calibration "$PY" "$PROJECT/scripts/generate_opportunity_calibration.py" --app "$CLEAN_STAGE"
-run_step ops_cockpit_stage "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$CLEAN_STAGE" --run-dir "$RUN_DIR"
 # P0 Privacy: generate saved_searches output to run_dir only (never to the public-served stage).
 # The saved_searches_admin.json contains personal search criteria (name, budget, family).
 # It must NOT be promoted to artifacts/app or served by nginx.
@@ -258,20 +257,11 @@ run_step saved_search_admin_stage "$PY" "$PROJECT/src/saved_search_admin.py" --l
 run_step clean_stage_gate bash -lc '
   set -euo pipefail
   stage="$1"
-  test -s "$stage/index.html"
   test -s "$stage/listings.json"
-  for p in changes.html changes.json source_health.html source_health.json dedup_groups.json opportunity.html opportunity.json locations.html locations.json alertes_cours.html ops.html ops_status.json; do
-    test -s "$stage/$p"
-  done
   for p in veille.html sources.html doublons.html opportunites.html localisation.html alertes.html dedup.html; do
     test ! -e "$stage/$p"
   done
   chmod -R a+rX "$stage"
-  ! grep -q "Recherche immo Réunion — moteur visuel" "$stage/index.html"
-  ! grep -q "Canonique" "$stage/index.html"
-  ! grep -q "Suspects" "$stage/index.html"
-  ! grep -q "Match strict" "$stage/index.html"
-  ! grep -q "source_health.html" "$stage/index.html"
   "$PY" - "$stage" <<"PY"
 import json, sys
 from pathlib import Path
