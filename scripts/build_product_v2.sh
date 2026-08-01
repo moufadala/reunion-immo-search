@@ -15,6 +15,21 @@ set -euo pipefail
 PROJECT="${IMMO_PROJECT:-/opt/data/projects/reunion-immo-search}"
 PY="${PY:-${IMMO_PROJECT_PYTHON:-python3}}"
 APP="${IMMO_APP_PATH:-$PROJECT/artifacts/app}"
+# BEGIN WEBAPP DIST FRESHNESS GUARD
+WEBAPP_SRC_DIR="$PROJECT/webapp/src"
+WEBAPP_DIST_INDEX="$PROJECT/webapp/dist/index.html"
+if [ -d "$WEBAPP_SRC_DIR" ] && [ -f "$WEBAPP_DIST_INDEX" ]; then
+  STALE_SRC_FILE=$(find "$WEBAPP_SRC_DIR" -type f -newer "$WEBAPP_DIST_INDEX" -print -quit)
+  if [ -n "$STALE_SRC_FILE" ]; then
+    echo "BLOCK: webapp/src is newer than webapp/dist/index.html; rebuild webapp before publishing. First newer file: $STALE_SRC_FILE" >&2
+    exit 2
+  fi
+else
+  echo "BLOCK: missing webapp/src or webapp/dist/index.html; cannot publish webapp artifact safely." >&2
+  exit 2
+fi
+# END WEBAPP DIST FRESHNESS GUARD
+
 DIST="$PROJECT/webapp/dist"
 # 1 = l'app v2 devient aussi la page d'accueil (/). 0 = seulement /v2/.
 V2_RACINE="${IMMO_V2_AS_ROOT:-0}"
