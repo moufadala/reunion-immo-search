@@ -5,7 +5,7 @@ import Detail from "./components/Detail";
 import Mouvements from "./components/Mouvements";
 import Filters, { FILTRES_VIDES, appliquer, trier } from "./components/Filters";
 import { Badge, Button, Reveal, Stat, Empty } from "./components/ui";
-import { cx, dateFR, ilYA, norm } from "./lib";
+import { alerteFeedPerime, cx, dateFR, feedEstPerime, ilYA, norm } from "./lib";
 
 const ONGLETS = [
   { id: "annonces", nom: "Annonces" },
@@ -35,6 +35,7 @@ function ThemeToggle() {
 }
 
 function Header({ meta, onglet, setOnglet }) {
+  const alerte = alerteFeedPerime(meta?.genere_le);
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-canvas/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6">
@@ -44,8 +45,8 @@ function Header({ meta, onglet, setOnglet }) {
             <span className="hidden text-[12.5px] font-semibold text-accent sm:inline">Nord &amp; Est</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-[11.5px] text-faint">
-              {meta?.genere_le ? `mis à jour ${ilYA(meta.genere_le)}` : ""}
+            <span className={cx("text-[11.5px]", alerte ? "font-bold text-danger" : "text-faint")}>
+              {alerte || (meta?.genere_le ? `mis à jour ${ilYA(meta.genere_le)}` : "")}
             </span>
             <ThemeToggle />
           </div>
@@ -159,6 +160,7 @@ export default function App() {
   }, []);
 
   const listings = data?.listings || [];
+  const feedPerime = feedEstPerime(data?.meta?.genere_le);
   const communes = useMemo(
     () => [...new Set(listings.map((l) => l.commune).filter(Boolean))].sort(), [listings]);
   const quartiers = useMemo(() => {
@@ -204,7 +206,8 @@ export default function App() {
             <Reveal className="grid grid-cols-2 gap-5 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] sm:grid-cols-4 sm:p-5">
               <Stat value={data.meta.actives} label="En ligne" tone="accent"
                 sub={`sur ${data.meta.total} suivies`} />
-              <Stat value={data.meta.fraiches} label="Fraîches" sub="apparues ≤ 3 jours" />
+              <Stat value={feedPerime ? "—" : data.meta.fraiches} label="Fraîches"
+                sub={feedPerime ? "masquées : feed périmé" : "apparues ≤ 3 jours"} />
               <Stat value={data.meta.detail_lu} label="Pages lues"
                 sub="annonce ouverte en entier" />
               <Stat value={data.meta.avec_trajet} label="Temps de trajet"
@@ -270,7 +273,7 @@ export default function App() {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {visibles.map((l, i) => (
                     <Reveal key={l.id} delay={Math.min(i % 12, 8) * 25}>
-                      <Card l={l} onOuvrir={setOuvert} />
+                      <Card l={l} feedPerime={feedPerime} onOuvrir={setOuvert} />
                     </Reveal>
                   ))}
                 </div>

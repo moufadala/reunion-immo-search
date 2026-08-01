@@ -87,7 +87,7 @@ function libelleProfil(cle) {
   return cle ? cle.charAt(0).toUpperCase() + cle.slice(1) : "";
 }
 
-export default function Card({ l, onOuvrir }) {
+export default function Card({ l, feedPerime = false, onOuvrir }) {
   const [imgKo, setImgKo] = useState(false);
   const p = precisionDe(l);
   const ch = chambresEstimees(l);
@@ -103,7 +103,7 @@ export default function Card({ l, onOuvrir }) {
         "shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-300",
         "active:scale-[0.995] sm:hover:-translate-y-0.5 sm:hover:shadow-[var(--shadow-lift)]",
         // une annonce fraîche ne se rate pas : bordure et fond distincts
-        l.fraiche && l.active
+        !feedPerime && l.fraiche && l.active
           ? "border-accent/45 bg-accent-soft/35 ring-1 ring-accent/15"
           : "border-line",
         !l.active && "opacity-[0.68]"
@@ -118,7 +118,7 @@ export default function Card({ l, onOuvrir }) {
         )}
 
         <div className="absolute left-2.5 top-2.5 flex max-w-[75%] flex-wrap gap-1.5">
-          {l.fraiche && l.active && <Badge tone="accent">Nouvelle</Badge>}
+          {!feedPerime && l.fraiche && l.active && <Badge tone="accent">Nouvelle</Badge>}
           {!l.active && <Badge tone="danger">Retirée</Badge>}
           {best && (
             <Badge tone="p5" title={`Score ${best.score}/100 pour ce profil`}>

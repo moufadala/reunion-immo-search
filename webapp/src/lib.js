@@ -21,9 +21,33 @@ export const joursDepuis = (s) => {
   return Math.floor((Date.now() - +d) / 86400000);
 };
 
+export const heuresDepuis = (s) => {
+  if (!s) return null;
+  const d = new Date(s);
+  if (Number.isNaN(+d)) return null;
+  return Math.floor((Date.now() - +d) / 3600000);
+};
+
+export const feedEstPerime = (s) => {
+  const h = heuresDepuis(s);
+  return h != null && h > 36;
+};
+
+export const alerteFeedPerime = (s) => {
+  const h = heuresDepuis(s);
+  if (h == null || h <= 36) return null;
+  const d = new Date(s);
+  const date = d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
+  const jours = Math.max(1, Math.floor(h / 24));
+  return `⚠ données du ${date} — le pipeline n'a pas tourné depuis ${jours} j`;
+};
+
 export const ilYA = (s) => {
-  const j = joursDepuis(s);
-  if (j == null) return null;
+  const h = heuresDepuis(s);
+  if (h == null) return null;
+  if (h < 1) return "à l'instant";
+  if (h < 24) return `il y a ${h} h`;
+  const j = Math.floor(h / 24);
   if (j <= 0) return "aujourd'hui";
   if (j === 1) return "hier";
   if (j < 7) return `il y a ${j} j`;
