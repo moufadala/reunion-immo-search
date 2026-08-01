@@ -8,6 +8,7 @@ source_site='leboncoin', and tolerance for native + flattened Apify item shapes.
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
 from pathlib import Path
 
@@ -187,6 +188,42 @@ def test_raw_writes_can_be_isolated_with_env(tmp_path, monkeypatch) -> None:
     assert listing.raw_json_path is not None
     assert Path(listing.raw_json_path).parent == tmp_path
     assert (tmp_path / "leboncoin_2712345678.json").exists()
+
+
+def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch) -> None:
+    report = tmp_path / "apify_usage.jsonl"
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", str(report))
+    monkeypatch.setenv("APIFY_TOKEN", "token-not-logged")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+    calls = []
+
+    def fake_apify_json(url, token, payload=None, timeout=180):
+        calls.append((url, payload))
+        assert token == "token-not-logged"
+        if "/runs" in url:
+            return {"id": "run123", "defaultDatasetId": "ds123", "usageTotalUsd": 0.42}
+        if "/datasets/ds123/items" in url:
+            return [native_apartment()]
+        raise AssertionError(url)
+
+    monkeypatch.setattr(rms, "_apify_json", fake_apify_json)
+    out = rms.scrape_leboncoin_apify_dataset()
+
+    assert len(out) == 1
+    rows = [json.loads(line) for line in report.read_text().splitlines()]
+    assert rows == [{
+        "actor": rms.DEFAULT_LEBONCOIN_ACTOR,
+        "cost_usd": 0.42,
+        "dataset_id": "ds123",
+        "mode": "actor_run",
+        "provider": "apify",
+        "result_count": 1,
+        "run_id": "run123",
+        "source": "leboncoin",
+        "ts": rows[0]["ts"],
+    }]
+    assert "token-not-logged" not in report.read_text()
+    assert len(calls) == 2
 
 
 def main() -> int:

@@ -20,6 +20,9 @@ from urllib.error import HTTPError
 
 UA='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/125 Safari/537.36 HermesPersonalWatcher/1.0'
 RAW=Path(os.environ.get('IMMO_RAW_DIR', '/opt/data/artifacts/realestate/multi_sources/raw'))
+APIFY_USAGE_REPORT = os.environ.get('IMMO_APIFY_USAGE_REPORT')
+if not APIFY_USAGE_REPORT and os.environ.get('IMMO_REFRESH_RUN_DIR'):
+    APIFY_USAGE_REPORT = str(Path(os.environ['IMMO_REFRESH_RUN_DIR']) / 'apify_usage.jsonl')
 CTX=ssl.create_default_context()
 
 # --- Scrapling pilot wiring (optional, with graceful fallback) -------------
@@ -984,6 +987,48 @@ def _apify_json(url, token, payload=None, timeout=180):
     return json.loads(raw) if raw.strip() else []
 
 
+def _apify_cost_usd(run):
+    """Best-effort Apify cost extraction; API shapes vary by endpoint/account."""
+    if not isinstance(run, dict):
+        return None
+    for key in ('usageTotalUsd', 'usageUsd', 'costUsd', 'totalCostUsd'):
+        val = run.get(key)
+        if isinstance(val, (int, float)):
+            return float(val)
+        if isinstance(val, str):
+            try:
+                return float(val)
+            except ValueError:
+                pass
+    usage = run.get('usage')
+    if isinstance(usage, dict):
+        val = usage.get('totalUsd') or usage.get('totalCostUsd')
+        if isinstance(val, (int, float)):
+            return float(val)
+    return None
+
+
+def _write_apify_usage(*, mode, result_count, dataset_id=None, run=None, actor=None):
+    """Append one Apify accounting row, parallel to llm_extraction.jsonl."""
+    if not APIFY_USAGE_REPORT:
+        return
+    run = run if isinstance(run, dict) else {}
+    row = {
+        'ts': datetime.now(timezone.utc).isoformat(),
+        'provider': 'apify',
+        'source': 'leboncoin',
+        'mode': mode,
+        'actor': actor,
+        'run_id': run.get('id'),
+        'dataset_id': dataset_id or run.get('defaultDatasetId'),
+        'result_count': result_count,
+        'cost_usd': _apify_cost_usd(run),
+    }
+    Path(APIFY_USAGE_REPORT).parent.mkdir(parents=True, exist_ok=True)
+    with open(APIFY_USAGE_REPORT, 'a', encoding='utf-8') as f:
+        f.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + '\n')
+
+
 def _leboncoin_actor_input(max_items):
     return {
         # Actor piotrv1001 expects Leboncoin location slugs as strings
@@ -1024,14 +1069,27 @@ def scrape_leboncoin_apify_dataset():
         url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
                f'?clean=true&format=json&limit={max_items}')
         items = _apify_json(url, token)
+        run = None
+        mode = 'dataset'
+        actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
     else:
         actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
-        url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/run-sync-get-dataset-items'
-               f'?clean=true&format=json')
-        items = _apify_json(url, token, payload=_leboncoin_actor_input(max_items))
+        run_url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/runs'
+                   f'?waitForFinish=180')
+        run = _apify_json(run_url, token, payload=_leboncoin_actor_input(max_items))
+        dataset_id = run.get('defaultDatasetId') if isinstance(run, dict) else None
+        if not dataset_id:
+            raise RuntimeError('Apify run finished without defaultDatasetId')
+        url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
+               f'?clean=true&format=json&limit={max_items}')
+        items = _apify_json(url, token)
+        mode = 'actor_run'
     if isinstance(items, dict):
         items = items.get('items') or items.get('data') or []
-    return _leboncoin_listings(items if isinstance(items, list) else [])
+    items = items if isinstance(items, list) else []
+    _write_apify_usage(mode=mode, actor=actor, dataset_id=dataset_id,
+                       run=run, result_count=len(items))
+    return _leboncoin_listings(items)
 
 
 # --- Adrezio (agence Reunion) : pages liste statiques, fetch() HTTP simple -----
