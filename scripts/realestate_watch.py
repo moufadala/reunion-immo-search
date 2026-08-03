@@ -25,6 +25,7 @@ ROOT = Path('/opt/data')
 DB_DEFAULT = ROOT / 'data/reunion_watch.db'
 ARTIFACT_ROOT = ROOT / 'artifacts/realestate/watch_runs'
 PARTIAL_SOURCE_NO_STALE = {'zimo', 'domimmo', 'immo974'}
+PARTIAL_SOURCE_STALE_GRACE_DAYS = 7
 MULTI_SCRAPER = ROOT / 'scripts/realestate_multi_sources_scraper.py'
 # One source = one process, sequential SQLite writer. Timeouts are deliberately
 # per source so a slow/broken source cannot starve the following ones.
@@ -331,9 +332,14 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
 def mark_stale_not_seen(db: Path, refresh_started_at: str, sources: list[str], seen_counts: dict[str, int] | None = None) -> dict[str, int]:
     """Mark old rows inactive after a successful refresh.
 
-    We never delete rows. If a scraper no longer sees a listing during this run,
-    it is marked inactive so business reports/alerts stay clean while history is
-    preserved.
+    Complete scrape: the source is not in PARTIAL_SOURCE_NO_STALE and the run saw
+    a coherent volume (seen_now >= max(5, 50% of active_before)). Missing rows are
+    marked inactive immediately.
+
+    Partial scrape: either a known partial source (zimo/domimmo/immo974) or a run
+    whose count is below the coherence threshold. Missing rows are preserved, but
+    only for PARTIAL_SOURCE_STALE_GRACE_DAYS after their last successful sighting;
+    older rows become inactive as a false-positive safety net.
     """
     if not db.exists() or not sources:
         return {}
@@ -343,20 +349,26 @@ def mark_stale_not_seen(db: Path, refresh_started_at: str, sources: list[str], s
         out: dict[str, int] = {}
         seen_counts = seen_counts or {}
         for src in sources:
-            if src in PARTIAL_SOURCE_NO_STALE:
-                out[src] = 0
-                continue
             active_before = conn.execute(
                 'SELECT COUNT(*) FROM rental_listings WHERE source_site=? AND COALESCE(is_active,1)=1',
                 (src,),
             ).fetchone()[0]
             seen_now = int(seen_counts.get(src) or 0)
-            # Some sources expose only a partial first page even when the request is
-            # technically successful. Do not turn a partial page into mass
-            # disappearances: freshness can still be updated by new/seen rows, but
-            # old rows stay active until a fuller source run confirms absence.
-            if active_before >= 10 and seen_now > 0 and seen_now < max(5, int(active_before * 0.5)):
-                out[src] = 0
+            coherence_floor = max(5, int(active_before * 0.5)) if active_before >= 10 else 0
+            is_known_partial = src in PARTIAL_SOURCE_NO_STALE
+            is_count_partial = active_before >= 10 and seen_now > 0 and seen_now < coherence_floor
+            if is_known_partial or is_count_partial:
+                cur = conn.execute(
+                    """
+                    UPDATE rental_listings
+                    SET is_active=0
+                    WHERE source_site=?
+                      AND COALESCE(is_active,1)=1
+                      AND datetime(seen_last_at) < datetime(?, ?)
+                    """,
+                    (src, refresh_started_at, f'-{PARTIAL_SOURCE_STALE_GRACE_DAYS} days'),
+                )
+                out[src] = cur.rowcount if cur.rowcount is not None else 0
                 continue
             cur = conn.execute(
                 'UPDATE rental_listings SET is_active=0 WHERE source_site=? AND datetime(seen_last_at) < datetime(?)',
