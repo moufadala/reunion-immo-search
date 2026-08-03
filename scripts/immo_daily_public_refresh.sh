@@ -200,8 +200,10 @@ dst.close()
 src.close()
 ' "$DB" "$ENRICHMENT_DB_BACKUP"
 ENRICH_ARGS=("$PROJECT/scripts/enrich_source_details_v3.py" --db "$DB" --sleep 0.08 --report "$RUN_DIR/source_detail_enrichment.jsonl")
-if [ "${IMMO_ENABLE_LLM:-1}" = "1" ]; then
+if [ "${IMMO_ENABLE_LLM:-1}" = "1" ] && [ -n "${OPENROUTER_API_KEY:-}" ]; then
   ENRICH_ARGS+=(--llm --llm-provider openrouter --llm-limit "${IMMO_LLM_LIMIT:-200}" --llm-report "$RUN_DIR/llm_extraction.jsonl")
+elif [ "${IMMO_ENABLE_LLM:-1}" = "1" ]; then
+  echo "source_detail_enrichment: OPENROUTER_API_KEY missing; continuing without LLM" >&2
 fi
 run_step source_detail_enrichment "$PY" "${ENRICH_ARGS[@]}"
 
