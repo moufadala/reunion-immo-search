@@ -15,6 +15,7 @@ import sqlite3
 import subprocess
 import sys
 import time
+import hashlib
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,7 @@ SOURCE_JOBS = [
 ]
 CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS}
 SOURCE_STATUS_ALIASES = {'leboncoin_apify_dataset': 'leboncoin'}
+DEFAULT_SOURCE_SCRAPE_BUDGET_SEC = 1500
 
 @dataclass
 class RunnerResult:
@@ -187,16 +189,101 @@ def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> Non
     (run_dir / 'realestate_scraper_aggregate.json').write_text(json.dumps(aggregate, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
+def _rotated_source_jobs(run_dir: Path) -> list[dict[str, Any]]:
+    if not SOURCE_JOBS:
+        return []
+    seed_text = os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name or now_tag()
+    offset = int(hashlib.sha256(seed_text.encode('utf-8')).hexdigest()[:8], 16) % len(SOURCE_JOBS)
+    return SOURCE_JOBS[offset:] + SOURCE_JOBS[:offset]
+
+
+def _source_scrape_budget_sec() -> int | None:
+    raw = os.environ.get('IMMO_SOURCE_SCRAPE_BUDGET_SEC')
+    if raw is None or raw == '':
+        return DEFAULT_SOURCE_SCRAPE_BUDGET_SEC
+    try:
+        value = int(raw)
+    except ValueError:
+        return DEFAULT_SOURCE_SCRAPE_BUDGET_SEC
+    return value if value > 0 else None
+
+
+def _skipped_result(source: str, script: Path, run_dir: Path, reason: str, elapsed: float, budget: int | None) -> RunnerResult:
+    name = f"{script.stem}__{source}"
+    stdout_path = run_dir / f'{name}.json'
+    stderr_path = run_dir / f'{name}.stderr'
+    status_path = run_dir / f'{name}.status.json'
+    parsed = {
+        'json_ok': False,
+        'source_status': {source: {'ok': False, 'count': 0, 'duration_sec': 0, 'timeout_sec': None, 'error': reason}},
+        'errors': [{'source': source, 'error': reason}],
+    }
+    stdout_path.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding='utf-8')
+    stderr_path.write_text(reason + '\n', encoding='utf-8')
+    rr = RunnerResult(name, False, 125, str(stdout_path), str(stderr_path), parsed, source, 0, None, str(status_path))
+    status_path.write_text(json.dumps({
+        'source': source,
+        'script': str(script),
+        'cmd': None,
+        'started_at': datetime.now(timezone.utc).isoformat(),
+        'duration_sec': 0,
+        'timeout_sec': None,
+        'budget_sec': budget,
+        'elapsed_before_skip_sec': round(elapsed, 3),
+        'ok': False,
+        'exit_code': 125,
+        'stdout_path': str(stdout_path),
+        'stderr_path': str(stderr_path),
+        'parsed_summary': parsed,
+    }, ensure_ascii=False, indent=2), encoding='utf-8')
+    return rr
+
+
 def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | None = None) -> list[RunnerResult]:
     results: list[RunnerResult] = []
-    for job in SOURCE_JOBS:
+    budget = _source_scrape_budget_sec()
+    phase_start = time.monotonic()
+    jobs = _rotated_source_jobs(run_dir)
+    (run_dir / 'source_order.json').write_text(json.dumps({
+        'budget_sec': budget,
+        'rotation_seed': os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name,
+        'sources': [j['source'] for j in jobs],
+    }, ensure_ascii=False, indent=2), encoding='utf-8')
+    for idx, job in enumerate(jobs):
         source = str(job['source'])
         script = Path(job['script'])
-        env_key = f"IMMO_SOURCE_TIMEOUT_{source.upper().replace('-', '_')}"
-        source_timeout = int(os.environ.get(env_key, '') or job['timeout'])
-        if timeout is not None:
-            source_timeout = int(timeout)
-        name = f"{script.stem}__{source}"
+        elapsed_phase = time.monotonic() - phase_start
+        if budget is not None and elapsed_phase >= budget:
+            def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | None = None) -> list[RunnerResult]:
+                results: list[RunnerResult] = []
+                jobs = _rotated_source_jobs(run_dir)
+                budget = _source_scrape_budget_sec()
+                budget_started = time.monotonic()
+                order_path = run_dir / 'realestate_source_order.json'
+                order_path.write_text(json.dumps({
+                    'budget_sec': budget,
+                    'rotation_seed': os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name,
+                    'sources': [j['source'] for j in jobs],
+                    'timeouts_sec': {j['source']: j['timeout'] for j in jobs},
+                }, ensure_ascii=False, indent=2), encoding='utf-8')
+                for idx, job in enumerate(jobs):
+                    source = str(job['source'])
+                    script = Path(job['script'])
+                    elapsed_budget = time.monotonic() - budget_started
+                    if budget is not None and elapsed_budget >= budget:
+                        skipped = [str(j['source']) for j in jobs[idx:]]
+                        reason = f"GLOBAL SCRAPE BUDGET EXCEEDED after {budget}s; sources not served: {', '.join(skipped)}"
+                        for skipped_job in jobs[idx:]:
+                            results.append(_skipped_result(str(skipped_job['source']), Path(skipped_job['script']), run_dir, reason, elapsed_budget, budget))
+                        break
+                    env_key = f"IMMO_SOURCE_TIMEOUT_{source.upper().replace('-', '_')}"
+                    source_timeout = int(os.environ.get(env_key, '') or job['timeout'])
+                    if timeout is not None:
+                        source_timeout = int(timeout)
+                    if budget is not None:
+                        remaining = max(1, int(budget - elapsed_budget))
+                        source_timeout = min(source_timeout, remaining)
+                    name = f"{script.stem}__{source}"
         stdout_path = run_dir / f'{name}.json'
         stderr_path = run_dir / f'{name}.stderr'
         status_path = run_dir / f'{name}.status.json'
@@ -472,14 +559,15 @@ def main() -> None:
             touched_sources = set()
             seen_counts: dict[str, int] = {}
             for r in results:
-                for src, count in (r.parsed_summary.get('by_source') or {}).items():
-                    touched_sources.add(src)
-                    seen_counts[src] = seen_counts.get(src, 0) + int(count or 0)
-                for src, st in (r.parsed_summary.get('source_status') or {}).items():
+                if r.ok:
+                    for src, count in (r.parsed_summary.get('by_source') or {}).items():
+                        mapped = _normalize_source_name(str(src))
+                        touched_sources.add(mapped)
+                        seen_counts[mapped] = seen_counts.get(mapped, 0) + int(count or 0)
+                for src, st in _normalized_source_status(r.parsed_summary).items():
                     if isinstance(st, dict) and st.get('ok') and st.get('count', 0) > 0:
-                        # Internal function names mostly match source_site; explicit mapping
-                        # protects aliases like scrape_97immo -> source_site 97immo.
-                        mapped = {'97immo': '97immo', 'ofim_rss': 'ofim_rss'}.get(src, src)
+                        # Only successful, non-empty sources can mark older rows stale.
+                        mapped = _normalize_source_name(str(src))
                         touched_sources.add(mapped)
                         seen_counts[mapped] = max(seen_counts.get(mapped, 0), int(st.get('count') or 0))
             stale_counts = mark_stale_not_seen(db, refresh_started_at, sorted(touched_sources), seen_counts)
@@ -488,7 +576,10 @@ def main() -> None:
     else:
         listings = []
     paths = write_reports(run_dir, db, results, listings, backup, stale_counts, args)
-    print(json.dumps({'ok': all(r.ok for r in results) if results else True, 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
+    ok = all(r.ok for r in results) if results else True
+    print(json.dumps({'ok': ok, 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
+    if results and not ok:
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()
