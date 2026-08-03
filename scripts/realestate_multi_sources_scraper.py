@@ -1157,10 +1157,12 @@ def _adrezio_card_listings(text, ptype, commune, seen):
             srcset_m = re.search(r'<(?:img|source)\b[^>]*\b(?:srcset|data-srcset)=["\']([^"\']+)["\']', card, re.I | re.S)
             if srcset_m:
                 img = normalize_image_url(first_srcset_url(html.unescape(srcset_m.group(1))) or '', ADREZIO_BASE)
-        raw = {'url': url, 'title': title_text, 'description': card_text[:900], 'image': img,
-               'city': city, 'rent_eur': rent, 'surface_m2': surface, 'rooms': rooms,
-               'bedrooms': bedrooms, 'queried_commune': commune,
-               'extraction': 'adrezio_list_card'}
+        raw = {'url': url, 'title': title_text, 'description': card_text[:900],
+               'image': img, 'image_url': img,
+               'city': city, 'rent_eur': rent, 'rent': rent,
+               'surface_m2': surface, 'surface': surface,
+               'rooms': rooms, 'bedrooms': bedrooms, 'property_type': ptype,
+               'queried_commune': commune, 'extraction': 'adrezio_list_card'}
         seen.add(url)
         out.append(Listing('adrezio', sid, url, url, title_text, city, None, ptype,
                            rooms, bedrooms, surface, rent, None, None, None, img,
@@ -1256,7 +1258,19 @@ def main():
                 source_status[fname]={'ok': True, 'count': len(listings)}
                 for l in listings:
                     status='dry' if args.dry_run else upsert(conn,l)
-                    events.append({'status':status, **asdict(l)})
+                    event = {'status': status, **asdict(l)}
+                    # Compatibility aliases for downstream/report consumers that
+                    # use the public product vocabulary. Keep canonical DB fields
+                    # rent_eur/surface_m2/image_url untouched.
+                    if event.get('rent') is None:
+                        event['rent'] = event.get('rent_eur')
+                    if event.get('surface') is None:
+                        event['surface'] = event.get('surface_m2')
+                    if event.get('image') is None:
+                        event['image'] = event.get('image_url')
+                    if event.get('type') is None:
+                        event['type'] = event.get('property_type')
+                    events.append(event)
                 # Commit after every source, not only at process end. The daily
                 # cron has a hard timeout around this multi-source scraper; if a
                 # later slow/anti-bot source times out, already refreshed sources
