@@ -14,6 +14,8 @@ Une commande lancée du mauvais côté n'échoue pas : elle réussit sur les mau
 
 Depuis l'hôte, utiliser `/opt/hermes/data/...`. Depuis le conteneur Hermes, utiliser `/opt/data/...`. Avant de conclure, identifier le namespace réel.
 
+Le contrôle `python3 tests/audit_pipeline_script_contracts.py --runtime-check` ne se lance QUE dans le conteneur Hermes, depuis `/opt/data/projects/reunion-immo-search`. Depuis l'hôte, `/opt/data` est un leurre : un résultat "runtime missing" n'est pas une divergence à réparer mais un contrôle non applicable.
+
 ## 2. Le code exécuté n'est pas forcément le code de ce dépôt
 
 Des scripts du cœur de la chaîne existent sous `/opt/data/scripts/` et certains sont absents de ce dépôt ou peuvent diverger sous le même nom.

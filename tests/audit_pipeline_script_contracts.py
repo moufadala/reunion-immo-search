@@ -6,7 +6,9 @@ import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+CANONICAL_CONTAINER_ROOT = Path("/opt/data/projects/reunion-immo-search")
 RUNTIME_ROOT = Path("/opt/data/scripts")
+NOT_APPLICABLE_RC = 78
 
 RUNTIME_SCRIPT_CONTRACTS = [
     ("reunion_watch_pipeline.py", "scripts/reunion_watch_pipeline.py"),
@@ -39,6 +41,33 @@ def require(text: str, needle: str, label: str, errors: list[str]) -> None:
 def require_any(text: str, needles: list[str], label: str, errors: list[str]) -> None:
     if not any(needle in text for needle in needles):
         errors.append(f"{label}: missing one of {needles!r}")
+
+
+def runtime_contract_applicability_error() -> str | None:
+    """Return why --runtime-check cannot judge this namespace, or None.
+
+    The daily pipeline runs inside the Hermes container, where /opt/data is the
+    bind mount that also contains this repository and /opt/data/scripts. On the
+    VPS host, /opt/data is a known decoy/legacy path; reporting missing runtime
+    files there would invite destructive "repairs" that recreate copies over the
+    real container symlinks.
+    """
+    canonical = CANONICAL_CONTAINER_ROOT.resolve(strict=False)
+    root = ROOT.resolve(strict=False)
+    if root != canonical:
+        return (
+            "CONTROLE NON APPLICABLE ICI: ce dépôt n'est pas vu comme "
+            f"{CANONICAL_CONTAINER_ROOT}. ROOT={ROOT}. /opt/data est probablement "
+            "le leurre côté hôte. Lancer ce contrôle DANS le conteneur Hermes "
+            "(ex.: docker exec hermes-gateway sh -lc 'cd /opt/data/projects/reunion-immo-search && "
+            "python3 tests/audit_pipeline_script_contracts.py --runtime-check')."
+        )
+    if not RUNTIME_ROOT.exists() or not RUNTIME_ROOT.is_dir():
+        return (
+            "CONTROLE NON APPLICABLE ICI: /opt/data/scripts est absent dans ce point de vue. "
+            "/opt/data est probablement le leurre côté hôte. Lancer ce contrôle DANS le conteneur Hermes."
+        )
+    return None
 
 
 def audit_runtime_scripts(errors: list[str]) -> None:
@@ -117,6 +146,11 @@ def main(argv: list[str] | None = None) -> int:
         errors.append(f"daily refresh: postflight must run after immo_health_state_save and before APP_KEEP=1: {order!r}")
 
     if args.runtime_check:
+        applicability_error = runtime_contract_applicability_error()
+        if applicability_error:
+            print("PIPELINE_SCRIPT_CONTRACTS NOT_APPLICABLE")
+            print(applicability_error)
+            return NOT_APPLICABLE_RC
         audit_runtime_scripts(errors)
 
     if errors:
