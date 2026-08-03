@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import ssl
 import sys
 import urllib.request
@@ -23,11 +24,46 @@ from pathlib import Path
 #      la source de verite produit).
 
 PUBLIC_BASE = "https://immo.148.230.103.174.sslip.io/"
-LOCAL_APP_DIR = Path("/opt/data/projects/reunion-immo-search/artifacts/app")
+LOCAL_APP_DIR = Path(os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR", "/opt/data/projects/reunion-immo-search/artifacts/app"))
 MIN_LISTINGS = 500
 MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
 MIN_LOCAL_PHOTO_RATIO = 0.85
+MAX_FEED_AGE_HOURS = 36  # meme seuil que la banniere client "feed perime"
 TIMEOUT = 25
+
+
+def parse_feed_datetime(value: object) -> datetime | None:
+    if not value:
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def check_feed_freshness(data: dict[str, object], evidence: dict[str, object], errors: list[str]) -> None:
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+    generated_raw = meta.get("genere_le") if isinstance(meta, dict) else None
+    evidence["feed_genere_le"] = generated_raw
+    generated_at = parse_feed_datetime(generated_raw)
+    if generated_at is None:
+        errors.append("feed freshness unknown: meta.genere_le missing or invalid")
+        return
+    now = datetime.now(timezone.utc)
+    age_hours = max(0.0, (now - generated_at).total_seconds() / 3600)
+    evidence["feed_age_hours"] = round(age_hours, 2)
+    evidence["feed_max_age_hours"] = MAX_FEED_AGE_HOURS
+    if age_hours > MAX_FEED_AGE_HOURS:
+        errors.append(
+            f"feed périmé: meta.genere_le={generated_at.isoformat()} "
+            f"âge={age_hours:.1f}h > {MAX_FEED_AGE_HOURS}h"
+        )
 
 
 def fetch_interne(path: str) -> tuple[int, bytes]:
@@ -94,6 +130,7 @@ def main() -> int:
         status, body = fetch_interne("feed.json")
         evidence["feed_status"] = status
         data = json.loads(body.decode("utf-8"))
+        check_feed_freshness(data, evidence, errors)
         rows = data.get("listings") or []
         total = len(rows)
         seloger = sum(1 for x in rows if str(x.get("source", "")).lower() == "seloger")
