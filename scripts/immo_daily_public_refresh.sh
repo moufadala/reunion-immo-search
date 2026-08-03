@@ -108,6 +108,7 @@ PY
 
 run_step pipeline_invariants "$PY" "$PROJECT/tests/test_pipeline_invariants.py"
 run_step mapping_golden_regression "$PY" "$PROJECT/tests/test_mapping_golden.py"
+run_step runtime_script_contracts "$PY" "$PROJECT/tests/audit_pipeline_script_contracts.py" --runtime-check
 
 # Roll back source-detail/stage DB and public-app mutations if a downstream gate fails.
 ENRICHMENT_DB_BACKUP=""

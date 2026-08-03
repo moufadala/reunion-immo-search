@@ -1,9 +1,34 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
+import hashlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+RUNTIME_ROOT = Path("/opt/data/scripts")
+
+RUNTIME_SCRIPT_CONTRACTS = [
+    ("reunion_watch_pipeline.py", "scripts/reunion_watch_pipeline.py"),
+    ("reunion_watch_daily.sh", "scripts/reunion_watch_daily.sh"),
+    ("reunion_watch_daily_async.sh", "scripts/reunion_watch_daily_async.sh"),
+    ("reunion_watch_daily_notify.sh", "scripts/reunion_watch_daily_notify.sh"),
+    ("reunion_watch_post_refresh_alerts.sh", "scripts/reunion_watch_post_refresh_alerts.sh"),
+    ("immo_p0_freshness_check.sh", "scripts/immo_p0_freshness_check.sh"),
+    ("immo_saved_search_alerts.sh", "scripts/immo_saved_search_alerts.sh"),
+    ("immo_daily_public_refresh.sh", "scripts/immo_daily_public_refresh.sh"),
+    ("realestate_watch.py", "scripts/realestate_watch.py"),
+]
+
+RUNTIME_SCRIPT_ALLOWLIST: dict[str, str] = {
+    # Keep this intentionally empty by default: every known executed script in the
+    # daily chain must be a symlink to the repository or byte-identical to it.
+    # Temporary exceptions must include a dated operational justification here.
+}
+
+
+def sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def require(text: str, needle: str, label: str, errors: list[str]) -> None:
@@ -16,7 +41,36 @@ def require_any(text: str, needles: list[str], label: str, errors: list[str]) ->
         errors.append(f"{label}: missing one of {needles!r}")
 
 
-def main() -> int:
+def audit_runtime_scripts(errors: list[str]) -> None:
+    for runtime_name, repo_rel in RUNTIME_SCRIPT_CONTRACTS:
+        runtime_path = RUNTIME_ROOT / runtime_name
+        repo_path = ROOT / repo_rel
+        label = f"runtime script {runtime_name}"
+        if runtime_name in RUNTIME_SCRIPT_ALLOWLIST:
+            reason = RUNTIME_SCRIPT_ALLOWLIST[runtime_name].strip()
+            if not reason or len(reason) < 20:
+                errors.append(f"{label}: allowlist entry must include a concrete justification")
+            continue
+        if not repo_path.exists():
+            errors.append(f"{label}: repository version missing at {repo_path}")
+            continue
+        if not runtime_path.exists() and not runtime_path.is_symlink():
+            errors.append(f"{label}: runtime file missing at {runtime_path}")
+            continue
+        if runtime_path.is_symlink():
+            resolved = runtime_path.resolve()
+            if resolved != repo_path.resolve():
+                errors.append(f"{label}: symlink resolves to {resolved}, expected {repo_path.resolve()}")
+            continue
+        if sha256(runtime_path) != sha256(repo_path):
+            errors.append(f"{label}: runtime copy diverges from repository version ({runtime_path} != {repo_path})")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--runtime-check", action="store_true", help="also verify /opt/data/scripts against repository scripts")
+    args = parser.parse_args(argv)
+
     errors: list[str] = []
     daily = (ROOT / "scripts" / "immo_daily_public_refresh.sh").read_text(encoding="utf-8")
     sprint = (ROOT / "scripts" / "run_product_v2_sprint.sh").read_text(encoding="utf-8")
@@ -61,6 +115,9 @@ def main() -> int:
         errors.append(f"daily refresh: postflight ordering markers missing: {order!r}")
     elif not (order[0][1] < order[1][1] < order[2][1]):
         errors.append(f"daily refresh: postflight must run after immo_health_state_save and before APP_KEEP=1: {order!r}")
+
+    if args.runtime_check:
+        audit_runtime_scripts(errors)
 
     if errors:
         print("PIPELINE_SCRIPT_CONTRACTS FAIL")
