@@ -34,7 +34,9 @@ def main() -> int:
         'run_step rollback_app_drill python3 "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP"',
         'run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP"',
     ], "daily refresh", errors)
-    require(daily, '--out "$CLEAN_STAGE/changes.json" --html-out "$CLEAN_STAGE/changes.html"', "daily refresh", errors)
+    require(daily, '--out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"', "daily refresh", errors)
+    if '--html-out "$CLEAN_STAGE/changes.html"' in daily:
+        errors.append("daily refresh: changes.html must stay in RUN_DIR, not in the promoted clean stage")
     if 'run_step listing_changes python3 "$PROJECT/src/listing_changes.py" --limit 80\n' in daily:
         errors.append("daily refresh: listing_changes would write default artifacts/app before promotion")
 

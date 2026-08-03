@@ -245,8 +245,8 @@ run_step p0_product_polish bash -lc 'cd "$0" && "$PY" scripts/p0_product_polish.
 run_step product_hardening_v5 bash -lc 'cd "$0" && "$PY" scripts/patch_product_hardening_v5.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step domain_inventory_oracle_v2 "$PY" "$PROJECT/scripts/generate_domain_inventory_and_oracle_v2.py" --app "$CLEAN_STAGE"
 run_step slim_public_listings "$PY" "$PROJECT/scripts/slim_public_listings.py" "$CLEAN_STAGE"
-run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$CLEAN_STAGE/changes.html"
-run_step enhance_changes_decision "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" --app "$CLEAN_STAGE"
+run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"
+report_step enhance_changes_decision bash -lc 'cp "$2" "$3/changes.json" && "$0" "$1" --app "$3"' "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" "$CLEAN_STAGE/changes.json" "$RUN_DIR"
 run_step wave2_detail_geo_photo "$PY" "$PROJECT/scripts/patch_wave2_lot_c_detail_geo_photo.py" --app "$CLEAN_STAGE"
 run_step opportunity_dedup_calibration "$PY" "$PROJECT/scripts/generate_opportunity_calibration.py" --app "$CLEAN_STAGE"
 # P0 Privacy: generate saved_searches output to run_dir only (never to the public-served stage).
