@@ -51,10 +51,11 @@ LEGACY = ("veille.html", "sources.html", "doublons.html", "opportunites.html",
           "localisation.html", "alertes.html", "dedup.html")
 # C.2 voie (b): fichiers legacy produits par l'ancien portail headless qui ne
 # doivent plus etre publies dans artifacts/app. listings.json reste le bus.
-LEGACY_PUBLISHED_FILES = ("ops.html", "locations.html", "locations.json",
+LEGACY_PUBLISHED_FILES = ("ops.html", "source_health.html", "locations.html", "locations.json",
                           "opportunity.html", "opportunity.json",
                           "dedup_groups.json", "alertes_cours.html", "changes.html")
 # source_health.json/photo_quality.json/changes.json restent des sidecars JSON utiles.
+# source_health.html est une page admin/run-proof et doit rester hors artifacts/app.
 # changes.html est garde dans RUN_DIR comme preuve, mais ne doit plus etre publie.
 # Marqueur textuel de l'ancien portail.
 TITRE_LEGACY = "portail propre"

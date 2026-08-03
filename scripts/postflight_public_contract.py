@@ -23,6 +23,7 @@ LEGACY = (
 )
 LEGACY_PUBLISHED_FILES = (
     "ops.html",
+    "source_health.html",
     "locations.html",
     "locations.json",
     "opportunity.html",

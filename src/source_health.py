@@ -25,7 +25,13 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB = Path(os.environ.get("IMMO_DB_PATH", "/opt/data/data/reunion_watch.db"))
 DEFAULT_SMOKE_ROOT = Path("/opt/data/artifacts/scraper-smoke-runs")
 DEFAULT_OUT = ROOT / "artifacts" / "app" / "source_health.json"
-DEFAULT_HTML_OUT = ROOT / "artifacts" / "app" / "source_health.html"
+# Do not write the human/admin HTML page to artifacts/app by default: that
+# directory is the public product root. Pipeline callers that want an HTML proof
+# must pass --html-out explicitly or export IMMO_RUN_DIR. The JSON sidecar stays
+# public because product/health checks consume it; the legacy/admin HTML page
+# does not belong in the served app.
+_DEFAULT_HTML_DIR = Path(os.environ.get("IMMO_RUN_DIR", str(ROOT / "artifacts" / "source-health")))
+DEFAULT_HTML_OUT = Path(os.environ.get("IMMO_SOURCE_HEALTH_HTML_OUT", str(_DEFAULT_HTML_DIR / "source_health.html")))
 CRITICAL_SOURCES = {
     "seloger", "zimo", "bienici", "ofim_rss", "ofim", "domimmo", "fnaim",
     "citya", "immo974", "locamoi", "97immo", "alter", "superimmo",
