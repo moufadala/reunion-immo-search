@@ -192,10 +192,14 @@ def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> Non
     (run_dir / 'realestate_scraper_aggregate.json').write_text(json.dumps(aggregate, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
+def _rotation_seed(run_dir: Path) -> str:
+    return os.environ.get('IMMO_SOURCE_ROTATION_SEED') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name) or now_tag()
+
+
 def _rotated_source_jobs(run_dir: Path) -> list[dict[str, Any]]:
     if not SOURCE_JOBS:
         return []
-    seed_text = os.environ.get('IMMO_SOURCE_ROTATION_SEED') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name) or now_tag()
+    seed_text = _rotation_seed(run_dir)
     offset = int(hashlib.sha256(seed_text.encode('utf-8')).hexdigest()[:8], 16) % len(SOURCE_JOBS)
     return SOURCE_JOBS[offset:] + SOURCE_JOBS[:offset]
 
@@ -249,7 +253,7 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
     budget_started = time.monotonic()
     (run_dir / 'realestate_source_order.json').write_text(json.dumps({
         'budget_sec': budget,
-        'rotation_seed': os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name,
+        'rotation_seed': _rotation_seed(run_dir),
         'sources': [j['source'] for j in jobs],
         'timeouts_sec': {j['source']: j['timeout'] for j in jobs},
     }, ensure_ascii=False, indent=2), encoding='utf-8')
