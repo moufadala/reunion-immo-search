@@ -241,49 +241,36 @@ def _skipped_result(source: str, script: Path, run_dir: Path, reason: str, elaps
 
 def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | None = None) -> list[RunnerResult]:
     results: list[RunnerResult] = []
-    budget = _source_scrape_budget_sec()
-    phase_start = time.monotonic()
     jobs = _rotated_source_jobs(run_dir)
-    (run_dir / 'source_order.json').write_text(json.dumps({
+    budget = _source_scrape_budget_sec()
+    budget_started = time.monotonic()
+    (run_dir / 'realestate_source_order.json').write_text(json.dumps({
         'budget_sec': budget,
         'rotation_seed': os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name,
         'sources': [j['source'] for j in jobs],
+        'timeouts_sec': {j['source']: j['timeout'] for j in jobs},
     }, ensure_ascii=False, indent=2), encoding='utf-8')
+
     for idx, job in enumerate(jobs):
         source = str(job['source'])
         script = Path(job['script'])
-        elapsed_phase = time.monotonic() - phase_start
-        if budget is not None and elapsed_phase >= budget:
-            def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | None = None) -> list[RunnerResult]:
-                results: list[RunnerResult] = []
-                jobs = _rotated_source_jobs(run_dir)
-                budget = _source_scrape_budget_sec()
-                budget_started = time.monotonic()
-                order_path = run_dir / 'realestate_source_order.json'
-                order_path.write_text(json.dumps({
-                    'budget_sec': budget,
-                    'rotation_seed': os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name,
-                    'sources': [j['source'] for j in jobs],
-                    'timeouts_sec': {j['source']: j['timeout'] for j in jobs},
-                }, ensure_ascii=False, indent=2), encoding='utf-8')
-                for idx, job in enumerate(jobs):
-                    source = str(job['source'])
-                    script = Path(job['script'])
-                    elapsed_budget = time.monotonic() - budget_started
-                    if budget is not None and elapsed_budget >= budget:
-                        skipped = [str(j['source']) for j in jobs[idx:]]
-                        reason = f"GLOBAL SCRAPE BUDGET EXCEEDED after {budget}s; sources not served: {', '.join(skipped)}"
-                        for skipped_job in jobs[idx:]:
-                            results.append(_skipped_result(str(skipped_job['source']), Path(skipped_job['script']), run_dir, reason, elapsed_budget, budget))
-                        break
-                    env_key = f"IMMO_SOURCE_TIMEOUT_{source.upper().replace('-', '_')}"
-                    source_timeout = int(os.environ.get(env_key, '') or job['timeout'])
-                    if timeout is not None:
-                        source_timeout = int(timeout)
-                    if budget is not None:
-                        remaining = max(1, int(budget - elapsed_budget))
-                        source_timeout = min(source_timeout, remaining)
-                    name = f"{script.stem}__{source}"
+        elapsed_budget = time.monotonic() - budget_started
+        if budget is not None and elapsed_budget >= budget:
+            skipped = [str(j['source']) for j in jobs[idx:]]
+            reason = f"GLOBAL SCRAPE BUDGET EXCEEDED after {budget}s; sources not served: {', '.join(skipped)}"
+            for skipped_job in jobs[idx:]:
+                results.append(_skipped_result(str(skipped_job['source']), Path(skipped_job['script']), run_dir, reason, elapsed_budget, budget))
+            break
+
+        env_key = f"IMMO_SOURCE_TIMEOUT_{source.upper().replace('-', '_')}"
+        source_timeout = int(os.environ.get(env_key, '') or job['timeout'])
+        if timeout is not None:
+            source_timeout = int(timeout)
+        if budget is not None:
+            remaining = max(1, int(budget - elapsed_budget))
+            source_timeout = min(source_timeout, remaining)
+
+        name = f"{script.stem}__{source}"
         stdout_path = run_dir / f'{name}.json'
         stderr_path = run_dir / f'{name}.stderr'
         status_path = run_dir / f'{name}.status.json'
@@ -321,6 +308,7 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
             'started_at': started.isoformat(),
             'duration_sec': rr.duration_sec,
             'timeout_sec': source_timeout,
+            'budget_sec': budget,
             'ok': rr.ok,
             'exit_code': rr.exit_code,
             'stdout_path': str(stdout_path),
