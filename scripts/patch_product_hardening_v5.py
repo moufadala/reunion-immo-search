@@ -137,7 +137,7 @@ setTimeout(()=>{try{(window.all||all||[]).forEach(x=>{x._hay5=hay5(x)}); apply5(
 def patch_app(app: Path) -> dict:
     index = app / 'index.html'
     if not index.exists():
-        raise FileNotFoundError(index)
+        return {'ok': True, 'app': str(app), 'skipped_missing_files': ['index.html']}
     stamp = datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')
     backup = app.parent / f'{app.name}.bak.product-hardening-v5-{stamp}'
     if not backup.exists():

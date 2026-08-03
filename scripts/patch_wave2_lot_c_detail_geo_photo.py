@@ -137,13 +137,13 @@ def prune_missing_local_gallery_files(app: Path) -> dict:
 def patch_app(app: Path) -> dict:
     app = app.resolve()
     index = app / 'index.html'
+    media_prune = prune_missing_local_gallery_files(app)
     if not index.exists():
-        raise SystemExit(f'missing {index}')
+        return {'ok': True, 'app': str(app), 'skipped_missing_files': ['index.html'], 'media_prune': media_prune}
     stamp = dt.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
     backup = app.parent / f'{app.name}.bak.wave2-lot-c-detail-geo-photo-{stamp}'
     if not backup.exists():
         shutil.copytree(app, backup)
-    media_prune = prune_missing_local_gallery_files(app)
     html = index.read_text(encoding='utf-8')
     html = re.sub(r'\n<script id="wave2LotCDetailGeoPhoto">.*?</script>\n?', '\n', html, flags=re.S)
     html = html.replace(CSS, '')

@@ -12,8 +12,15 @@ def main() -> int:
     lp=app/'listings.json'; op=app/'opportunity.json'; dp=app/'dedup_groups.json'
     listings_payload=json.loads(lp.read_text(encoding='utf-8'))
     listings=listings_payload.get('listings') or []
-    opp=json.loads(op.read_text(encoding='utf-8'))
-    dedup=json.loads(dp.read_text(encoding='utf-8'))
+    opp = json.loads(op.read_text(encoding='utf-8')) if op.exists() else {
+        'score_version': 'from_listings_opportunity_analysis',
+        'top': sorted(
+            [x for x in listings if isinstance(x.get('opportunity_analysis'), dict)],
+            key=lambda x: (x.get('opportunity_analysis') or {}).get('score') or x.get('opportunity_score') or 0,
+            reverse=True,
+        )[:100],
+    }
+    dedup = json.loads(dp.read_text(encoding='utf-8')) if dp.exists() else {'groups': [], 'groups_count': 0}
     by_id={x.get('id'):x for x in listings if x.get('id')}
     opp_by_id={x.get('id'):x for x in (opp.get('top') or []) if x.get('id')}
     for x in listings:

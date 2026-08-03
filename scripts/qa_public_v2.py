@@ -54,10 +54,9 @@ LEGACY = ("veille.html", "sources.html", "doublons.html", "opportunites.html",
 LEGACY_PUBLISHED_FILES = ("ops.html", "locations.html", "locations.json",
                           "opportunity.html", "opportunity.json",
                           "source_health.html", "dedup_groups.json",
-                          "alertes_cours.html")
-# changes.html retire de la liste le 2026-08-03 : contrairement aux autres, il est produit,
-# enrichi et audite par la chaine (l.248/249/359 du refresh) -- ce n'est pas un residu du
-# portail. Savoir s'il fait partie du produit V2 est un arbitrage de Moufadal, EN ATTENTE.
+                          "alertes_cours.html", "changes.html")
+# source_health.json/photo_quality.json/changes.json restent des sidecars JSON utiles.
+# changes.html est garde dans RUN_DIR comme preuve, mais ne doit plus etre publie.
 # Marqueur textuel de l'ancien portail.
 TITRE_LEGACY = "portail propre"
 

@@ -184,12 +184,19 @@ def main() -> int:
     ap.add_argument('--app', default='artifacts/app')
     args = ap.parse_args()
     app = Path(args.app).resolve()
-    if not (app / 'index.html').exists() or not (app / 'listings.json').exists():
-        raise SystemExit(f'missing app files: {app}')
+    if not (app / 'listings.json').exists():
+        raise SystemExit(f'missing listings file: {app / "listings.json"}')
     stats = enrich_json(app)
-    enhance_index(app)
-    enhance_changes(app)
-    print(json.dumps({'ok': True, 'app': str(app), 'stats': stats}, ensure_ascii=False, indent=2))
+    skipped = []
+    if (app / 'index.html').exists():
+        enhance_index(app)
+    else:
+        skipped.append('index.html')
+    if (app / 'changes.html').exists():
+        enhance_changes(app)
+    else:
+        skipped.append('changes.html')
+    print(json.dumps({'ok': True, 'app': str(app), 'stats': stats, 'skipped_missing_files': skipped}, ensure_ascii=False, indent=2))
     return 0
 
 if __name__ == '__main__':
