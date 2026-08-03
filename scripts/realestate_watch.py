@@ -24,7 +24,7 @@ from typing import Any
 ROOT = Path('/opt/data')
 DB_DEFAULT = ROOT / 'data/reunion_watch.db'
 ARTIFACT_ROOT = ROOT / 'artifacts/realestate/watch_runs'
-PARTIAL_SOURCE_NO_STALE = {'zimo', 'domimmo'}
+PARTIAL_SOURCE_NO_STALE = {'zimo', 'domimmo', 'immo974'}
 MULTI_SCRAPER = ROOT / 'scripts/realestate_multi_sources_scraper.py'
 # One source = one process, sequential SQLite writer. Timeouts are deliberately
 # per source so a slow/broken source cannot starve the following ones.
