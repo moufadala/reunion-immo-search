@@ -44,7 +44,8 @@ SOURCE_JOBS = [
     {'source': 'leboncoin', 'script': MULTI_SCRAPER, 'timeout': 300, 'args': ['--only', 'leboncoin']},
     {'source': 'adrezio', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'adrezio']},
 ]
-CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS}
+NON_BLOCKING_REFRESH_SOURCES = {'superimmo'}
+CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS} - NON_BLOCKING_REFRESH_SOURCES
 SOURCE_STATUS_ALIASES = {'leboncoin_apify_dataset': 'leboncoin'}
 DEFAULT_SOURCE_SCRAPE_BUDGET_SEC = 1500
 
@@ -137,7 +138,9 @@ def _source_result_ok(parsed: dict[str, Any], source: str, exit_code: int) -> bo
         st = statuses[source]
         if not isinstance(st, dict):
             return False
-        return bool(st.get('ok')) and int(st.get('count') or 0) > 0
+        if bool(st.get('ok')) and int(st.get('count') or 0) > 0:
+            return True
+        return source not in CRITICAL_REFRESH_SOURCES
     by_source = parsed.get('by_source') or {}
     if isinstance(by_source, dict) and int(by_source.get(source) or 0) > 0:
         return True
@@ -192,7 +195,7 @@ def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> Non
 def _rotated_source_jobs(run_dir: Path) -> list[dict[str, Any]]:
     if not SOURCE_JOBS:
         return []
-    seed_text = os.environ.get('IMMO_SOURCE_ROTATION_SEED') or run_dir.name or now_tag()
+    seed_text = os.environ.get('IMMO_SOURCE_ROTATION_SEED') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name) or now_tag()
     offset = int(hashlib.sha256(seed_text.encode('utf-8')).hexdigest()[:8], 16) % len(SOURCE_JOBS)
     return SOURCE_JOBS[offset:] + SOURCE_JOBS[:offset]
 
