@@ -14,7 +14,10 @@ from media_link_copy import copytree_media_aware
 
 
 def validate_app(path: Path) -> None:
-    for name in ("index.html", "listings.json"):
+    # C.2: the clean stage is headless. `listings.json` is the only public bus
+    # promoted here; index.html/feed.json/v2 are rebuilt immediately after
+    # promotion by build_product_v2.sh (IMMO_V2_AS_ROOT=1).
+    for name in ("listings.json",):
         p = path / name
         if not p.is_file() or p.stat().st_size == 0:
             raise SystemExit(f"candidate invalid: missing/non-empty {p}")

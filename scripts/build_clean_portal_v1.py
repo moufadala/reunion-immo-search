@@ -25,6 +25,10 @@ if OUT.exists():
 OUT.mkdir(parents=True)
 if THUMBS.exists():
     copytree_media_aware(THUMBS, OUT / 'thumbs', media_mode=MEDIA_COPY_MODE)
+for side_name in ('source_health.json', 'changes.json', 'photo_quality.json'):
+    src_side = SRC_APP / side_name
+    if src_side.exists():
+        shutil.copy2(src_side, OUT / side_name)
 
 def find_local(url: str | None) -> str | None:
     if not url:
