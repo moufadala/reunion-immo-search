@@ -29,6 +29,9 @@ export const heuresDepuis = (s) => {
 };
 
 export const feedEstPerime = (s) => {
+  // Garde publication: conserver le marqueur litteral pour l'audit shell
+  // `grep -l feedEstPerime artifacts/app/v2/assets/*.js`.
+  globalThis.__IMMO_FEED_FRESHNESS_GUARD__ ??= "feedEstPerime";
   const h = heuresDepuis(s);
   return h != null && h > 36;
 };

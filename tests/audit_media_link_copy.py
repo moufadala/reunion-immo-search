@@ -97,6 +97,7 @@ with tempfile.TemporaryDirectory(prefix="immo-media-link-audit-") as td:
     candidate = tmp / "candidate"
     write_app(target, "old")
     write_app(candidate, "new")
+    target_inode_before = target.stat().st_ino
     candidate_sha = sha_tree(candidate)
     old_sha = sha_tree(target)
     promote_json = tmp / "promote.json"
@@ -111,6 +112,8 @@ with tempfile.TemporaryDirectory(prefix="immo-media-link-audit-") as td:
         backup = Path(payload["backup"])
         if sha_tree(backup) != old_sha:
             errors.append("pre-promote backup SHA tree differs from original target")
+        if target.stat().st_ino != target_inode_before:
+            errors.append("promote replaced target directory inode; bind mount would be orphaned")
         if sha_tree(target) != candidate_sha:
             errors.append("promoted target SHA tree differs from candidate")
         assert_hardlinked(candidate / "thumbs" / "same.jpg", target / "thumbs" / "same.jpg", "post-promotion jpg candidate->target")

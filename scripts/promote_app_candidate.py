@@ -13,6 +13,23 @@ from pathlib import Path
 from media_link_copy import copytree_media_aware
 
 
+def clear_directory_preserve_inode(path: Path) -> None:
+    """Remove directory contents without replacing the directory inode.
+
+    artifacts/app is bind-mounted by the immo-dashboard container. Replacing the
+    directory itself with rmtree()+copy recreates the host inode and can leave a
+    running container mounted on the deleted old inode until publish-traefik
+    recreates it. Partial replays must not be able to serve an empty orphaned
+    mount.
+    """
+    path.mkdir(parents=True, exist_ok=True)
+    for child in path.iterdir():
+        if child.is_dir() and not child.is_symlink():
+            shutil.rmtree(child)
+        else:
+            child.unlink()
+
+
 def validate_app(path: Path) -> None:
     # C.2: the clean stage is headless. `listings.json` is the only public bus
     # promoted here; index.html/feed.json/v2 are rebuilt immediately after
@@ -69,9 +86,14 @@ def main() -> int:
     promote_stats = None
     if not args.dry_run:
         backup_stats = copytree_media_aware(args.target, backup, media_mode=args.media_copy_mode)
-        if args.target.exists():
-            shutil.rmtree(args.target)
-        promote_stats = copytree_media_aware(args.candidate, args.target, media_mode=args.media_copy_mode)
+        clear_directory_preserve_inode(args.target)
+        promote_stats = copytree_media_aware(
+            args.candidate,
+            args.target,
+            media_mode=args.media_copy_mode,
+            dirs_exist_ok=True,
+            existing="overwrite",
+        )
         # nginx container must be able to read after restrictive cron umasks
         for p in args.target.rglob("*"):
             if p.is_dir():

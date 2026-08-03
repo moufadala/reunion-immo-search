@@ -53,10 +53,11 @@ LEGACY = ("veille.html", "sources.html", "doublons.html", "opportunites.html",
 # doivent plus etre publies dans artifacts/app. listings.json reste le bus.
 LEGACY_PUBLISHED_FILES = ("ops.html", "locations.html", "locations.json",
                           "opportunity.html", "opportunity.json",
-                          "dedup_groups.json", "alertes_cours.html")
-# C.2: source_health.json/photo_quality.json/changes.json restent des sidecars JSON utiles.
-# changes.html ne doit plus être publié dans le stage/app, mais n'est pas le signal bloquant
-# ici : le blocage C.2 porte sur les fichiers legacy résiduels ci-dessus.
+                          "source_health.html", "dedup_groups.json",
+                          "alertes_cours.html")
+# changes.html retire de la liste le 2026-08-03 : contrairement aux autres, il est produit,
+# enrichi et audite par la chaine (l.248/249/359 du refresh) -- ce n'est pas un residu du
+# portail. Savoir s'il fait partie du produit V2 est un arbitrage de Moufadal, EN ATTENTE.
 # Marqueur textuel de l'ancien portail.
 TITRE_LEGACY = "portail propre"
 
