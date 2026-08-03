@@ -67,9 +67,9 @@ def clean(s):
 
 def to_int_price(s):
     if s is None: return None
-    m=re.search(r'([0-9][0-9\s\u202f.,]*)',str(s))
+    m=re.search(r'([0-9][0-9\s\u202f\xa0.,]*)',str(s))
     if not m: return None
-    x=m.group(1).replace('\u202f',' ').replace(' ','').replace(',','.')
+    x=m.group(1).replace('\u202f',' ').replace('\xa0',' ').replace(' ','').replace(',','.')
     try: return int(round(float(x)))
     except: return None
 
@@ -1036,8 +1036,12 @@ def _leboncoin_actor_input(max_items):
         'locations': [f'{c}_{z}' for c, z in LEBONCOIN_COMMUNES],
         'categoryIds': ['10'],
         'maxItems': max_items,
+        'maxPages': 20,
         'includeDetails': True,
         'sort': 'time',
+        'searchQueries': [],
+        'startUrls': [],
+        'shippableOnly': False,
         'proxyConfiguration': {
             'useApifyProxy': True,
             'apifyProxyGroups': ['RESIDENTIAL'],
@@ -1130,12 +1134,16 @@ def _adrezio_card_listings(text, ptype, commune, seen):
         if alt:
             title = re.sub(r'^Photo\s+\d+\s*-\s*', '', alt, flags=re.I).strip() or alt
         card_text = clean(card) or title or ''
-        # Prefer structured card text/spans; fall back to the title/alt only when
-        # a field is absent from the visible card body.
+        span_texts = [clean(x) for x in re.findall(r'<span\b[^>]*>(.*?)</span>', card, re.I | re.S)]
+        span_texts = [x for x in span_texts if x]
+        structured_text = ' '.join(span_texts)
+        # Prefer structured card spans for compact facts (surface/rooms), then
+        # title/alt, then whole card text. Price is usually visible text near the
+        # city; title remains a safe fallback for non-breaking-space variants.
         title_text = title or card_text
         rent = parse_rent_eur(card_text) or parse_rent_eur(title_text)
-        surface = parse_surface(card_text) or parse_surface(title_text)
-        rooms = parse_rooms(card_text) or parse_rooms(title_text)
+        surface = parse_surface(structured_text) or parse_surface(title_text) or parse_surface(card_text)
+        rooms = parse_rooms(structured_text) or parse_rooms(title_text) or parse_rooms(card_text)
         bedrooms = None
         bed_m = re.search(r'([1-9])\s*chambres?', title_text or card_text, re.I)
         if bed_m:
