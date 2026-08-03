@@ -53,8 +53,7 @@ LEGACY = ("veille.html", "sources.html", "doublons.html", "opportunites.html",
 # doivent plus etre publies dans artifacts/app. listings.json reste le bus.
 LEGACY_PUBLISHED_FILES = ("ops.html", "locations.html", "locations.json",
                           "opportunity.html", "opportunity.json",
-                          "source_health.html", "dedup_groups.json",
-                          "alertes_cours.html", "changes.html")
+                          "dedup_groups.json", "alertes_cours.html", "changes.html")
 # source_health.json/photo_quality.json/changes.json restent des sidecars JSON utiles.
 # changes.html est garde dans RUN_DIR comme preuve, mais ne doit plus etre publie.
 # Marqueur textuel de l'ancien portail.
