@@ -371,6 +371,10 @@ report_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_pub
 run_step public_v2_qa_final env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2_final.json"
 run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --apply --json-out "$RUN_DIR/artifact_retention.json"
 run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" --warn-only --save-state --json "$RUN_DIR/immo_health_state_save.json"
+# P1 final postflight: this must remain the last blocking publication gate.
+# Keep it after every producer/audit that can touch artifacts/app, but before
+# APP_KEEP/DB_PROMOTE_KEEP so a failure still triggers the rollback trap.
+run_step postflight_public_contract env IMMO_MAX_FEED_AGE_H="${IMMO_MAX_FEED_AGE_H:-2}" "$PY" "$PROJECT/scripts/postflight_public_contract.py" --app "$PROJECT/artifacts/app" --container "${IMMO_PUBLIC_CONTAINER:-immo-dashboard}" --json-out "$RUN_DIR/postflight_public_contract.json"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1

@@ -46,6 +46,17 @@ def main() -> int:
     require(sprint, "pre_publish_rollback_drill", "sprint", errors)
     require(sprint, "KEEP_APP=1", "sprint", errors)
 
+    require(daily, "run_step postflight_public_contract", "daily refresh", errors)
+    order = [
+        ("immo_health_state_save", daily.find("run_step immo_health_state_save")),
+        ("postflight_public_contract", daily.find("run_step postflight_public_contract")),
+        ("APP_KEEP", daily.find("APP_KEEP=1")),
+    ]
+    if any(pos < 0 for _, pos in order):
+        errors.append(f"daily refresh: postflight ordering markers missing: {order!r}")
+    elif not (order[0][1] < order[1][1] < order[2][1]):
+        errors.append(f"daily refresh: postflight must run after immo_health_state_save and before APP_KEEP=1: {order!r}")
+
     if errors:
         print("PIPELINE_SCRIPT_CONTRACTS FAIL")
         for err in errors:
