@@ -1108,10 +1108,61 @@ ADREZIO_COMMUNES = {
 ADREZIO_TYPES = {'appartement': 'flat', 'maison': 'house'}
 
 
-def scrape_adrezio(max_items=90, max_pages=4, delay=1.5):
-    found = []  # (url, ptype, commune)
+def _adrezio_card_listings(text, ptype, commune, seen):
+    """Extract Adrezio listings from search-result cards only.
+
+    Measured 2026-08-03: detail pages are fast to fetch (~1.4s) but the generic
+    detail parser can spend ~80s in image regexes on Next/React HTML. The list
+    cards already carry URL, title, price, surface, rooms, city and image, so this
+    intentionally avoids every detail-page fetch.
+    """
+    out = []
+    for m in re.finditer(r'<a\b[^>]*href=["\'](/annonces/[a-z0-9]+)["\'][\s\S]*?</a>', text or '', re.I):
+        href = html.unescape(m.group(1))
+        url = urljoin(ADREZIO_BASE, href)
+        if url in seen:
+            continue
+        card = m.group(0)
+        sid = url.rstrip('/').split('/')[-1]
+        alt_m = re.search(r'<img\b[^>]*\balt=["\']([^"\']+)["\']', card, re.I | re.S)
+        alt = clean(alt_m.group(1)) if alt_m else None
+        title = None
+        if alt:
+            title = re.sub(r'^Photo\s+\d+\s*-\s*', '', alt, flags=re.I).strip() or alt
+        card_text = clean(card) or title or ''
+        # Prefer structured card text/spans; fall back to the title/alt only when
+        # a field is absent from the visible card body.
+        title_text = title or card_text
+        rent = parse_rent_eur(card_text) or parse_rent_eur(title_text)
+        surface = parse_surface(card_text) or parse_surface(title_text)
+        rooms = parse_rooms(card_text) or parse_rooms(title_text)
+        bedrooms = None
+        bed_m = re.search(r'([1-9])\s*chambres?', title_text or card_text, re.I)
+        if bed_m:
+            bedrooms = int(bed_m.group(1))
+        city = guess_city_from_text(title_text) or guess_city_from_text(card_text) or commune
+        img = None
+        img_m = re.search(r'<img\b[^>]*\bsrc=["\']([^"\']+)["\']', card, re.I | re.S)
+        if img_m:
+            img = normalize_image_url(html.unescape(img_m.group(1)).replace('\\/', '/'), ADREZIO_BASE)
+        if not img:
+            srcset_m = re.search(r'<(?:img|source)\b[^>]*\b(?:srcset|data-srcset)=["\']([^"\']+)["\']', card, re.I | re.S)
+            if srcset_m:
+                img = normalize_image_url(first_srcset_url(html.unescape(srcset_m.group(1))) or '', ADREZIO_BASE)
+        raw = {'url': url, 'title': title_text, 'description': card_text[:900], 'image': img,
+               'city': city, 'rent_eur': rent, 'surface_m2': surface, 'rooms': rooms,
+               'bedrooms': bedrooms, 'queried_commune': commune,
+               'extraction': 'adrezio_list_card'}
+        seen.add(url)
+        out.append(Listing('adrezio', sid, url, url, title_text, city, None, ptype,
+                           rooms, bedrooms, surface, rent, None, None, None, img,
+                           card_text[:900], save_raw('adrezio', sid, raw), hash_listing(raw)))
+    return out
+
+
+def scrape_adrezio(max_items=200, max_pages=4, delay=0.5):
+    out = []
     seen = set()
-    commune_slugs = set(ADREZIO_COMMUNES.values())
     for commune, slug in ADREZIO_COMMUNES.items():
         for tslug, ptype in ADREZIO_TYPES.items():
             for page in range(1, max_pages + 1):
@@ -1122,34 +1173,16 @@ def scrape_adrezio(max_items=90, max_pages=4, delay=1.5):
                     text, _ = fetch(url)
                 except Exception:
                     break
+                new = _adrezio_card_listings(text, ptype, commune, seen)
+                out.extend(new)
                 time.sleep(delay)
-                # Listing cards link to stable detail URLs /annonces/<property_id>.
-                links = unique_links(
-                    text,
-                    r'href=["\'](/annonces/[a-z0-9]+)["\']',
-                    ADREZIO_BASE, 50)
-                new = [u for u in links if u not in seen]
-                if not new:
+                if not new or len(out) >= max_items:
                     break
-                for u in new:
-                    seen.add(u)
-                    found.append((u, ptype, commune))
-                if len(found) >= max_items:
-                    break
-            if len(found) >= max_items:
+            if len(out) >= max_items:
                 break
-        if len(found) >= max_items:
+        if len(out) >= max_items:
             break
-    out = []
-    for u, ptype, commune in found[:max_items]:
-        sid = u.rstrip('/').split('/')[-1]
-        try:
-            listing = detail_listing('adrezio', u, ptype, sid)
-            out.append(replace(listing, city=commune))
-        except Exception:
-            pass
-        time.sleep(delay)
-    return out
+    return out[:max_items]
 
 
 def init_db(conn):
