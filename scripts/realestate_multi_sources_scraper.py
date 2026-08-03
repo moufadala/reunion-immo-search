@@ -1077,6 +1077,8 @@ def scrape_leboncoin_apify_dataset():
         run_url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/runs'
                    f'?waitForFinish=180')
         run = _apify_json(run_url, token, payload=_leboncoin_actor_input(max_items))
+        if isinstance(run, dict) and isinstance(run.get('data'), dict):
+            run = run['data']
         dataset_id = run.get('defaultDatasetId') if isinstance(run, dict) else None
         if not dataset_id:
             raise RuntimeError('Apify run finished without defaultDatasetId')
@@ -1167,6 +1169,8 @@ def upsert(conn,l):
 def main():
     global SCRAPLING_MODE, SCRAPLING_ENGINE
     ap=argparse.ArgumentParser(); ap.add_argument('--db',default='/opt/data/data/reunion_watch.db'); ap.add_argument('--dry-run',action='store_true')
+    ap.add_argument('--only', '--sources', dest='only', default=None,
+                    help='CSV de sources à exécuter (ex: leboncoin,adrezio). Défaut: toutes.')
     if _sf is not None:
         _sf.add_scrapling_args(ap)
     args=ap.parse_args()
@@ -1174,6 +1178,28 @@ def main():
         SCRAPLING_MODE=_sf.resolve_mode(getattr(args,'scrapling_mode','auto'))
         SCRAPLING_ENGINE=getattr(args,'scrapling_engine','http')
     funcs=[scrape_domimmo,scrape_locamoi,scrape_citya,scrape_zimo,scrape_immo974,scrape_fnaim,scrape_97immo,scrape_ofim,scrape_ofim_rss,scrape_alter,scrape_superimmo,scrape_leboncoin_apify_dataset,scrape_adrezio]
+    if args.only:
+        aliases = {
+            'leboncoin': 'leboncoin_apify_dataset',
+            'leboncoin_apify': 'leboncoin_apify_dataset',
+        }
+        by_name = {f.__name__.replace('scrape_', ''): f for f in funcs}
+        wanted = []
+        unknown = []
+        for raw in args.only.split(','):
+            name = raw.strip().lower()
+            if not name:
+                continue
+            name = aliases.get(name, name)
+            if name not in by_name:
+                unknown.append(raw.strip())
+                continue
+            if name not in wanted:
+                wanted.append(name)
+        if unknown or not wanted:
+            known = sorted(set(by_name) | set(aliases))
+            ap.error(f"sources inconnues: {unknown or [args.only]}. Connues: {known}")
+        funcs = [by_name[name] for name in wanted]
     events=[]; errors=[]
     conn=None
     if not args.dry_run:
@@ -1182,6 +1208,8 @@ def main():
     try:
         for f in funcs:
             fname=f.__name__.replace('scrape_','')
+            if fname == 'leboncoin_apify_dataset':
+                fname = 'leboncoin'
             try:
                 listings=f()
                 source_status[fname]={'ok': True, 'count': len(listings)}
