@@ -37,6 +37,11 @@ def main() -> int:
     require(daily, '--out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"', "daily refresh", errors)
     if '--html-out "$CLEAN_STAGE/changes.html"' in daily:
         errors.append("daily refresh: changes.html must stay in RUN_DIR, not in the promoted clean stage")
+    require(daily, 'run_step postflight_public_contract', "daily refresh", errors)
+    if daily.rfind('run_step postflight_public_contract') < daily.rfind('run_step immo_health_state_save'):
+        errors.append("daily refresh: postflight_public_contract must be after all public-app writers")
+    if 'run_step ops_cockpit "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR"\n' in daily:
+        errors.append("daily refresh: ops_cockpit writes to public app; it must write to RUN_DIR")
     if 'run_step listing_changes python3 "$PROJECT/src/listing_changes.py" --limit 80\n' in daily:
         errors.append("daily refresh: listing_changes would write default artifacts/app before promotion")
 

@@ -167,7 +167,10 @@ def main() -> int:
 
     app = Path(args.app).resolve()
     project = Path(__file__).resolve().parents[1]
-    out_dir = Path(args.out).resolve() if args.out else app
+    # If the pipeline passes --run-dir but no explicit --out, this cockpit is
+    # operational evidence, not a public product page. Defaulting to the app
+    # directory recreated a legacy page after public_v2_qa had already passed.
+    out_dir = Path(args.out).resolve() if args.out else ((Path(args.run_dir).resolve() / "ops_cockpit") if args.run_dir else app)
     run_dir = Path(args.run_dir).resolve() if args.run_dir else None
     out_dir.mkdir(parents=True, exist_ok=True)
 
