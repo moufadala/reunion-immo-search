@@ -92,8 +92,14 @@ if [ "$V2_RACINE" = "1" ]; then
   "$PY" "$PROJECT/scripts/_rewrite_root_asset_paths.py" "$APP/index.html"
 fi
 
-chmod 755 "$APP/v2" 2>/dev/null || true
+# Le wrapper quotidien tourne avec umask 077: sans correction explicite,
+# nginx voit les fichiers montés mais ne peut pas traverser v2/assets ni lire
+# feed.json/photos_manifest.json. Ne pas changer le owner, seulement les bits.
+find "$APP/v2" -type d -exec chmod 755 {} + 2>/dev/null || true
 find "$APP/v2" -type f -exec chmod 644 {} + 2>/dev/null || true
+for f in "$APP/index.html" "$APP/feed.json" "$APP/photos_manifest.json"; do
+  [ -e "$f" ] && chmod 644 "$f" 2>/dev/null || true
+done
 
 echo "== 6/6 QA produit =="
 "$PY" "$PROJECT/scripts/audit_product_v2.py" "$APP"

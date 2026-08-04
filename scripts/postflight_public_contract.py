@@ -4,10 +4,13 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import shlex
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 
 # Final publication contract. This is intentionally stricter than
 # immo_public_monitor.py: monitor freshness is a 36h watchdog, postflight is a
@@ -87,6 +90,50 @@ def container_check(container: str, required: tuple[str, ...], checks: list[dict
     )
 
 
+def public_http_paths(app: Path) -> tuple[str, ...]:
+    paths = ["/index.html", "/feed.json"]
+    try:
+        html = (app / "index.html").read_text(encoding="utf-8", errors="ignore")
+    except Exception:
+        html = ""
+    for raw in re.findall(r"(?:src|href)=[\"']([^\"']+\.(?:js|css))(?:\?[^\"']*)?[\"']", html):
+        parsed = urlparse(raw)
+        if parsed.scheme or raw.startswith("//") or raw.startswith("data:"):
+            continue
+        path = urljoin("/index.html", raw)
+        if path not in paths:
+            paths.append(path)
+    return tuple(paths)
+
+
+def container_http_check(container: str, paths: tuple[str, ...], checks: list[dict[str, object]]) -> None:
+    urls = ["http://127.0.0.1" + p for p in paths]
+    quoted_urls = " ".join(shlex.quote(u) for u in urls)
+    cmd = (
+        "set -eu; "
+        f"for u in {quoted_urls}; do "
+        "code=$(wget -q -S -O /dev/null \"$u\" 2>&1 | sed -n 's/.*HTTP\\/[0-9.]* \\([0-9][0-9][0-9]\\).*/\\1/p' | tail -1); "
+        "printf '%s -> HTTP %s\\n' \"$u\" \"${code:-NO_CODE}\"; "
+        "[ \"${code:-}\" = 200 ] || exit 12; "
+        "done"
+    )
+    proc = subprocess.run(
+        ["docker", "exec", container, "sh", "-lc", cmd],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=45,
+    )
+    evidence = {"rc": proc.returncode, "stdout": proc.stdout.strip(), "stderr": proc.stderr.strip(), "paths": paths}
+    add_check(
+        checks,
+        "container_http_served",
+        proc.returncode == 0,
+        "nginx sert réellement index/feed/assets en HTTP 200" if proc.returncode == 0 else "nginx ne sert pas tous les fichiers publics requis en HTTP 200",
+        evidence,
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True, help="Chemin artifacts/app final")
@@ -132,6 +179,11 @@ def main() -> int:
         container_check(args.container, REQUIRED_IN_CONTAINER, checks)
     except Exception as exc:
         add_check(checks, "container_files_visible", False, f"docker exec impossible: {type(exc).__name__}: {exc}")
+
+    try:
+        container_http_check(args.container, public_http_paths(app), checks)
+    except Exception as exc:
+        add_check(checks, "container_http_served", False, f"vérification HTTP conteneur impossible: {type(exc).__name__}: {exc}")
 
     failures = [c for c in checks if not c["ok"]]
     result = {

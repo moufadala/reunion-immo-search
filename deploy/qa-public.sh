@@ -26,7 +26,7 @@ REQUIRED_HOME = [
 ]
 REQUIRED_PATHS = [
     'veille.html', 'sources.html', 'doublons.html', 'opportunites.html', 'localisation.html', 'alertes.html',
-    'changes.html', 'source_health.html', 'dedup.html', 'opportunity.html', 'locations.html', 'alertes_cours.html',
+    'source_health.html', 'dedup.html', 'opportunity.html', 'locations.html', 'alertes_cours.html',
     'changes.json', 'source_health.json', 'dedup_groups.json', 'opportunity.json', 'locations.json', 'coverage.json',
 ]
 

@@ -351,6 +351,12 @@ report_step public_perf_index_audit "$PY" "$PROJECT/tests/audit_public_perf_inde
 report_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
 run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
 report_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
+run_step public_app_permissions bash -lc '
+  set -euo pipefail
+  app="$1"
+  find "$app" -type d -exec chmod 755 {} +
+  find "$app" -type f -exec chmod 644 {} +
+' _ "$PROJECT/artifacts/app"
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_v2_qa env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2.json"
 report_step public_qa bash "$PROJECT/deploy/qa-public.sh"
