@@ -34,6 +34,7 @@ OUT = os.environ.get('IMMO_FEED_OUT', ROOT + '/artifacts/app/feed.json')
 DIST = ROOT + '/config/distances_quartiers.json'
 
 COMMUNES = ['Saint-Denis', 'Sainte-Marie', 'Sainte-Suzanne', 'Saint-André']
+SERVE_COMMUNES = ['Saint-Denis', 'Sainte-Marie', 'Sainte-Suzanne']
 
 # ordre de confiance, du plus precis au moins precis
 PRECISION_RANK = {
@@ -64,6 +65,111 @@ def norm(s):
     s = re.sub(r'\bst\b', 'saint', s)
     s = re.sub(r'\bste\b', 'sainte', s)
     return re.sub(r'[^a-z0-9]+', '-', s).strip('-')
+
+
+EXCLUDED_COMMUNE_NORMS = {norm('Saint-André')}
+EXCLUDED_QUARTIER_LABELS = {
+    'bellepierre': 'Bellepierre',
+    'montgaillard': 'Montgaillard',
+    'bas-de-la-riviere': 'Bas de la Rivière',
+}
+DESCRIPTION_EXCLUDED_QUARTIERS = ('bellepierre', 'montgaillard', 'la-montagne', 'bas-de-la-riviere')
+DESCRIPTION_LOCATION_RE = re.compile(
+    r'\b(?:situe(?:e|es|s)?\s+a|situe(?:e|es|s)?\s+au|a|au|aux|location(?:\s+(?:de|d|un|une|appartement|studio|maison|t[0-9]|f[0-9]|meuble|meublee)){0,8}|louer\s+a)\s+(?P<q>bellepierre|montgaillard|la\s+montagne|bas\s+de\s+la\s+riviere)\b'
+)
+DESCRIPTION_REPERE_RE = re.compile(
+    r'\b(?:vue|face|proche|pres|minutes?\s+de|a\s+\d+\s*(?:min|minutes?)\s+de|acces|route|lycee\s+de|chu\s+de|secteur|preference|souhait)\b'
+)
+
+
+def excluded_quartier_from_field(quartier):
+    n = norm(quartier)
+    if not n:
+        return None
+    for needle, label in EXCLUDED_QUARTIER_LABELS.items():
+        if needle in n:
+            return label
+    # La Montagne doit attraper La Montagne 8eme / 15eme, mais pas "vue sur la montagne".
+    if re.search(r'(^|-)la-montagne($|-)', n):
+        return 'La Montagne'
+    return None
+
+
+def residential_flag_looks_like_amenity_false_positive(title, reasons):
+    """Le flag non-résidentiel historique est trop large sur parking/garage/terrain.
+
+    Il confond parfois une commodité d'un logement avec une annonce de parking,
+    garage ou terrain. En cas de doute, on garde le logement visible.
+    """
+    title_n = norm(title).replace('-', ' ')
+    if not re.search(r'\b(t[1-6]|f[1-6]|studio|appartement|maison|villa|duplex)\b', title_n):
+        return False
+    joined = ' '.join(str(x) for x in (reasons or [])).lower()
+    weak = any(k in joined for k in ('strong_keyword=parking', 'strong_keyword=garage', 'strong_keyword=terrain'))
+    strong_non_res = any(k in joined for k in (
+        'property_type=commercial', 'property_type=box', 'local commercial',
+        'local professionnel', 'bureau', 'bureaux', 'locaux commerciaux'))
+    return weak and not strong_non_res
+
+
+def excluded_quartier_from_description(title, description, location_label=None):
+    """Exclusion prudente: seulement si le quartier apparait comme lieu.
+
+    Les mentions de repere (vue/proche/CHU/lycee/secteur souhait...) ne cachent
+    jamais une annonce. Le titre est inclus parce que certains portails y portent
+    la tournure de lieu (ex. "LOCATION - ST-DENIS MONTGAILLARD").
+    """
+    raw_title = str(title or '')
+    hay = ' '.join(str(x or '') for x in (title, description, location_label))
+    txt = norm(hay).replace('-', ' ')
+    title_norm = norm(raw_title).replace('-', ' ')
+
+    # Cas tres fiable dans les donnees actuelles: Montgaillard dans le titre.
+    # Les faux positifs mesures par Moufadal concernent Bellepierre/La Montagne
+    # comme reperes ou souhaits dans la description, pas Montgaillard en titre.
+    if 'montgaillard' in title_norm:
+        return 'Montgaillard'
+
+    for m in re.finditer(r'\bmontgaillard\b', txt):
+        before = txt[max(0, m.start() - 100):m.start()]
+        if DESCRIPTION_REPERE_RE.search(before):
+            continue
+        if re.search(r'\b(?:situe(?:e|es|s)?\s+a\s+saint\s+denis|location\b.{0,80}\bsaint\s+denis|loue\b.{0,80}\bsaint\s+denis)\b', before):
+            return 'Montgaillard'
+
+    for m in DESCRIPTION_LOCATION_RE.finditer(txt):
+        before = txt[max(0, m.start() - 70):m.start()]
+        if DESCRIPTION_REPERE_RE.search(before):
+            continue
+        q = norm(m.group('q'))
+        return {
+            'bellepierre': 'Bellepierre',
+            'montgaillard': 'Montgaillard',
+            'la-montagne': 'La Montagne',
+            'bas-de-la-riviere': 'Bas de la Rivière',
+        }.get(q)
+    return None
+
+
+def coverage_from_feed(now, listings):
+    active = [x for x in listings if x.get('active')]
+    communes = Counter(x.get('commune') or 'Non renseignée' for x in active)
+    regions = Counter('Nord-Est' for _ in active)
+    precision = Counter(x.get('location_precision_label') or x.get('location_precision') or 'Inconnue' for x in active)
+    rents = [as_int(x.get('rent')) for x in active if as_int(x.get('rent')) is not None]
+    surfaces = [as_float(x.get('surface')) for x in active if as_float(x.get('surface')) is not None]
+    return {
+        'generated_at': now.isoformat(),
+        'population': 'feed.json listings actives apres filtres produit',
+        'count': len(active),
+        'cities': dict(communes.most_common()),
+        'regions': dict(regions.most_common()),
+        'geo_confidence': {'commune': precision.get('Commune seule', 0), 'by_label': dict(precision.most_common())},
+        'price_min': min(rents) if rents else None,
+        'price_max': max(rents) if rents else None,
+        'surface_min': min(surfaces) if surfaces else None,
+        'surface_max': max(surfaces) if surfaces else None,
+    }
 
 
 def load_llm_extractions(c):
@@ -106,6 +212,15 @@ def as_int(v):
         return None
     try:
         return int(round(float(v)))
+    except (TypeError, ValueError):
+        return None
+
+
+def as_float(v):
+    if v in (None, ''):
+        return None
+    try:
+        return float(v)
     except (TypeError, ValueError):
         return None
 
@@ -362,6 +477,14 @@ def main():
 
     listings = []
     hors_perimetre = 0
+    filtres_produit = Counter()
+    diagnostics_actifs = Counter()
+
+    def compter_exclusion(regle, listing):
+        filtres_produit[regle] += 1
+        if listing.get('active'):
+            filtres_produit[regle + '_actives'] += 1
+
     for r in c.execute('select * from rental_listings order by seen_last_at desc'):
         k = (r['source_site'], r['source_id'])
         e = enrich.get(k, {})
@@ -446,7 +569,18 @@ def main():
                 'delta': pc['delta'],
                 'depuis': pc['depuis'],
             }
-        listings.append({
+        try:
+            residential_reasons = json.loads(e.get('residential_reasons_json') or '[]')
+        except (TypeError, ValueError):
+            residential_reasons = []
+        raw_residential = bool(e.get('is_residential', 1))
+        weak_non_residential_flag = (
+            not raw_residential
+            and residential_flag_looks_like_amenity_false_positive(r['title'], residential_reasons)
+        )
+        public_residential = raw_residential or weak_non_residential_flag
+
+        listing = {
             'id': '%s:%s' % (r['source_site'], r['source_id']),
             'source': r['source_site'],
             'url': r['canonical_url'] or r['url'],
@@ -463,7 +597,8 @@ def main():
             'rooms': r['rooms'],
             'bedrooms': d.get('bedrooms') if d.get('bedrooms') is not None else r['bedrooms'],
             'type': e.get('property_type_normalized') or r['property_type'],
-            'residential': bool(e.get('is_residential', 1)),
+            'residential': public_residential,
+            'residential_raw': raw_residential,
             'canonical': bool(e.get('is_canonical', 1)),
             'agency': r['agency_or_owner'],
             # localisation — le coeur de la demande du 27/07
@@ -502,7 +637,64 @@ def main():
             'detail_read': bool(d.get('http_status') == 200),
             'llm_extraction': llm_fields,
             'llm_extraction_status': llm_status,
-        })
+        }
+
+        if listing['active']:
+            diagnostics_actifs['depart_actives'] += 1
+            if norm(listing.get('commune')) == norm('Saint-Denis'):
+                diagnostics_actifs['saint_denis_depart'] += 1
+                if norm(listing.get('quartier')) == norm('Sainte-Marie'):
+                    diagnostics_actifs['saint_denis_quartier_sainte_marie'] += 1
+                q_diag = excluded_quartier_from_field(listing.get('quartier'))
+                if q_diag:
+                    diagnostics_actifs['saint_denis_quartier_champ'] += 1
+                    diagnostics_actifs['saint_denis_quartier_champ:' + q_diag] += 1
+                elif excluded_quartier_from_description(
+                        listing.get('title'), listing.get('description'), listing.get('location_label')):
+                    diagnostics_actifs['saint_denis_quartier_description'] += 1
+            if norm(listing.get('commune')) in EXCLUDED_COMMUNE_NORMS:
+                diagnostics_actifs['commune_saint_andre'] += 1
+            if listing['residential_raw'] is False:
+                diagnostics_actifs['non_residentiel_flag_brut'] += 1
+            if weak_non_residential_flag:
+                diagnostics_actifs['non_residentiel_flag_faible_garde'] += 1
+            if listing['residential'] is False:
+                diagnostics_actifs['non_residentiel_servi_exclu'] += 1
+            if as_int(listing.get('rent')) is not None and as_int(listing.get('rent')) > 6000:
+                diagnostics_actifs['loyer_sup_6000'] += 1
+            if listing.get('surface') is not None and float(listing.get('surface')) < 9:
+                diagnostics_actifs['surface_inf_9'] += 1
+
+        # --- filtres produit publics (non destructifs DB, mais annonces non servies)
+        # Ordre volontaire: chaque annonce est comptee dans la premiere regle qui
+        # l'ecarte, pour que le rapport ne mente pas par double comptage.
+        if listing['residential'] is False:
+            compter_exclusion('non_residentiel', listing)
+            continue
+        if as_int(listing.get('rent')) is not None and as_int(listing.get('rent')) > 6000:
+            compter_exclusion('loyer_sup_6000', listing)
+            continue
+        surface_value = as_float(listing.get('surface'))
+        if surface_value is not None and surface_value < 9:
+            compter_exclusion('surface_inf_9', listing)
+            continue
+        if norm(listing.get('commune')) in EXCLUDED_COMMUNE_NORMS:
+            compter_exclusion('commune_saint_andre', listing)
+            continue
+        if norm(listing.get('commune')) == norm('Saint-Denis'):
+            q_exclu = excluded_quartier_from_field(listing.get('quartier'))
+            if q_exclu:
+                compter_exclusion('saint_denis_quartier_champ', listing)
+                compter_exclusion('saint_denis_quartier_champ:' + q_exclu, listing)
+                continue
+            q_desc = excluded_quartier_from_description(
+                listing.get('title'), listing.get('description'), listing.get('location_label'))
+            if q_desc:
+                compter_exclusion('saint_denis_quartier_description', listing)
+                compter_exclusion('saint_denis_quartier_description:' + q_desc, listing)
+                continue
+
+        listings.append(listing)
 
     # --- trajet + score par profil ---
     for l in listings:
@@ -548,8 +740,10 @@ def main():
     prec_counts = Counter(x['location_precision'] for x in listings)
     meta = {
         'genere_le': now.isoformat(),
-        'perimetre': COMMUNES,
+        'perimetre': SERVE_COMMUNES,
         'hors_perimetre_exclues': hors_perimetre,
+        'exclusions_produit': dict(filtres_produit),
+        'diagnostics_actifs_avant_filtres': dict(diagnostics_actifs),
         'total': len(listings),
         'actives': movements['actives'],
         'avec_point_carte': sum(1 for x in listings if x['lat']),
@@ -578,11 +772,19 @@ def main():
     }
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    coverage_out = os.path.join(os.path.dirname(OUT), 'coverage.json')
+    coverage = coverage_from_feed(now, listings)
+    if coverage['count'] != movements['actives']:
+        raise RuntimeError('coverage count mismatch: %s != %s' % (coverage['count'], movements['actives']))
+
     with open(OUT, 'w', encoding='utf-8') as f:
         json.dump({'meta': meta, 'listings': listings, 'movements': movements,
                    'sources': sources}, f, ensure_ascii=False, separators=(',', ':'))
+    with open(coverage_out, 'w', encoding='utf-8') as f:
+        json.dump(coverage, f, ensure_ascii=False, separators=(',', ':'))
 
     print('feed ecrit : %s (%.2f Mo)' % (OUT, os.path.getsize(OUT) / 1e6))
+    print('coverage ecrit : %s (count=%d)' % (coverage_out, coverage['count']))
     print(json.dumps(meta, ensure_ascii=False, indent=2))
     print('mouvements :', json.dumps(movements, ensure_ascii=False))
 
