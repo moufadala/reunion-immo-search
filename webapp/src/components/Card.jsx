@@ -220,7 +220,7 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
           <span className="truncate text-[11px] text-faint">
             {l.source}
             {l.detail_read && <span className="ml-1 text-p5" title="Page de l'annonce lue en entier">✓</span>}
-            {" · "}{ilYA(l.seen_last)}
+            {" : récupérée "}{ilYA(l.seen_last)}
           </span>
           <div className="flex shrink-0 gap-1.5">
             {carte && (
