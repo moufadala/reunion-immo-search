@@ -124,16 +124,24 @@ def qa_feed():
     check("feed_atteignable_v2", os.path.exists(fv2),
           "feed.json atteignable depuis /v2/" if os.path.exists(fv2)
           else "feed.json INATTEIGNABLE depuis /v2/ -- la page sera vide")
-    # coherence avec la base : le feed ne doit pas s'etre effondre
+    # coherence avec la population pre-filtre du feed : depuis les filtres produit
+    # (residential/perimetre/quartiers), la base brute contient volontairement
+    # beaucoup plus d'actives que le feed servi. Comparer au total DB brut
+    # ferait echouer la QA sur une coupe voulue.
+    meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
+    diag = meta.get("diagnostics_actifs_avant_filtres") if isinstance(meta.get("diagnostics_actifs_avant_filtres"), dict) else {}
+    reference = diag.get("depart_actives") or meta.get("actives") or len(actives)
+    ratio = len(actives) / reference if reference else 0
+    check("feed_coherent_base", 0.25 <= ratio <= 1.0 and meta.get("actives") == len(actives),
+          f"{len(actives)} actives publiees pour {reference} avant filtres produit (ratio {ratio:.2f})",
+          {"feed": len(actives), "avant_filtres": reference, "meta_actives": meta.get("actives")})
     try:
-        con = sqlite3.connect(f"file:{DB}?mode=ro", uri=True)
-        n = con.execute("select count(*) from rental_listings where is_active=1").fetchone()[0]
-        ratio = len(actives) / n if n else 0
-        check("feed_coherent_base", 0.5 <= ratio <= 1.2,
-              f"{len(actives)} actives publiees pour {n} en base (ratio {ratio:.2f})",
-              {"feed": len(actives), "base": n})
+        cov = json.load(open(os.path.join(APP, "coverage.json"), encoding="utf-8"))
+        check("coverage_decrit_feed", cov.get("count") == len(actives),
+              f"coverage.count={cov.get('count')} pour {len(actives)} actives feed",
+              {"coverage_count": cov.get("count"), "feed_active": len(actives)})
     except Exception as e:
-        check("feed_coherent_base", False, f"base illisible : {type(e).__name__}")
+        check("coverage_decrit_feed", False, f"coverage.json illisible : {type(e).__name__}")
     # qualite minimale des annonces publiees
     sans_prix = sum(1 for x in actives if not x.get("rent"))
     sans_commune = sum(1 for x in actives if not x.get("commune"))

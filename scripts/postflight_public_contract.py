@@ -159,6 +159,8 @@ def main() -> int:
     try:
         feed = json.loads(feed_path.read_text(encoding="utf-8"))
         meta = feed.get("meta") if isinstance(feed.get("meta"), dict) else {}
+        listings = feed.get("listings") if isinstance(feed.get("listings"), list) else []
+        active_count = sum(1 for item in listings if isinstance(item, dict) and item.get("active"))
         raw = meta.get("genere_le") if isinstance(meta, dict) else None
         generated_at = parse_dt(raw)
         if generated_at is None:
@@ -172,6 +174,20 @@ def main() -> int:
                 f"feed âge {age_h:.2f}h <= {args.max_feed_age_hours:.2f}h" if age_h <= args.max_feed_age_hours else f"feed périmé: âge {age_h:.2f}h > {args.max_feed_age_hours:.2f}h",
                 {"genere_le": raw, "age_hours": round(age_h, 3), "max_age_hours": args.max_feed_age_hours},
             )
+        try:
+            coverage = json.loads((app / "coverage.json").read_text(encoding="utf-8"))
+            coverage_count = coverage.get("count")
+            add_check(
+                checks,
+                "coverage_matches_feed_active",
+                coverage_count == active_count,
+                f"coverage.count={coverage_count} et feed actives={active_count}"
+                if coverage_count == active_count else
+                f"coverage.count={coverage_count} contredit feed actives={active_count}",
+                {"coverage_count": coverage_count, "feed_active_count": active_count},
+            )
+        except Exception as exc:
+            add_check(checks, "coverage_matches_feed_active", False, f"coverage.json illisible: {type(exc).__name__}: {exc}")
     except Exception as exc:
         add_check(checks, "feed_freshness", False, f"feed.json illisible: {type(exc).__name__}: {exc}")
 
