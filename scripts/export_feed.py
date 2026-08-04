@@ -25,6 +25,7 @@ import geo_quartiers as gq  # noqa: E402
 from enrich_source_details_v3 import llm_input_hash  # noqa: E402
 
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
+EVENTS_DB = os.environ.get('IMMO_EVENTS_DB', '/opt/data/artifacts/immo-alerts/history.sqlite')
 ROOT = '/opt/data/projects/reunion-immo-search'
 OUT = os.environ.get('IMMO_FEED_OUT', ROOT + '/artifacts/app/feed.json')
 # distances precalculees quartier -> point de reference.
@@ -98,6 +99,95 @@ def load_llm_extractions(c):
             'fields': fields,
         }
     return latest
+
+
+def as_int(v):
+    if v in (None, ''):
+        return None
+    try:
+        return int(round(float(v)))
+    except (TypeError, ValueError):
+        return None
+
+
+def load_price_changes(since_iso):
+    """Dernier price_changed utile par annonce, lu dans l'historique.
+
+    Garde produit côté export: on ne prépare que les baisses. La garde finale
+    `new == rent courant` reste appliquée au moment d'émettre le listing, car
+    elle dépend du prix affiché par l'annonce active.
+    """
+    latest = {}
+    if not os.path.exists(EVENTS_DB):
+        return latest
+    h = None
+    try:
+        h = sqlite3.connect('file:%s?mode=ro' % EVENTS_DB, uri=True)
+        h.row_factory = sqlite3.Row
+        rows = h.execute(
+            '''
+            SELECT event_id, listing_id, event_at, old_value, new_value
+            FROM listing_events
+            WHERE event_type='price_changed' AND event_at >= ?
+            ORDER BY event_at ASC, event_id ASC
+            ''',
+            (since_iso,),
+        ).fetchall()
+    except sqlite3.Error:
+        return latest
+    finally:
+        try:
+            if h:
+                h.close()
+        except Exception:
+            pass
+    for r in rows:
+        old = as_int(r['old_value'])
+        new = as_int(r['new_value'])
+        if old is None or new is None or new >= old:
+            continue
+        # Garde anti-mensonge: certains scrapers basculent de loyer total vers
+        # charges/montant partiel et créent de fausses "baisses" de plusieurs
+        # milliers d'euros (ex. 3450 -> 450). Une baisse >50% est trop fragile
+        # pour être affichée comme opportunité sans validation humaine.
+        if old > 0 and ((old - new) / old) > 0.50:
+            continue
+        latest[str(r['listing_id'])] = {
+            'ancien': old,
+            'new': new,
+            'delta': new - old,
+            'depuis': str(r['event_at'])[:10],
+            'event_id': r['event_id'],
+        }
+    return latest
+
+
+def market_counts_from_history():
+    """Signal marche des 7 derniers jours issu directement de listing_events."""
+    if not os.path.exists(EVENTS_DB):
+        return {'retirees_7j': 0}
+    since_iso = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    h = None
+    try:
+        h = sqlite3.connect('file:%s?mode=ro' % EVENTS_DB, uri=True)
+        h.row_factory = sqlite3.Row
+        row = h.execute(
+            '''
+            SELECT COUNT(*) AS n
+            FROM listing_events
+            WHERE event_type='disappeared' AND event_at >= ?
+            ''',
+            (since_iso,),
+        ).fetchone()
+    except sqlite3.Error:
+        return {'retirees_7j': 0}
+    finally:
+        try:
+            if h:
+                h.close()
+        except Exception:
+            pass
+    return {'retirees_7j': int(row['n'] if row else 0)}
 
 
 def commune_of(city_norm, enrich_city):
@@ -265,7 +355,10 @@ def main():
 
     now = datetime.now(timezone.utc)
     d7 = (now - timedelta(days=7)).isoformat()
+    d14 = (now - timedelta(days=14)).isoformat()
     d30 = (now - timedelta(days=30)).isoformat()
+    price_changes = load_price_changes(d14)
+    market_history = market_counts_from_history()
 
     listings = []
     hors_perimetre = 0
@@ -344,6 +437,15 @@ def main():
             prec = 'inconnu'
 
         k = (r['source_site'], str(r['source_id']))
+        pc = price_changes.get('%s:%s' % (r['source_site'], r['source_id']))
+        changement_prix = None
+        rent_current = as_int(r['rent_eur'])
+        if pc and rent_current is not None and pc['new'] == rent_current and bool(r['is_active']):
+            changement_prix = {
+                'ancien': pc['ancien'],
+                'delta': pc['delta'],
+                'depuis': pc['depuis'],
+            }
         listings.append({
             'id': '%s:%s' % (r['source_site'], r['source_id']),
             'source': r['source_site'],
@@ -355,6 +457,7 @@ def main():
             'published': r['published_at'],
             # prix / surface
             'rent': r['rent_eur'],
+            'changement_prix': changement_prix,
             'charges': d.get('charges_eur') if d.get('charges_eur') is not None else r['charges_eur'],
             'surface': r['surface_m2'],
             'rooms': r['rooms'],
@@ -457,6 +560,11 @@ def main():
         'actives_sans_photo': sum(1 for x in listings if x['active'] and not x['image']),
         'detail_lu': sum(1 for x in listings if x['detail_read']),
         'fraiches': sum(1 for x in listings if x['fraiche'] and x['active']),
+        'marche': {
+            'retirees_7j': market_history.get('retirees_7j', 0),
+            'nouvelles_7j': movements['nouvelles_7j'],
+            'actives': movements['actives'],
+        },
         'precision': {PRECISION_LABEL.get(k, k): v for k, v in prec_counts.most_common()},
         'profils': {
             k: {'nom': v['nom'],
