@@ -87,6 +87,17 @@ function libelleProfil(cle) {
   return cle ? cle.charAt(0).toUpperCase() + cle.slice(1) : "";
 }
 
+function datePrixCourt(iso) {
+  if (!iso) return "";
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}` : String(iso).slice(0, 10);
+}
+
+function deltaPrix(delta) {
+  const n = Math.abs(Number(delta || 0));
+  return `−${n.toLocaleString("fr-FR")} €`;
+}
+
 export default function Card({ l, feedPerime = false, onOuvrir }) {
   const [imgKo, setImgKo] = useState(false);
   const p = precisionDe(l);
@@ -128,8 +139,22 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
         </div>
 
         {l.rent != null && (
-          <div className="absolute bottom-2.5 right-2.5 rounded-xl bg-ink/85 px-2.5 py-1.5 backdrop-blur-sm">
-            <span className="text-[15px] font-extrabold tabular-nums text-canvas">{eur(l.rent)}</span>
+          <div className="absolute bottom-2.5 right-2.5 rounded-xl bg-ink/85 px-2.5 py-1.5 text-right backdrop-blur-sm">
+            {l.changement_prix ? (
+              <>
+                <div className="flex items-baseline justify-end gap-1.5">
+                  <span className="text-[11px] font-semibold tabular-nums text-canvas/55 line-through">
+                    {eur(l.changement_prix.ancien)}
+                  </span>
+                  <span className="text-[15px] font-extrabold tabular-nums text-canvas">{eur(l.rent)}</span>
+                </div>
+                <div className="mt-0.5 text-[11px] font-bold tabular-nums text-p5">
+                  ▼ {deltaPrix(l.changement_prix.delta)} depuis le {datePrixCourt(l.changement_prix.depuis)}
+                </div>
+              </>
+            ) : (
+              <span className="text-[15px] font-extrabold tabular-nums text-canvas">{eur(l.rent)}</span>
+            )}
             {m && <span className="ml-1 text-[11px] font-medium text-canvas/70">{m} €/m²</span>}
           </div>
         )}

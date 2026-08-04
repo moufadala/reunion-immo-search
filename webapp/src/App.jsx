@@ -177,6 +177,7 @@ export default function App() {
   useEffect(() => { setPage(1); }, [f]);
 
   const profilsFeed = Object.entries(data?.meta?.profils || {});
+  const marche = data?.meta?.marche || {};
 
   if (err) {
     return (
@@ -213,6 +214,9 @@ export default function App() {
               <Stat value={data.meta.avec_trajet} label="Temps de trajet"
                 sub="calculé en voiture" />
             </Reveal>
+            <p className="-mt-2 text-[12.5px] font-medium text-faint">
+              {marche.retirees_7j ?? 0} annonces retirées · {marche.nouvelles_7j ?? 0} nouvelles sur 7 jours
+            </p>
 
             {/* Sélection de profil : bande qui défile au doigt sur mobile */}
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0"
