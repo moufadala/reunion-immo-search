@@ -118,16 +118,27 @@ def summarize_flights(summary: dict[str, Any] | None) -> dict[str, Any]:
 
 def summarize_immo(report: dict[str, Any] | None) -> dict[str, Any]:
     if not report:
-        return {'ok': False, 'selected': [], 'sources': {}, 'quality': {}}
+        return {'ok': False, 'selected': [], 'sources': {}, 'quality': {}, 'source_gate': {}, 'failed_sources': [], 'failed_source_details': []}
     dbs = report.get('db_summary') or {}
+    source_gate = report.get('source_gate') or {'ok': True, 'failed_sources': [], 'failed_source_details': []}
     return {
-        'ok': True,
+        'ok': bool(source_gate.get('ok', True)),
         'selected_count': report.get('selected_count', 0),
         'selected': (report.get('selected') or [])[:15],
         'sources': dbs.get('by_source') or {},
         'quality': dbs.get('quality') or {},
         'filters': report.get('filters') or {},
+        'source_gate': source_gate,
+        'failed_sources': report.get('failed_sources') or source_gate.get('failed_sources') or [],
+        'failed_source_details': report.get('failed_source_details') or source_gate.get('failed_source_details') or [],
     }
+
+
+def immo_failed_sources_alert_line(failed_source_details: list[dict[str, Any]]) -> str:
+    if not failed_source_details:
+        return ''
+    details = '; '.join(f"{d.get('source')}: {d.get('motif')}" for d in failed_source_details)
+    return f'Immo sources KO: {details}'
 
 
 def render_dashboard(manifest: dict[str, Any]) -> str:
@@ -260,6 +271,9 @@ def main() -> int:
         label = item.get('family') or item.get('name') or 'source'
         offers = item.get('offer_count') if item.get('offer_count') is not None else 'n/a'
         msg.append(f"- {label}: {item.get('cheapest_label', 'n/a')} · {offers} offres · {item.get('duration_s')}s")
+    immo_failed_line = immo_failed_sources_alert_line(immo_summary.get('failed_source_details') or [])
+    if immo_failed_line:
+        msg.append(immo_failed_line)
     msg.extend([
         f"Immo: {immo_summary.get('selected_count', 0)} annonces sélectionnées / {len(immo_summary.get('sources') or {})} sources",
         f"Dashboard: {html_path}",

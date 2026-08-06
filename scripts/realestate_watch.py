@@ -49,6 +49,7 @@ NON_BLOCKING_REFRESH_SOURCES = {'superimmo'}
 CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS} - NON_BLOCKING_REFRESH_SOURCES
 SOURCE_STATUS_ALIASES = {'leboncoin_apify_dataset': 'leboncoin'}
 DEFAULT_SOURCE_SCRAPE_BUDGET_SEC = 1500
+DEFAULT_SOURCE_OK_THRESHOLD = 0.70
 
 @dataclass
 class RunnerResult:
@@ -214,6 +215,71 @@ def _source_scrape_budget_sec() -> int | None:
     except ValueError:
         return DEFAULT_SOURCE_SCRAPE_BUDGET_SEC
     return value if value > 0 else None
+
+
+def _source_ok_threshold() -> float:
+    raw = os.environ.get('IMMO_SOURCE_OK_THRESHOLD')
+    if raw is None or raw == '':
+        return DEFAULT_SOURCE_OK_THRESHOLD
+    try:
+        value = float(raw)
+    except ValueError:
+        return DEFAULT_SOURCE_OK_THRESHOLD
+    return value if 0.0 < value <= 1.0 else DEFAULT_SOURCE_OK_THRESHOLD
+
+
+def _runner_failure_motif(result: RunnerResult) -> str:
+    summary = result.parsed_summary or {}
+    source = result.source or result.script
+    if source_status := _normalized_source_status(summary).get(str(source)):
+        if isinstance(source_status, dict):
+            for key in ('error', 'warning', 'message', 'note'):
+                value = source_status.get(key)
+                if value:
+                    return str(value)
+    for key in ('error', 'warning', 'message', 'note'):
+        value = summary.get(key)
+        if value:
+            return str(value)
+    errors = summary.get('errors')
+    if isinstance(errors, list) and errors:
+        motifs = []
+        for item in errors:
+            if isinstance(item, dict):
+                motifs.append(str(item.get('error') or item.get('message') or item))
+            else:
+                motifs.append(str(item))
+        return '; '.join(motifs)
+    if isinstance(errors, str) and errors:
+        return errors
+    return f'source {source} returned no successful exploitable status (exit={result.exit_code})'
+
+
+def evaluate_source_gate(results: list[RunnerResult]) -> dict[str, Any]:
+    total = len(results)
+    ok_results = [r for r in results if r.ok]
+    failed_results = [r for r in results if not r.ok]
+    ok_ratio = (len(ok_results) / total) if total else 1.0
+    threshold = _source_ok_threshold()
+    failed_details = [
+        {
+            'source': r.source or r.script,
+            'script': r.script,
+            'exit_code': r.exit_code,
+            'motif': _runner_failure_motif(r),
+            'status_path': r.status_path,
+        }
+        for r in sorted(failed_results, key=lambda item: item.source or item.script)
+    ]
+    return {
+        'ok': True if not total else ok_ratio >= threshold,
+        'ok_count': len(ok_results),
+        'total': total,
+        'ok_ratio': round(ok_ratio, 4),
+        'threshold': threshold,
+        'failed_sources': [d['source'] for d in failed_details],
+        'failed_source_details': failed_details,
+    }
 
 
 def _skipped_result(source: str, script: Path, run_dir: Path, reason: str, elapsed: float, budget: int | None) -> RunnerResult:
@@ -488,10 +554,14 @@ def db_summary(db: Path) -> dict[str, Any]:
 
 
 def write_reports(run_dir: Path, db: Path, runner_results: list[RunnerResult], listings: list[dict[str, Any]], backup_path: str | None, stale_counts: dict[str, int], args: argparse.Namespace) -> dict[str, str]:
+    source_gate = evaluate_source_gate(runner_results)
     summary = {
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'db_backup': backup_path,
         'stale_marked_inactive': stale_counts,
+        'source_gate': source_gate,
+        'failed_sources': source_gate['failed_sources'],
+        'failed_source_details': source_gate['failed_source_details'],
         'db_summary': db_summary(db),
         'runner_results': [asdict(r) for r in runner_results],
         'filters': {'max_price': args.max_price, 'min_price': args.min_price, 'min_rooms': args.min_rooms, 'city': args.city, 'limit': args.limit, 'residential_only': not args.include_commercial},
@@ -509,6 +579,13 @@ def write_reports(run_dir: Path, db: Path, runner_results: list[RunnerResult], l
         f'- Anciennes annonces marquées inactives: `{json.dumps(stale_counts, ensure_ascii=False)}`',
         '', '## Santé sources', ''
     ]
+    if source_gate['total']:
+        percent = round(100 * source_gate['ok_ratio'])
+        lines.append(f"- Couverture sources: {source_gate['ok_count']}/{source_gate['total']} OK ({percent}%), seuil={round(100 * source_gate['threshold'])}%")
+    if source_gate['failed_source_details']:
+        failed_text = ', '.join(f"{d['source']} ({d['motif']})" for d in source_gate['failed_source_details'])
+        lines.append(f'- **Sources KO**: {failed_text}')
+    lines.append('')
     for r in runner_results:
         status = 'OK' if r.ok else 'FAIL'
         lines.append(f'- {r.script}: {status}, exit={r.exit_code}, résumé={json.dumps(r.parsed_summary, ensure_ascii=False)}')
@@ -583,8 +660,9 @@ def main() -> None:
     else:
         listings = []
     paths = write_reports(run_dir, db, results, listings, backup, stale_counts, args)
-    ok = all(r.ok for r in results) if results else True
-    print(json.dumps({'ok': ok, 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
+    source_gate = evaluate_source_gate(results)
+    ok = source_gate['ok']
+    print(json.dumps({'ok': ok, 'source_gate': source_gate, 'failed_sources': source_gate['failed_sources'], 'failed_source_details': source_gate['failed_source_details'], 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
     if results and not ok:
         sys.exit(1)
 
