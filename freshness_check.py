@@ -57,6 +57,13 @@ def connect(db_path: Path) -> sqlite3.Connection:
     return con
 
 
+def connect_readonly(db_path: Path) -> sqlite3.Connection:
+    con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    con.row_factory = sqlite3.Row
+    con.execute("PRAGMA busy_timeout=5000")
+    return con
+
+
 def ensure_runs_schema(con: sqlite3.Connection) -> None:
     con.executescript(
         """
@@ -146,27 +153,144 @@ def disk_alerts(*, artifacts_path: Path, artifact_size_threshold_gb: float, root
     return alerts
 
 
-def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_ratio: float, reference_time: datetime | None = None, artifacts_path: Path | None = None, artifact_size_threshold_gb: float = 25.0, root_usage_threshold_pct: float = 85.0) -> dict[str, Any]:
+
+def rental_listings_snapshot(db_path: Path, *, active_only: bool = True) -> dict[str, Any]:
+    if not db_path.exists():
+        raise FileNotFoundError(str(db_path))
+    con = connect_readonly(db_path)
+    try:
+        if not table_exists(con, "rental_listings"):
+            raise RuntimeError("table rental_listings absente")
+        where = "WHERE COALESCE(is_active,1)=1" if active_only else ""
+        row = con.execute(
+            f"SELECT COUNT(*) AS produced_count, MAX(seen_last_at) AS latest_seen_at FROM rental_listings {where}"
+        ).fetchone()
+        total = con.execute("SELECT COUNT(*) AS total_count FROM rental_listings").fetchone()
+        return {
+            "path": str(db_path),
+            "active_only": active_only,
+            "produced_count": int(row["produced_count"] or 0),
+            "total_count": int(total["total_count"] or 0),
+            "latest_seen_at": row["latest_seen_at"],
+        }
+    finally:
+        con.close()
+
+
+def rental_watch_report(
+    db_path: Path,
+    *,
+    max_age_hours: float,
+    min_rows: int,
+    collapse_ratio: float,
+    baseline_dbs: list[Path] | None = None,
+    active_only: bool = True,
+    reference_time: datetime | None = None,
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     now = reference_time or utcnow()
     alerts: list[dict[str, Any]] = []
-    con = connect(db_path)
-    ensure_runs_schema(con)
-    latest = latest_run(con, source)
-    ok = latest_ok_run(con, source)
-    recent = recent_ok_runs(con, source, 14)
+    try:
+        snapshot = rental_listings_snapshot(db_path, active_only=active_only)
+    except Exception as exc:
+        snapshot = {
+            "path": str(db_path),
+            "active_only": active_only,
+            "produced_count": 0,
+            "total_count": 0,
+            "latest_seen_at": None,
+            "baseline_counts": [],
+            "median_rows": None,
+        }
+        alerts.append({"kind": "watch_db_unreadable", "message": f"source immo muette: reunion_watch.db illisible ({exc})"})
+        return snapshot, alerts
 
-    if latest is None:
+    produced = int(snapshot["produced_count"] or 0)
+    total = int(snapshot["total_count"] or 0)
+    latest_seen = parse_dt(snapshot.get("latest_seen_at"))
+    age_hours: float | None = None
+    if latest_seen:
+        age_hours = (now - latest_seen).total_seconds() / 3600
+        snapshot["age_hours"] = round(age_hours, 3)
+
+    if produced <= 0:
+        alerts.append({
+            "kind": "watch_db_empty",
+            "message": f"source immo muette: reunion_watch.db fraîcheur impossible, produits/total={produced}/{total}",
+            "produced_count": produced,
+            "total_count": total,
+        })
+    if produced < min_rows:
+        alerts.append({
+            "kind": "watch_db_rows_below_floor",
+            "message": f"source immo muette: volume reunion_watch.db sous plancher ({produced}/{total} produits/total < {min_rows})",
+            "produced_count": produced,
+            "total_count": total,
+            "min_rows": min_rows,
+        })
+    if not latest_seen or age_hours is None or age_hours > max_age_hours:
+        age_msg = "âge inconnu" if age_hours is None else f"âge {age_hours:.1f}h"
+        alerts.append({
+            "kind": "watch_db_stale",
+            "message": f"source immo muette: reunion_watch.db périmée ({age_msg} > {max_age_hours:g}h, produits/total={produced}/{total})",
+            "latest_seen_at": snapshot.get("latest_seen_at"),
+            "age_hours": round(age_hours, 3) if age_hours is not None else None,
+            "max_age_hours": max_age_hours,
+            "produced_count": produced,
+            "total_count": total,
+        })
+
+    baseline_counts: list[int] = []
+    for baseline in baseline_dbs or []:
+        try:
+            b = rental_listings_snapshot(baseline, active_only=active_only)
+        except Exception:
+            continue
+        n = int(b["produced_count"] or 0)
+        if n > 0:
+            baseline_counts.append(n)
+    snapshot["baseline_counts"] = baseline_counts
+    snapshot["median_rows"] = None
+    if baseline_counts:
+        med = statistics.median(baseline_counts)
+        snapshot["median_rows"] = med
+        if produced < med * (1.0 - collapse_ratio):
+            alerts.append({
+                "kind": "watch_db_rows_collapse",
+                "message": f"source immo muette: volume reunion_watch.db effondré ({produced}/{total} produits/total vs médiane {med:g})",
+                "produced_count": produced,
+                "total_count": total,
+                "median_rows": med,
+                "collapse_ratio": collapse_ratio,
+            })
+    return snapshot, alerts
+
+
+def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_ratio: float, reference_time: datetime | None = None, artifacts_path: Path | None = None, artifact_size_threshold_gb: float = 25.0, root_usage_threshold_pct: float = 85.0, watch_db: Path | None = None, watch_max_age_hours: float | None = None, watch_min_rows: int = 1000, watch_baseline_dbs: list[Path] | None = None, watch_active_only: bool = True, skip_runs: bool = False) -> dict[str, Any]:
+    now = reference_time or utcnow()
+    alerts: list[dict[str, Any]] = []
+    latest = None
+    ok = None
+    recent: list[sqlite3.Row] = []
+    con: sqlite3.Connection | None = None
+    if not skip_runs:
+        con = connect(db_path)
+        ensure_runs_schema(con)
+        latest = latest_run(con, source)
+        ok = latest_ok_run(con, source)
+        recent = recent_ok_runs(con, source, 14)
+
+    if not skip_runs and latest is None:
         alerts.append({"kind": "no_runs", "message": f"source immo muette: aucun run enregistré pour {source}"})
-    else:
+    elif latest is not None:
         if latest["statut"] != "ok" or int(latest["n_rows"] or 0) <= 0:
             alerts.append({
                 "kind": "latest_not_ok",
                 "message": f"source immo muette: dernier run {source} statut={latest['statut']} n_rows={latest['n_rows']}",
                 "run_id": latest["id"],
             })
-    if ok is None:
+    if not skip_runs and ok is None:
         alerts.append({"kind": "no_ok_runs", "message": f"source immo muette: aucun run ok n_rows>0 pour {source}"})
-    else:
+    elif ok is not None:
         ran_at = parse_dt(ok["ran_at"])
         if not ran_at or now - ran_at > timedelta(hours=max_age_hours):
             alerts.append({
@@ -174,7 +298,7 @@ def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_r
                 "message": f"source immo muette: aucun run ok récent pour {source} depuis {max_age_hours:g}h",
                 "latest_ok_at": ok["ran_at"],
             })
-    if len(recent) >= 2:
+    if not skip_runs and len(recent) >= 2:
         newest = recent[0]
         previous = recent[1:]
         prev_hashes = {r["structure_hash"] for r in previous if r["structure_hash"]}
@@ -193,20 +317,33 @@ def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_r
                     "message": f"source immo muette: n_rows effondré pour {source} ({newest['n_rows']} vs médiane {med:g})",
                     "run_id": newest["id"],
                 })
-    failed = failed_notifications(con)
+    failed = failed_notifications(con) if con is not None else []
     if failed:
         alerts.append({
             "kind": "watch_notification_failed",
             "message": f"D2bis: {len(failed)} ligne(s) watch_notifications.status='failed' — perte silencieuse Telegram possible",
             "failed": [dict(r) for r in failed],
         })
+    watch_db_report = None
+    if watch_db is not None:
+        watch_db_report, watch_alerts = rental_watch_report(
+            watch_db,
+            max_age_hours=watch_max_age_hours if watch_max_age_hours is not None else max_age_hours,
+            min_rows=watch_min_rows,
+            collapse_ratio=collapse_ratio,
+            baseline_dbs=watch_baseline_dbs,
+            active_only=watch_active_only,
+            reference_time=now,
+        )
+        alerts.extend(watch_alerts)
     artifacts_checked = artifacts_path or (ROOT / "artifacts")
     alerts.extend(disk_alerts(
         artifacts_path=artifacts_checked,
         artifact_size_threshold_gb=artifact_size_threshold_gb,
         root_usage_threshold_pct=root_usage_threshold_pct,
     ))
-    con.close()
+    if con is not None:
+        con.close()
     data_alerts = [a for a in alerts if a.get("kind") not in CAPACITY_ALERT_KINDS]
     capacity_alerts = [a for a in alerts if a.get("kind") in CAPACITY_ALERT_KINDS]
     status = "down" if data_alerts else "ok"
@@ -224,6 +361,7 @@ def build_report(db_path: Path, *, source: str, max_age_hours: float, collapse_r
         "source": source,
         "latest_run": dict(latest) if latest else None,
         "latest_ok_run": dict(ok) if ok else None,
+        "watch_db": watch_db_report,
         "alerts": alerts,
         "data_alerts": data_alerts,
         "capacity_alerts": capacity_alerts,
@@ -286,6 +424,13 @@ def main() -> int:
     ap.add_argument("--source", default=DEFAULT_SOURCE)
     ap.add_argument("--max-age-hours", type=float, default=26)
     ap.add_argument("--collapse-ratio", type=float, default=0.70)
+    ap.add_argument("--reference-time", help="UTC ISO timestamp used for deterministic freshness tests")
+    ap.add_argument("--watch-db", help="Optional production portal DB to check via rental_listings(seen_last_at); e.g. /opt/data/data/reunion_watch.db from inside Hermes")
+    ap.add_argument("--watch-max-age-hours", type=float, default=30.0)
+    ap.add_argument("--watch-min-rows", type=int, default=1000)
+    ap.add_argument("--watch-baseline-db", action="append", default=[], help="Optional baseline reunion_watch.db path used to compute median produced rows; may be repeated")
+    ap.add_argument("--watch-all-rows", action="store_true", help="Count all rental_listings rows instead of active rows only")
+    ap.add_argument("--skip-runs", action="store_true", help="Skip legacy runs-table checks; useful when checking only reunion_watch.db")
     ap.add_argument("--state", default=str(DEFAULT_STATE))
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--push-url")
@@ -295,14 +440,25 @@ def main() -> int:
     ap.add_argument("--root-usage-threshold-pct", type=float, default=85.0)
     args = ap.parse_args()
 
+    reference_time = parse_dt(args.reference_time) if args.reference_time else None
+    if args.reference_time and reference_time is None:
+        ap.error(f"--reference-time invalide: {args.reference_time}")
+
     report = build_report(
         Path(args.db),
         source=args.source,
         max_age_hours=args.max_age_hours,
         collapse_ratio=args.collapse_ratio,
+        reference_time=reference_time,
         artifacts_path=Path(args.artifacts_path),
         artifact_size_threshold_gb=args.artifact_size_threshold_gb,
         root_usage_threshold_pct=args.root_usage_threshold_pct,
+        watch_db=Path(args.watch_db) if args.watch_db else None,
+        watch_max_age_hours=args.watch_max_age_hours,
+        watch_min_rows=args.watch_min_rows,
+        watch_baseline_dbs=[Path(p) for p in args.watch_baseline_db],
+        watch_active_only=not args.watch_all_rows,
+        skip_runs=args.skip_runs,
     )
     if not args.dry_run:
         state_path = Path(args.state)

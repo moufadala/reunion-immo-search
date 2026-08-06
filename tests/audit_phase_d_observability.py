@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory() as td:
             errors.append(f"bad latest ok run row: {dict(rr) if rr else None}")
     con.close()
 
-    ok = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run"])
+    ok = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp)])
     ok_report = json.loads(ok.stdout)
     if ok_report.get("status") != "ok" or ok_report.get("alerts"):
         errors.append(f"freshness expected ok/no alerts after good run, got {ok_report}")
@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory() as td:
     if not br or br["statut"] == "ok":
         errors.append(f"bad ingest expected latest runs.statut != ok, got {dict(br) if br else None}")
 
-    bad_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run"], check=False)
+    bad_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp)], check=False)
     bad_report = json.loads(bad_check.stdout)
     if bad_report.get("status") != "down" or not any("source immo muette" in a.get("message", "") for a in bad_report.get("alerts", [])):
         errors.append(f"freshness expected down/source immo muette after bad latest run, got {bad_report}")
@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory() as td:
     restore_report = json.loads(restore.stdout)
     if restore_report.get("run", {}).get("statut") != "ok":
         errors.append(f"restore ingest expected ok, got {restore_report}")
-    restore_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run"])
+    restore_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp)])
     restore_status = json.loads(restore_check.stdout)
     if restore_status.get("status") != "ok" or restore_status.get("alerts"):
         errors.append(f"restore expected ok/no alerts, got {restore_status}")
@@ -98,14 +98,78 @@ with tempfile.TemporaryDirectory() as td:
     lid = con.execute("SELECT id FROM listings LIMIT 1").fetchone()[0]
     con.execute("INSERT INTO watch_notifications(watch_id, listing_id, notified_at, status, message_hash, error) VALUES (?,?,datetime('now'),'failed','audit','telegram down')", (wid, lid))
     con.commit(); con.close()
-    failed_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run"], check=False)
+    failed_check = run([sys.executable, str(FRESHNESS), "--db", str(db), "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp)], check=False)
     failed_report = json.loads(failed_check.stdout)
     if failed_report.get("status") != "down" or not any("watch_notifications.status='failed'" in a.get("message", "") for a in failed_report.get("alerts", [])):
         errors.append(f"D2bis expected down/failed notification alert, got {failed_report}")
+
+    # reunion_watch.db result-level guard: freshness + volume floor + median collapse.
+    watch = tmp / "reunion_watch.db"
+    con = sqlite3.connect(watch)
+    con.execute("CREATE TABLE rental_listings(source_site TEXT, is_active INTEGER, seen_last_at TEXT)")
+    fresh_ts = "2026-08-05T16:49:35+00:00"
+    con.executemany(
+        "INSERT INTO rental_listings(source_site, is_active, seen_last_at) VALUES ('audit', 1, ?)",
+        [(fresh_ts,) for _ in range(3)],
+    )
+    con.commit(); con.close()
+    watch_ok = run([
+        sys.executable, str(FRESHNESS),
+        "--skip-runs", "--db", str(db), "--watch-db", str(watch),
+        "--reference-time", "2026-08-05T18:00:00+00:00",
+        "--watch-max-age-hours", "30", "--watch-min-rows", "3",
+        "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp),
+    ])
+    watch_ok_report = json.loads(watch_ok.stdout)
+    if watch_ok_report.get("status") != "ok" or watch_ok_report.get("watch_db", {}).get("produced_count") != 3:
+        errors.append(f"watch db fresh expected ok produits/total=3/3, got {watch_ok_report}")
+
+    stale_watch = tmp / "reunion_watch_stale.db"
+    con = sqlite3.connect(stale_watch)
+    con.execute("CREATE TABLE rental_listings(source_site TEXT, is_active INTEGER, seen_last_at TEXT)")
+    con.execute("INSERT INTO rental_listings(source_site, is_active, seen_last_at) VALUES ('audit', 1, '2026-08-04T00:00:00+00:00')")
+    con.commit(); con.close()
+    watch_stale = run([
+        sys.executable, str(FRESHNESS),
+        "--skip-runs", "--db", str(db), "--watch-db", str(stale_watch),
+        "--reference-time", "2026-08-05T18:00:00+00:00",
+        "--watch-max-age-hours", "30", "--watch-min-rows", "1",
+        "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp),
+    ], check=False)
+    watch_stale_report = json.loads(watch_stale.stdout)
+    if watch_stale_report.get("status") != "down" or not any(a.get("kind") == "watch_db_stale" for a in watch_stale_report.get("alerts", [])):
+        errors.append(f"watch db stale expected down/watch_db_stale, got {watch_stale_report}")
+
+    baseline_watch = tmp / "reunion_watch_baseline.db"
+    con = sqlite3.connect(baseline_watch)
+    con.execute("CREATE TABLE rental_listings(source_site TEXT, is_active INTEGER, seen_last_at TEXT)")
+    con.executemany(
+        "INSERT INTO rental_listings(source_site, is_active, seen_last_at) VALUES ('audit', 1, ?)",
+        [(fresh_ts,) for _ in range(10)],
+    )
+    con.commit(); con.close()
+
+    tiny_watch = tmp / "reunion_watch_tiny.db"
+    con = sqlite3.connect(tiny_watch)
+    con.execute("CREATE TABLE rental_listings(source_site TEXT, is_active INTEGER, seen_last_at TEXT)")
+    con.execute("INSERT INTO rental_listings(source_site, is_active, seen_last_at) VALUES ('audit', 1, ?)", (fresh_ts,))
+    con.commit(); con.close()
+    tiny = run([
+        sys.executable, str(FRESHNESS),
+        "--skip-runs", "--db", str(db), "--watch-db", str(tiny_watch),
+        "--reference-time", "2026-08-05T18:00:00+00:00",
+        "--watch-max-age-hours", "30", "--watch-min-rows", "3",
+        "--watch-baseline-db", str(baseline_watch),
+        "--state", str(tmp / "state.json"), "--dry-run", "--artifacts-path", str(tmp),
+    ], check=False)
+    tiny_report = json.loads(tiny.stdout)
+    tiny_kinds = {a.get("kind") for a in tiny_report.get("alerts", [])}
+    if tiny_report.get("status") != "down" or not {"watch_db_rows_below_floor", "watch_db_rows_collapse"}.issubset(tiny_kinds):
+        errors.append(f"watch db tiny expected down/floor+collapse, got {tiny_report}")
 
 print("PHASE_D_OBSERVABILITY_AUDIT", "PASS" if not errors else "FAIL")
 if errors:
     for e in errors:
         print(" -", e)
     sys.exit(1)
-print(json.dumps({"ok": True, "checks": ["runs", "source immo muette", "restore ok", "D2bis failed notifications"]}, ensure_ascii=False, indent=2))
+print(json.dumps({"ok": True, "checks": ["runs", "source immo muette", "restore ok", "D2bis failed notifications", "reunion_watch freshness", "reunion_watch volume floor", "reunion_watch median collapse"]}, ensure_ascii=False, indent=2))
