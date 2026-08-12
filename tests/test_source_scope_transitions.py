@@ -86,5 +86,8 @@ def test_scope_version_change_resets_only_that_sources_volume_baseline(tmp_path,
         {"domimmo": 2, "ofim": 2, "zimo": 2},
     )
     assert resets == []
-    assert drops == [{"source": "ofim", "avant": 73, "maintenant": 20, "chute_pct": 73}]
+    assert drops == [
+        {"source": "ofim", "avant": 73, "maintenant": 20, "chute_pct": 73},
+        {"source": "zimo", "avant": 576, "maintenant": 200, "chute_pct": 65},
+    ]
 
