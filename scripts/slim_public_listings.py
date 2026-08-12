@@ -20,7 +20,14 @@ KEEP_TOP = {
     'description_status','description_analysis','seen_last_at','published_at','score',
     'opportunity_score','opportunity_analysis','feature_tags','geo_quality','image_quality','seen_also_on','dedup_product_note',
     'dedup_group_id','dedup_decision','dedup_confidence','dedup_role','dedup_reason','dedup_sources','canonical_display_id','display_canonical','housing_details'
-    }
+}
+
+def preserve_local_gallery(urls):
+    """Keep every distinct local photo; completeness matters more than JSON size."""
+    if not isinstance(urls, list):
+        return []
+    return list(dict.fromkeys(str(url) for url in urls if url))
+
 
 def slim_location(li):
     if not isinstance(li, dict):
@@ -231,7 +238,7 @@ def main(argv: list[str] | None = None):
         if 'feature_tags' not in y:
             y['feature_tags'] = []
         if isinstance(y.get('local_image_urls'), list):
-            y['local_image_urls'] = y['local_image_urls'][:8]
+            y['local_image_urls'] = preserve_local_gallery(y['local_image_urls'])
         new_items.append(y)
     generated_at = payload.get('generated_at')
     out = {'generated_at': generated_at, 'count': len(new_items), 'listings': new_items}

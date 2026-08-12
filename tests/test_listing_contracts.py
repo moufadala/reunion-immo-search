@@ -8,6 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from src.immo_contracts import normalize_public_listing, public_listing_key_fields
+from scripts.slim_public_listings import preserve_local_gallery
 
 
 def test_maps_technical_fields_to_public_contract() -> None:
@@ -75,11 +76,17 @@ def test_public_listing_key_fields_are_stable() -> None:
         assert key in keys
 
 
+def test_public_slimming_preserves_every_local_gallery_photo() -> None:
+    photos = [f"thumbs/photo-{i}.webp" for i in range(20)]
+    assert preserve_local_gallery(photos) == photos
+
+
 def main() -> int:
     tests = [
         test_maps_technical_fields_to_public_contract,
         test_preserves_non_destructive_canonical_display_policy,
         test_expands_primary_photos_into_gallery_lists,
+        test_public_slimming_preserves_every_local_gallery_photo,
         test_public_listing_key_fields_are_stable,
     ]
     for test in tests:
