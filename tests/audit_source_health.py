@@ -70,14 +70,18 @@ with tempfile.TemporaryDirectory() as td:
     assert proc.returncode == 0, proc.stderr + proc.stdout
 
     payload = json.loads(out.read_text(encoding="utf-8"))
-    assert payload["ok"] is True
+    assert payload["ok"] is False
 
     by_source = {s["source"]: s for s in payload["sources"]}
 
-    # zimo: 48h ago → aging
-    assert by_source["zimo"]["status"] in {"fresh", "aging"}, by_source["zimo"]
-    # seloger: 200h > STALE_HOURS=96 → stale with high severity
-    assert by_source["seloger"]["status"] == "stale", by_source["seloger"]
+    # A recent MAX timestamp may no longer hide weak listing-level coverage.
+    assert by_source["zimo"]["status"] == "coverage-low", by_source["zimo"]
+    assert by_source["zimo"]["active_coverage_ratio"] == 0.0
+    assert by_source["zimo"]["coverage_threshold"] == 0.5
+    assert by_source["seloger"]["status"] == "coverage-low", by_source["seloger"]
+    assert by_source["seloger"]["active_coverage_ratio"] == 0.0
+    assert "zimo" in payload["summary"]["coverage_below_threshold"]
+    assert "seloger" in payload["summary"]["coverage_below_threshold"]
     assert by_source["seloger"]["severity"] == "high", by_source["seloger"]
     # ofim_rss: is_active=0 → empty
     assert by_source["ofim_rss"]["status"] == "empty", by_source["ofim_rss"]

@@ -24,6 +24,13 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+
       - name: Public GitHub safety guard
         run: |
           python tests/audit_github_public_safety.py
@@ -40,7 +47,17 @@ jobs:
             tests/test_identity_dedup.py \
             tests/test_normalize_db_commune_detection.py \
             tests/test_enrich_source_details_v3.py \
-            tests/test_listing_contracts.py
+            tests/test_listing_contracts.py \
+            tests/test_source_health_coverage.py \
+            tests/test_realestate_source_gate_portable.py \
+            tests/test_pipeline_coverage_gate_contract.py
+
+      - name: Frontend dependency audit and build
+        working-directory: webapp
+        run: |
+          npm ci
+          npm audit --audit-level=high
+          npm run build
 
       - name: Source/pipeline contract audits
         run: |

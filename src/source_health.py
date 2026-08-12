@@ -17,7 +17,7 @@ import os
 import re
 import sqlite3
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -41,6 +41,10 @@ CRITICAL_SOURCES = {
 # change every hour; stale here means "needs attention", not "delete rows".
 FRESH_HOURS = 36
 STALE_HOURS = 96
+RECENT_COVERAGE_HOURS = 24
+FULL_SOURCE_COVERAGE_THRESHOLD = 0.90
+PARTIAL_SOURCE_COVERAGE_THRESHOLD = 0.50
+PARTIAL_SOURCES = {"zimo", "domimmo", "immo974"}
 
 
 def now_utc() -> datetime:
@@ -106,7 +110,7 @@ def load_smoke_summary(path: Path | None) -> dict[str, Any]:
     }
 
 
-def db_source_stats(db_path: Path) -> dict[str, dict[str, Any]]:
+def db_source_stats(db_path: Path, reference_time: datetime | None = None) -> dict[str, dict[str, Any]]:
     if not db_path.exists():
         return {}
     con = sqlite3.connect(str(db_path))
@@ -114,6 +118,7 @@ def db_source_stats(db_path: Path) -> dict[str, dict[str, Any]]:
     try:
         cols = {row[1] for row in con.execute("PRAGMA table_info(rental_listings)").fetchall()}
         fetched_expr = "MAX(fetched_at)" if "fetched_at" in cols else "NULL"
+        cutoff = (reference_time or now_utc()) - timedelta(hours=RECENT_COVERAGE_HOURS)
         rows = con.execute(
             f"""
             SELECT source_site,
@@ -121,11 +126,13 @@ def db_source_stats(db_path: Path) -> dict[str, dict[str, Any]]:
                    SUM(CASE WHEN COALESCE(is_active,1)=1 THEN 1 ELSE 0 END) AS active_rows,
                    MAX(seen_last_at) AS last_seen_at,
                    {fetched_expr} AS last_fetched_at,
-                   SUM(CASE WHEN COALESCE(is_active,1)=1 AND image_url IS NOT NULL AND TRIM(image_url)!='' THEN 1 ELSE 0 END) AS active_with_image
+                   SUM(CASE WHEN COALESCE(is_active,1)=1 AND image_url IS NOT NULL AND TRIM(image_url)!='' THEN 1 ELSE 0 END) AS active_with_image,
+                   SUM(CASE WHEN COALESCE(is_active,1)=1 AND julianday(seen_last_at) >= julianday(?) THEN 1 ELSE 0 END) AS active_recent_rows
             FROM rental_listings
             GROUP BY source_site
             ORDER BY source_site
-            """
+            """,
+            (cutoff.isoformat(),),
         ).fetchall()
     finally:
         con.close()
@@ -137,6 +144,7 @@ def db_source_stats(db_path: Path) -> dict[str, dict[str, Any]]:
             "total_rows": int(r["total_rows"] or 0),
             "active_rows": int(r["active_rows"] or 0),
             "active_with_image": int(r["active_with_image"] or 0),
+            "active_recent_rows": int(r["active_recent_rows"] or 0),
             "last_seen_at": r["last_seen_at"],
             "last_fetched_at": r["last_fetched_at"],
         }
@@ -149,6 +157,9 @@ def classify_source(source: str, stats: dict[str, Any], smoke: dict[str, Any], n
     if last_dt:
         age_h = round((now - last_dt).total_seconds() / 3600, 2)
     active = int(stats.get("active_rows") or 0)
+    recent = int(stats.get("active_recent_rows") or 0)
+    coverage_ratio = round(recent / active, 4) if active else None
+    coverage_threshold = PARTIAL_SOURCE_COVERAGE_THRESHOLD if source in PARTIAL_SOURCES else FULL_SOURCE_COVERAGE_THRESHOLD
     smoke_by_source = smoke.get("by_source") or {}
     smoke_seen = source in smoke_by_source
     tested_ids = " ".join(smoke.get("tested_ids") or [])
@@ -158,6 +169,10 @@ def classify_source(source: str, stats: dict[str, Any], smoke: dict[str, Any], n
         status = "empty"
         severity = "medium"
         reason = "aucune annonce active en DB"
+    elif coverage_ratio is not None and coverage_ratio < coverage_threshold:
+        status = "coverage-low"
+        severity = "high"
+        reason = f"couverture {recent}/{active} ({coverage_ratio:.0%}), seuil {coverage_threshold:.0%}"
     elif age_h is None:
         status = "unknown"
         severity = "medium"
@@ -193,6 +208,9 @@ def classify_source(source: str, stats: dict[str, Any], smoke: dict[str, Any], n
         "age_hours": age_h,
         "smoke_status": smoke_status,
         "smoke_count": smoke_by_source.get(source),
+        "active_coverage_ratio": coverage_ratio,
+        "coverage_threshold": coverage_threshold,
+        "coverage_hours": RECENT_COVERAGE_HOURS,
         "is_critical": source in CRITICAL_SOURCES,
     }
 
@@ -213,14 +231,15 @@ def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None,
     now = reference_time if reference_time is not None else now_utc()
     smoke_path = smoke_summary or find_latest_summary()
     smoke = load_smoke_summary(smoke_path)
-    stats = db_source_stats(db_path)
+    stats = db_source_stats(db_path, reference_time=now)
     sources = sorted(set(stats) | CRITICAL_SOURCES)
     items = [classify_source(src, stats.get(src, {"source": src}), smoke, now) for src in sources]
     counts = Counter(i["status"] for i in items)
     severity_counts = Counter(i["severity"] for i in items)
     stale_critical = [i["source"] for i in items if i.get("is_critical") and i["status"] in {"aging", "stale", "unknown", "empty"}]
+    coverage_low = [i["source"] for i in items if i["status"] == "coverage-low"]
     return {
-        "ok": True,
+        "ok": not coverage_low,
         "generated_at": now.isoformat(),
         "db_path": db_path.name,
         "latest_smoke_summary": public_smoke_summary(smoke, smoke_path),
@@ -229,6 +248,8 @@ def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None,
             "status_counts": dict(counts),
             "severity_counts": dict(severity_counts),
             "stale_or_attention_critical": stale_critical,
+            "coverage_below_threshold": coverage_low,
+            "coverage_hours": RECENT_COVERAGE_HOURS,
             "fresh_hours": FRESH_HOURS,
             "stale_hours": STALE_HOURS,
         },

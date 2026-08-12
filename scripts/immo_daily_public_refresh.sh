@@ -288,6 +288,7 @@ from pathlib import Path
 payload = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
 summary = payload.get('summary') or {}
 sources = payload.get('sources') or []
+coverage_low = summary.get('coverage_below_threshold') or []
 fresh = int((summary.get('status_counts') or {}).get('fresh') or 0)
 critical_attention = summary.get('stale_or_attention_critical') or []
 source_count = summary.get('source_count')
@@ -297,6 +298,8 @@ if fresh < 11:
     problems.append(f'fresh={fresh}/{source_count} < 11')
 if len(critical_attention) > 2:
     problems.append(f'too many critical sources need attention: {critical_attention}')
+if coverage_low:
+    problems.append(f'source coverage below threshold (coverage-low): {coverage_low}')
 if problems and not report_only:
     raise SystemExit('stage source freshness gate failed: ' + '; '.join(problems))
 print(json.dumps({
@@ -306,6 +309,7 @@ print(json.dumps({
     'fresh_sources': fresh,
     'source_count': source_count,
     'critical_attention': critical_attention,
+    'coverage_low': coverage_low,
     'last_seen': {s.get('source'): s.get('last_seen_at') for s in sources},
 }, ensure_ascii=False))
 PY
