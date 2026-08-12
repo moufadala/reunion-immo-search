@@ -33,7 +33,7 @@ DEFAULT_OUT = ROOT / "artifacts" / "app" / "source_health.json"
 _DEFAULT_HTML_DIR = Path(os.environ.get("IMMO_RUN_DIR", str(ROOT / "artifacts" / "source-health")))
 DEFAULT_HTML_OUT = Path(os.environ.get("IMMO_SOURCE_HEALTH_HTML_OUT", str(_DEFAULT_HTML_DIR / "source_health.html")))
 CRITICAL_SOURCES = {
-    "seloger", "zimo", "bienici", "ofim_rss", "ofim", "domimmo", "fnaim",
+    "seloger", "zimo", "bienici", "ofim", "domimmo", "fnaim",
     "citya", "immo974", "locamoi", "97immo", "alter", "superimmo",
     "leboncoin", "adrezio",
 }

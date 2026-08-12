@@ -31,7 +31,7 @@ MULTI_SCRAPER = ROOT / 'scripts/realestate_multi_sources_scraper.py'
 # per source so a slow/broken source cannot starve the following ones.
 SOURCE_JOBS = [
     {'source': 'bienici', 'script': ROOT / 'scripts/bienici_rental_scraper.py', 'timeout': 300, 'args': []},
-    {'source': 'ofim', 'script': ROOT / 'scripts/ofim_rental_scraper.py', 'timeout': 300, 'args': []},
+    {'source': 'ofim', 'script': MULTI_SCRAPER, 'timeout': 540, 'args': ['--only', 'ofim']},
     {'source': 'domimmo', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'domimmo']},
     {'source': 'locamoi', 'script': MULTI_SCRAPER, 'timeout': 120, 'args': ['--only', 'locamoi']},
     {'source': 'citya', 'script': MULTI_SCRAPER, 'timeout': 360, 'args': ['--only', 'citya']},
@@ -39,7 +39,6 @@ SOURCE_JOBS = [
     {'source': 'immo974', 'script': MULTI_SCRAPER, 'timeout': 240, 'args': ['--only', 'immo974']},
     {'source': 'fnaim', 'script': MULTI_SCRAPER, 'timeout': 540, 'args': ['--only', 'fnaim']},
     {'source': '97immo', 'script': MULTI_SCRAPER, 'timeout': 300, 'args': ['--only', '97immo']},
-    {'source': 'ofim_rss', 'script': MULTI_SCRAPER, 'timeout': 90, 'args': ['--only', 'ofim_rss']},
     {'source': 'alter', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'alter']},
     {'source': 'superimmo', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'superimmo']},
     {'source': 'leboncoin', 'script': MULTI_SCRAPER, 'timeout': 300, 'args': ['--only', 'leboncoin']},

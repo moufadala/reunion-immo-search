@@ -50,7 +50,8 @@ jobs:
             tests/test_listing_contracts.py \
             tests/test_source_health_coverage.py \
             tests/test_realestate_source_gate_portable.py \
-            tests/test_pipeline_coverage_gate_contract.py
+            tests/test_pipeline_coverage_gate_contract.py \
+            tests/test_source_job_contracts.py
 
       - name: Frontend dependency audit and build
         working-directory: webapp

@@ -735,6 +735,17 @@ def scrape_citya(max_items=90, max_pages=4, delay=1.5):
 # une vraie pagination page/offset). Le vrai levier est `limit` seul :
 # 200->500 triple le nombre d'offres Reunion utiles apres filtre. Au-dela
 # de ~700-1000, l'API renvoie 500 (verifie : 1000 et 3000 echouent).
+DOMIMMO_NON_RESIDENTIAL = ('local commercial', 'bureau', 'entrepot', 'entrepôt', 'terrain', 'fonds de commerce', 'parking', 'garage')
+DOMIMMO_RESIDENTIAL = ('appartement', 'studio', 'maison', 'villa', 'duplex', 't1', 't2', 't3', 't4', 't5')
+
+
+def is_domimmo_residential(title, description):
+    hay = clean((title or '') + ' ' + (description or '')).lower()
+    if any(token in hay for token in DOMIMMO_NON_RESIDENTIAL):
+        return False
+    return any(token in hay for token in DOMIMMO_RESIDENTIAL)
+
+
 def scrape_domimmo(max_items=150):
     """Domimmo now serves its usable data through Keldom's JSON API.
 
@@ -756,6 +767,8 @@ def scrape_domimmo(max_items=150):
         hay=((title or '')+' '+(desc or '')).lower()
         price=to_int_price(item.get('price'))
         if item.get('location') != 'REU':
+            continue
+        if not is_domimmo_residential(title, desc):
             continue
         if price is None or price < 250 or price > 6000:
             continue
