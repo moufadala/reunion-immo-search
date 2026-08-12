@@ -5,6 +5,7 @@ import argparse
 import json
 import shutil
 import sqlite3
+from contextlib import closing
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,7 +17,7 @@ def connect(path: Path) -> sqlite3.Connection:
 
 
 def integrity(path: Path) -> str:
-    with connect(path) as con:
+    with closing(connect(path)) as con:
         row = con.execute("PRAGMA integrity_check").fetchone()
     return str(row[0] if row else "missing")
 
@@ -31,7 +32,7 @@ def source_column(con: sqlite3.Connection) -> str:
 
 
 def active_counts(path: Path) -> dict[str, int]:
-    with connect(path) as con:
+    with closing(connect(path)) as con:
         src_col = source_column(con)
         total = con.execute("SELECT COUNT(*) FROM rental_listings WHERE is_active=1").fetchone()[0]
         rows = con.execute(
@@ -47,7 +48,7 @@ def active_counts(path: Path) -> dict[str, int]:
 
 
 def validate_schema(path: Path) -> None:
-    with connect(path) as con:
+    with closing(connect(path)) as con:
         tables = {r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     required = {"rental_listings"}
     missing = sorted(required - tables)
