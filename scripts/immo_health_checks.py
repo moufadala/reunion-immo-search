@@ -58,7 +58,7 @@ FRAICHEUR_PART_BLOCK = 0.50 # >50 % des sources muettes = defaut de chaine, sino
 
 # Increment only when the intended catalogue of a source changes deliberately.
 # A new version resets only that source's volume baseline.
-SOURCE_SCOPE_VERSIONS = {"domimmo": 2, "ofim": 2}
+SOURCE_SCOPE_VERSIONS = {"domimmo": 2, "ofim": 2, "zimo": 2}
 
 
 # Espace disque. Premiere estimation du 31/07 : 10,8 Go -- SOUS-EVALUEE, corrigee
