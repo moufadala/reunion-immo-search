@@ -332,7 +332,7 @@ run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retenti
   --json-out "$RUN_DIR/pre_promote_artifact_retention.json"
 
 export IMMO_MEDIA_COPY_MODE=hardlink
-run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/promote_app.json"
+run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --max-drop-pct "${IMMO_MAX_APP_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_app.json"
 BACKUP_APP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_app.json")"
 APP_SWAP_DONE=1
 run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/rollback_app_drill.json"
