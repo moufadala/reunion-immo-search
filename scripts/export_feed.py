@@ -151,6 +151,11 @@ def excluded_quartier_from_description(title, description, location_label=None):
     return None
 
 
+def active_public_listings(listings):
+    """The public feed is an availability feed; history lives in movements/pages."""
+    return [item for item in listings if item.get('active') is True]
+
+
 def coverage_from_feed(now, listings):
     active = [x for x in listings if x.get('active')]
     communes = Counter(x.get('commune') or 'Non renseignée' for x in active)
@@ -725,6 +730,10 @@ def main():
         'disparues_7j': len(gone7),
         'actives': sum(1 for x in listings if x['active']),
     }
+    # Do not mix withdrawn inventory into the public availability feed. Historical
+    # counts remain in `movements` and the dedicated changes/history artifacts.
+    listings = active_public_listings(listings)
+
 
     # --- sante des sources
     per_source = defaultdict(lambda: {'total': 0, 'actives': 0, 'detail_lu': 0, 'dernier': ''})
