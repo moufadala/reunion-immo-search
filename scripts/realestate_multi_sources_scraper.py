@@ -808,7 +808,7 @@ def scrape_domimmo(max_items=150):
 # The Apify token (APIFY_TOKEN) is sent ONLY in the Authorization header, never
 # in a URL nor in FETCH_LOG -- so it cannot leak into logs/summary output.
 APIFY_BASE = 'https://api.apify.com/v2'
-DEFAULT_LEBONCOIN_ACTOR = 'piotrv1001~leboncoin-listings-scraper'
+DEFAULT_LEBONCOIN_ACTOR = 'scrapifier~leboncoin-universal-scraper'
 # 4 communes cibles (Nord+Est), memes que citya/97immo. (commune, code postal).
 LEBONCOIN_COMMUNES = [
     ('Saint-Denis', '97400'), ('Sainte-Marie', '97438'),
@@ -945,6 +945,11 @@ def _map_leboncoin_item(item):
     title = clean(item.get('subject') or item.get('title'))
     desc = clean(item.get('body') or item.get('description'))
     loc = item.get('location') if isinstance(item.get('location'), dict) else {}
+    zipcode = clean(loc.get('zipcode') or loc.get('postal_code') or item.get('zipcode'))
+    # Scrapifier can confuse same-named mainland cities (Saint-Denis 93). A
+    # Leboncoin row is never allowed into the Reunion DB without a 974 postcode.
+    if not zipcode or not zipcode.startswith('974'):
+        return None
     city = clean(loc.get('city') or item.get('city'))
     district = clean(loc.get('district') or loc.get('city_label')) or None
     ptype = _lbc_property_type(v, lab)
@@ -1044,17 +1049,16 @@ def _write_apify_usage(*, mode, result_count, dataset_id=None, run=None, actor=N
 
 def _leboncoin_actor_input(max_items):
     return {
-        # Actor piotrv1001 expects Leboncoin location slugs as strings
-        # (validated in the PC handoff), not our internal commune dicts.
-        'locations': [f'{c}_{z}' for c, z in LEBONCOIN_COMMUNES],
-        'categoryIds': [10],
-        'maxItems': max_items,
-        'maxPages': 20,
-        'includeDetails': True,
-        'sort': 'time',
-        'searchQueries': [],
-        'startUrls': [],
-        'shippableOnly': False,
+        'urls_list': [
+            ('https://www.leboncoin.fr/recherche?category=10'
+             f'&locations={c}_{z}&real_estate_type=1,2')
+            for c, z in LEBONCOIN_COMMUNES
+        ],
+        # One page per commune keeps pay-per-result cost bounded.
+        'max_pages': 1,
+        'limit_per_page': max(1, min(100, (max_items + 3) // 4)),
+        'delay_between_pages': 1,
+        'max_age_days': 30,
         'proxyConfiguration': {
             'useApifyProxy': True,
             'apifyProxyGroups': ['RESIDENTIAL'],
@@ -1064,7 +1068,7 @@ def _leboncoin_actor_input(max_items):
 
 
 def scrape_leboncoin_apify_dataset():
-    """Leboncoin residential rentals via Apify (piotrv1001/leboncoin-listings-scraper).
+    """Leboncoin residential rentals via Apify (Scrapifier universal scraper).
 
     Env:
       APIFY_TOKEN              (required) Apify API token, sent as Bearer header only.

@@ -139,6 +139,7 @@ def test_supports_flattened_item_shape_and_label_type() -> None:
         "price": 600,
         "city": "Sainte-Marie",
         "real_estate_type": "Appartement",
+        "zipcode": "97438",
         "rooms": "1",
         "surface": "28",
         "image_url": "https://img/x.jpg",
@@ -154,18 +155,33 @@ def test_supports_flattened_item_shape_and_label_type() -> None:
 
 def test_actor_input_is_incremental_and_uses_handoff_slugs() -> None:
     payload = rms._leboncoin_actor_input(40)
-    assert payload["sort"] == "time"
-    assert payload["maxItems"] == 40
-    assert payload["includeDetails"] is True
-    assert payload["categoryIds"] == [10]
+    assert payload["max_pages"] == 1
+    assert payload["limit_per_page"] == 10
+    assert payload["max_age_days"] == 30
     source = MOD_PATH.read_text(encoding="utf-8")
     assert "source_status[fname]={'ok': bool(listings)" in source
-    assert payload["locations"] == [
+    assert [u.split("locations=", 1)[1].split("&", 1)[0] for u in payload["urls_list"]] == [
         "Saint-Denis_97400", "Sainte-Marie_97438",
         "Sainte-Suzanne_97441", "Saint-André_97440",
     ]
     assert payload["proxyConfiguration"]["apifyProxyCountry"] == "FR"
 
+
+
+def test_rejects_same_named_mainland_city_from_real_scrapifier_shape() -> None:
+    item = native_apartment()
+    item["list_id"] = 3248933958
+    item["location"] = {"city": "Saint-Denis", "zipcode": "93200", "region_name": "Ile-de-France"}
+    assert rms._map_leboncoin_item(item) is None
+
+
+def test_accepts_real_scrapifier_reunion_location() -> None:
+    item = native_apartment()
+    item["list_id"] = 3241181296
+    item["location"] = {"city": "Saint-Denis", "zipcode": "97490", "region_name": "La Reunion"}
+    listing = rms._map_leboncoin_item(item)
+    assert listing is not None
+    assert listing.source_id == "3241181296"
 
 def test_listings_helper_filters_and_maps_mixed_dataset() -> None:
     residential = native_apartment()
