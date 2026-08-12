@@ -8,3 +8,11 @@ def test_publication_gate_consumes_listing_level_coverage_failures():
     assert "coverage-low" in script
     assert "coverage_low" in script
     assert "source coverage below threshold" in script
+
+
+def test_photo_stages_hardlink_existing_media_before_downloads():
+    script = (Path(__file__).resolve().parents[1] / "scripts" / "immo_daily_public_refresh.sh").read_text(encoding="utf-8")
+    hardlink_export = script.index("export IMMO_MEDIA_COPY_MODE=hardlink")
+    seed = script.index("run_step seed_photo_cache")
+    assert hardlink_export < seed
+    assert "cp -an" not in script

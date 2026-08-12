@@ -21,7 +21,7 @@ def test_recent_max_does_not_hide_low_active_listing_coverage(tmp_path):
     db = tmp_path / "watch.db"
     con = _db(db)
     rows = [
-        ("leboncoin", str(i), 1, "2026-08-12T08:00:00+00:00" if i < 2 else "2026-08-01T08:00:00+00:00", "x.jpg")
+        ("bienici", str(i), 1, "2026-08-12T08:00:00+00:00" if i < 2 else "2026-08-01T08:00:00+00:00", "x.jpg")
         for i in range(10)
     ]
     con.executemany("INSERT INTO rental_listings VALUES (?,?,?,?,?)", rows)
@@ -32,7 +32,7 @@ def test_recent_max_does_not_hide_low_active_listing_coverage(tmp_path):
         db,
         reference_time=datetime(2026, 8, 12, 12, 0, tzinfo=timezone.utc),
     )
-    item = next(x for x in payload["sources"] if x["source"] == "leboncoin")
+    item = next(x for x in payload["sources"] if x["source"] == "bienici")
 
     assert item["active_recent_rows"] == 2
     assert item["active_coverage_ratio"] == 0.2
@@ -40,7 +40,7 @@ def test_recent_max_does_not_hide_low_active_listing_coverage(tmp_path):
     assert item["status"] == "coverage-low"
     assert item["severity"] == "high"
     assert payload["ok"] is False
-    assert "leboncoin" in payload["summary"]["coverage_below_threshold"]
+    assert "bienici" in payload["summary"]["coverage_below_threshold"]
 
 
 def test_full_recent_coverage_is_healthy(tmp_path):
@@ -61,3 +61,27 @@ def test_full_recent_coverage_is_healthy(tmp_path):
 
     assert item["active_coverage_ratio"] == 1.0
     assert item["status"] == "fresh"
+
+
+def test_optional_leboncoin_low_coverage_is_reported_but_not_blocking(tmp_path):
+    db = tmp_path / "watch.db"
+    con = _db(db)
+    con.executemany(
+        "INSERT INTO rental_listings VALUES (?,?,?,?,?)",
+        [
+            ("leboncoin", str(i), 1,
+             "2026-08-12T08:00:00+00:00" if i < 2 else "2026-08-01T08:00:00+00:00",
+             "x.jpg")
+            for i in range(10)
+        ],
+    )
+    con.commit()
+    con.close()
+
+    payload = source_health.build_payload(
+        db,
+        reference_time=datetime(2026, 8, 12, 12, 0, tzinfo=timezone.utc),
+    )
+    assert payload["ok"] is True
+    assert "leboncoin" not in payload["summary"]["coverage_below_threshold"]
+    assert "leboncoin" in payload["summary"]["coverage_below_threshold_all"]

@@ -35,7 +35,7 @@ DEFAULT_HTML_OUT = Path(os.environ.get("IMMO_SOURCE_HEALTH_HTML_OUT", str(_DEFAU
 CRITICAL_SOURCES = {
     "seloger", "zimo", "bienici", "ofim", "domimmo", "fnaim",
     "citya", "immo974", "locamoi", "97immo", "alter", "superimmo",
-    "leboncoin", "adrezio",
+    "adrezio",
 }
 # Conservative freshness thresholds for rental listings. Some portals do not
 # change every hour; stale here means "needs attention", not "delete rows".
@@ -237,7 +237,8 @@ def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None,
     counts = Counter(i["status"] for i in items)
     severity_counts = Counter(i["severity"] for i in items)
     stale_critical = [i["source"] for i in items if i.get("is_critical") and i["status"] in {"aging", "stale", "unknown", "empty"}]
-    coverage_low = [i["source"] for i in items if i["status"] == "coverage-low"]
+    coverage_low_all = [i["source"] for i in items if i["status"] == "coverage-low"]
+    coverage_low = [i["source"] for i in items if i.get("is_critical") and i["status"] == "coverage-low"]
     return {
         "ok": not coverage_low,
         "generated_at": now.isoformat(),
@@ -249,6 +250,7 @@ def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None,
             "severity_counts": dict(severity_counts),
             "stale_or_attention_critical": stale_critical,
             "coverage_below_threshold": coverage_low,
+            "coverage_below_threshold_all": coverage_low_all,
             "coverage_hours": RECENT_COVERAGE_HOURS,
             "fresh_hours": FRESH_HOURS,
             "stale_hours": STALE_HOURS,
