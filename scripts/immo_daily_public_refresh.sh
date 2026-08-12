@@ -316,7 +316,7 @@ print(json.dumps({
 PY
 
 if [ "$STAGE_DB_MODE" = "1" ]; then
-  run_step promote_db_candidate "$PY" "$PROJECT/scripts/promote_db_candidate.py" --candidate "$DB" --target "$PROD_DB" --json-out "$RUN_DIR/promote_db.json"
+  run_step promote_db_candidate "$PY" "$PROJECT/scripts/promote_db_candidate.py" --candidate "$DB" --target "$PROD_DB" --max-drop-pct "${IMMO_MAX_DB_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_db.json"
   DB_PROMOTE_BACKUP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_db.json")"
   DB_PROMOTE_DONE=1
   run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
