@@ -24,7 +24,9 @@ from typing import Any
 ROOT = Path('/opt/data')
 DB_DEFAULT = ROOT / 'data/reunion_watch.db'
 ARTIFACT_ROOT = ROOT / 'artifacts/realestate/watch_runs'
-PARTIAL_SOURCE_NO_STALE = {'zimo', 'domimmo', 'immo974'}
+PARTIAL_SOURCE_NO_STALE = {'zimo', 'immo974'}
+# A scope change retires legacy rows even when the new count is much smaller.
+COMPLETE_SCOPE_SOURCES = {'domimmo'}
 PARTIAL_SOURCE_STALE_GRACE_DAYS = 7
 MULTI_SCRAPER = ROOT / 'scripts/realestate_multi_sources_scraper.py'
 # One source = one process, sequential SQLite writer. Timeouts are deliberately
@@ -422,7 +424,7 @@ def mark_stale_not_seen(db: Path, refresh_started_at: str, sources: list[str], s
             coherence_floor = max(5, int(active_before * 0.5)) if active_before >= 10 else 0
             is_known_partial = src in PARTIAL_SOURCE_NO_STALE
             is_count_partial = active_before >= 10 and seen_now > 0 and seen_now < coherence_floor
-            if is_known_partial or is_count_partial:
+            if is_known_partial or (is_count_partial and src not in COMPLETE_SCOPE_SOURCES):
                 cur = conn.execute(
                     """
                     UPDATE rental_listings

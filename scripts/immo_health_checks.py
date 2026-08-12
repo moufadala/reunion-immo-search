@@ -56,6 +56,11 @@ SURFACE_MIN, SURFACE_MAX = 8.0, 400.0   # 974 m2 et 1 m2 ont ete publies le 30/0
 PART_ABERRANTE_MAX = 0.02   # >2 % d'aberrations = probleme de mapping, pas de saisie
 FRAICHEUR_PART_BLOCK = 0.50 # >50 % des sources muettes = defaut de chaine, sinon WARN
 
+# Increment only when the intended catalogue of a source changes deliberately.
+# A new version resets only that source's volume baseline.
+SOURCE_SCOPE_VERSIONS = {"domimmo": 2, "ofim": 2}
+
+
 # Espace disque. Premiere estimation du 31/07 : 10,8 Go -- SOUS-EVALUEE, corrigee
 # le meme jour apres un 2e plantage disque. Le decompte reel :
 #
@@ -186,29 +191,45 @@ def check_fraicheur():
 
 
 # ---------------------------------------------------------------- 3. volume
+def volume_drops(actuel: dict[str, int], precedent: dict[str, int],
+                 previous_scope_versions: dict[str, int]) -> tuple[list[dict], list[str]]:
+    chutes, resets = [], []
+    for s, avant in precedent.items():
+        current_version = SOURCE_SCOPE_VERSIONS.get(s, 1)
+        previous_version = previous_scope_versions.get(s, 1)
+        if current_version != previous_version:
+            resets.append(s)
+            continue
+        maint = actuel.get(s, 0)
+        if avant >= 10 and maint < avant * (1 - CHUTE_VOLUME_MAX):
+            chutes.append({"source": s, "avant": avant, "maintenant": maint,
+                           "chute_pct": round(100 * (1 - maint / avant))})
+    return chutes, resets
+
+
 def check_volume():
     """Chute brutale = collecte cassee. Compare au run precedent, pas a un absolu."""
     with _con() as c:
         actuel = {r[0]: r[1] for r in c.execute(
             "select source_site, count(*) from rental_listings where is_active=1 group by 1")}
+    previous_scope_versions = {}
     precedent = {}
     if os.path.exists(ETAT):
         try:
-            precedent = json.load(open(ETAT, encoding="utf-8")).get("volumes", {})
+            state = json.load(open(ETAT, encoding="utf-8"))
+            precedent = state.get("volumes", {})
+            previous_scope_versions = state.get("scope_versions", {})
         except Exception:
             pass
     if not precedent:
         return check("volume", "WARN", True,
                      "pas d'etat precedent — reference posee pour le prochain run",
                      {"sources": len(actuel)})
-    chutes = []
-    for s, avant in precedent.items():
-        maint = actuel.get(s, 0)
-        if avant >= 10 and maint < avant * (1 - CHUTE_VOLUME_MAX):
-            chutes.append({"source": s, "avant": avant, "maintenant": maint,
-                           "chute_pct": round(100 * (1 - maint / avant))})
+    chutes, resets = volume_drops(actuel, precedent, previous_scope_versions)
     check("volume", "BLOCK", not chutes,
-          f"{len(chutes)} source(s) en chute de plus de {CHUTE_VOLUME_MAX:.0%}", chutes)
+          f"{len(chutes)} source(s) en chute de plus de {CHUTE_VOLUME_MAX:.0%}; "
+          f"{len(resets)} baseline(s) reinitialisee(s) pour changement de perimetre",
+          {"chutes": chutes, "scope_resets": resets})
 
 
 # ------------------------------------------------------- 4. coherence base/feed
@@ -317,7 +338,8 @@ def sauver_etat():
             "select source_site, count(*) from rental_listings where is_active=1 group by 1")}
     os.makedirs(os.path.dirname(ETAT), exist_ok=True)
     tmp = ETAT + ".tmp"
-    json.dump({"horodatage": datetime.now(timezone.utc).isoformat(), "volumes": volumes},
+    json.dump({"horodatage": datetime.now(timezone.utc).isoformat(), "volumes": volumes,
+               "scope_versions": SOURCE_SCOPE_VERSIONS},
               open(tmp, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     os.replace(tmp, ETAT)
 
