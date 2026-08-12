@@ -72,13 +72,13 @@ def test_scope_version_change_resets_only_that_sources_volume_baseline(tmp_path,
     spec.loader.exec_module(module)
 
     drops, resets = module.volume_drops(
-        {"domimmo": 4, "ofim": 73, "zimo": 576},
-        {"domimmo": 43, "ofim": 78, "zimo": 970},
+        {"domimmo": 4, "ofim": 73, "zimo": 576, "leboncoin": 202},
+        {"domimmo": 43, "ofim": 78, "zimo": 970, "leboncoin": 401},
         {},
     )
 
     assert drops == []
-    assert set(resets) == {"domimmo", "ofim", "zimo"}
+    assert set(resets) == {"domimmo", "ofim", "zimo", "leboncoin"}
 
     drops, resets = module.volume_drops(
         {"domimmo": 4, "ofim": 20, "zimo": 200},
