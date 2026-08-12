@@ -1047,7 +1047,7 @@ def _leboncoin_actor_input(max_items):
         # Actor piotrv1001 expects Leboncoin location slugs as strings
         # (validated in the PC handoff), not our internal commune dicts.
         'locations': [f'{c}_{z}' for c, z in LEBONCOIN_COMMUNES],
-        'categoryIds': ['10'],
+        'categoryIds': [10],
         'maxItems': max_items,
         'maxPages': 20,
         'includeDetails': True,
@@ -1097,6 +1097,12 @@ def scrape_leboncoin_apify_dataset():
         if isinstance(run, dict) and isinstance(run.get('data'), dict):
             run = run['data']
         dataset_id = run.get('defaultDatasetId') if isinstance(run, dict) else None
+        run_status = str(run.get('status') or '').upper() if isinstance(run, dict) else ''
+        if run_status != 'SUCCEEDED':
+            _write_apify_usage(mode='actor_run', actor=actor, dataset_id=dataset_id,
+                               run=run, result_count=0)
+            raise RuntimeError(f'Apify run not successful: status={run_status or "missing"}')
+
         if not dataset_id:
             raise RuntimeError('Apify run finished without defaultDatasetId')
         url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
@@ -1108,6 +1114,8 @@ def scrape_leboncoin_apify_dataset():
     items = items if isinstance(items, list) else []
     _write_apify_usage(mode=mode, actor=actor, dataset_id=dataset_id,
                        run=run, result_count=len(items))
+    if not items:
+        raise RuntimeError('Apify dataset empty: leboncoin source produced no listings')
     return _leboncoin_listings(items)
 
 
@@ -1268,7 +1276,7 @@ def main():
                 fname = 'leboncoin'
             try:
                 listings=f()
-                source_status[fname]={'ok': True, 'count': len(listings)}
+                source_status[fname]={'ok': bool(listings), 'count': len(listings)}
                 for l in listings:
                     status='dry' if args.dry_run else upsert(conn,l)
                     event = {'status': status, **asdict(l)}

@@ -157,7 +157,9 @@ def test_actor_input_is_incremental_and_uses_handoff_slugs() -> None:
     assert payload["sort"] == "time"
     assert payload["maxItems"] == 40
     assert payload["includeDetails"] is True
-    assert payload["categoryIds"] == ["10"]
+    assert payload["categoryIds"] == [10]
+    source = MOD_PATH.read_text(encoding="utf-8")
+    assert "source_status[fname]={'ok': bool(listings)" in source
     assert payload["locations"] == [
         "Saint-Denis_97400", "Sainte-Marie_97438",
         "Sainte-Suzanne_97441", "Saint-André_97440",
@@ -201,7 +203,7 @@ def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch)
         calls.append((url, payload))
         assert token == "token-not-logged"
         if "/runs" in url:
-            return {"id": "run123", "defaultDatasetId": "ds123", "usageTotalUsd": 0.42}
+            return {"id": "run123", "status": "SUCCEEDED", "defaultDatasetId": "ds123", "usageTotalUsd": 0.42}
         if "/datasets/ds123/items" in url:
             return [native_apartment()]
         raise AssertionError(url)
@@ -225,6 +227,39 @@ def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch)
     assert "token-not-logged" not in report.read_text()
     assert len(calls) == 2
 
+
+def test_actor_run_must_succeed_and_return_items(monkeypatch) -> None:
+    monkeypatch.setenv("APIFY_TOKEN", "token-not-logged")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+
+    def failed_run(url, token, payload=None, timeout=180):
+        assert "/runs" in url
+        return {"id": "run-failed", "status": "FAILED", "defaultDatasetId": "ds-failed"}
+
+    monkeypatch.setattr(rms, "_apify_json", failed_run)
+    try:
+        rms.scrape_leboncoin_apify_dataset()
+    except RuntimeError as exc:
+        assert "status=FAILED" in str(exc)
+    else:
+        raise AssertionError("a failed Apify actor must not be reported as successful")
+
+    calls = []
+
+    def empty_dataset(url, token, payload=None, timeout=180):
+        calls.append(url)
+        if "/runs" in url:
+            return {"id": "run-empty", "status": "SUCCEEDED", "defaultDatasetId": "ds-empty"}
+        return []
+
+    monkeypatch.setattr(rms, "_apify_json", empty_dataset)
+    try:
+        rms.scrape_leboncoin_apify_dataset()
+    except RuntimeError as exc:
+        assert "dataset empty" in str(exc)
+    else:
+        raise AssertionError("an empty Apify dataset must not be reported as successful")
+    assert len(calls) == 2
 
 def main() -> int:
     for test in [
