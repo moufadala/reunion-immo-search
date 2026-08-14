@@ -59,23 +59,20 @@ function Bloc({ titre, question, reponse, items, motif, tone }) {
 
 /* Petit graphe d'activité : une barre par jour sur 30 jours.
    Pas de librairie — c'est 20 lignes et ça reste lisible. */
-function Activite({ listings }) {
+function Activite({ events }) {
   const jours = useMemo(() => {
     const t = new Map();
     for (let i = 29; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86400000);
       t.set(d.toISOString().slice(0, 10), { entrees: 0, sorties: 0, d });
     }
-    for (const l of listings) {
-      const a = (l.seen_first || "").slice(0, 10);
-      if (t.has(a)) t.get(a).entrees++;
-      if (!l.active) {
-        const b = (l.seen_last || "").slice(0, 10);
-        if (t.has(b)) t.get(b).sorties++;
-      }
+    for (const event of events) {
+      const day = (event.event_at || "").slice(0, 10);
+      if (t.has(day) && event.event_type === "new") t.get(day).entrees++;
+      if (t.has(day) && event.event_type === "disappeared") t.get(day).sorties++;
     }
     return [...t.values()];
-  }, [listings]);
+  }, [events]);
 
   const max = Math.max(1, ...jours.map((j) => Math.max(j.entrees, j.sorties)));
 
@@ -104,24 +101,20 @@ function Activite({ listings }) {
   );
 }
 
-export default function Mouvements({ listings }) {
+export default function Mouvements({ listings, movements }) {
+  const events = movements?.events || [];
   const { nouvelles, retirees, revenues, longues } = useMemo(() => {
-    const j7 = (l, champ) => (joursDepuis(l[champ]) ?? 999) <= 7;
+    const recent = (e) => (joursDepuis(e.event_at) ?? 999) <= 7;
     return {
-      nouvelles: listings.filter((l) => l.active && j7(l, "seen_first"))
-        .sort((a, b) => (b.seen_first || "").localeCompare(a.seen_first || "")),
-      retirees: listings.filter((l) => !l.active && j7(l, "seen_last"))
-        .sort((a, b) => (b.seen_last || "").localeCompare(a.seen_last || "")),
-      // réapparue = vue pour la 1re fois il y a longtemps, mais encore en ligne
-      // après une longue absence n'est pas mesurable sans historique de passages ;
-      // on montre donc ce qu'on SAIT : les annonces qui durent.
-      revenues: [],
+      nouvelles: events.filter((e) => e.event_type === "new" && recent(e)),
+      retirees: events.filter((e) => e.event_type === "disappeared" && recent(e)),
+      revenues: events.filter((e) => e.event_type === "reappeared" && recent(e)),
       longues: listings.filter((l) => l.active && (joursDepuis(l.seen_first) ?? 0) > 45)
         .sort((a, b) => (a.seen_first || "").localeCompare(b.seen_first || "")),
     };
-  }, [listings]);
+  }, [listings, events]);
 
-  if (!listings.length) {
+  if (!listings.length && !events.length) {
     return <Empty titre="Aucune donnée" texte="Le feed est vide — relance l'export." />;
   }
 
@@ -132,26 +125,31 @@ export default function Mouvements({ listings }) {
           sub="annonces disponibles maintenant" />
         <Stat value={nouvelles.length} label="Nouvelles" sub="apparues ces 7 derniers jours" />
         <Stat value={retirees.length} label="Retirées" sub="disparues ces 7 derniers jours" />
-        <Stat value={listings.length} label="Suivies" sub="historique conservé sur 1 mois" />
+        <Stat value={revenues.length} label="Réapparues" sub="revenues ces 7 derniers jours" />
       </Reveal>
 
-      <Activite listings={listings} />
+      <Activite events={events} />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Bloc titre="Nouvelles annonces" tone="accent"
           question="Qu'est-ce qui est apparu depuis une semaine ?"
           reponse="Rien de neuf cette semaine."
-          items={nouvelles} motif={(l) => dateFR(l.seen_first)} />
+          items={nouvelles} motif={(l) => dateFR(l.event_at)} />
         <Bloc titre="Annonces retirées" tone="danger"
           question="Qu'est-ce qui a disparu des portails cette semaine ?"
           reponse="Aucune annonce retirée cette semaine."
-          items={retirees} motif={(l) => `vue ${dateFR(l.seen_last)}`} />
+          items={retirees} motif={(l) => dateFR(l.event_at)} />
       </div>
 
       <Bloc titre="Toujours en ligne après 45 jours"
         question="Qu'est-ce qui ne part pas ? Souvent un prix trop haut — donc négociable."
         reponse="Aucune annonce ancienne encore en ligne."
         items={longues} motif={(l) => `depuis ${joursDepuis(l.seen_first)} j`} />
+
+      <Bloc titre="Annonces réapparues"
+        question="Qu'est-ce qui est revenu sur un portail cette semaine ?"
+        reponse="Aucune annonce réapparue cette semaine."
+        items={revenues} motif={(l) => dateFR(l.event_at)} />
     </div>
   );
 }

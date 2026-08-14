@@ -709,10 +709,30 @@ def main():
         last_host[host] = time.time()
 
         c.execute(
-            'insert or replace into listing_detail (source_site, source_id, fetched_at, '
+            'insert into listing_detail (source_site, source_id, fetched_at, '
             'http_status, address, street, residence, postal_code, locality, lat, lon, '
             'precision, geo_source, floor, has_elevator, bathtub, furnished, charges_eur, '
-            'bedrooms, description_full, notes) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+            'bedrooms, description_full, notes) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '
+            'on conflict(source_site, source_id) do update set '
+            'fetched_at=excluded.fetched_at, http_status=excluded.http_status, '
+            "address=coalesce(nullif(trim(excluded.address), ''), listing_detail.address), "
+            "street=coalesce(nullif(trim(excluded.street), ''), listing_detail.street), "
+            "residence=coalesce(nullif(trim(excluded.residence), ''), listing_detail.residence), "
+            "postal_code=coalesce(nullif(trim(excluded.postal_code), ''), listing_detail.postal_code), "
+            "locality=coalesce(nullif(trim(excluded.locality), ''), listing_detail.locality), "
+            'lat=coalesce(excluded.lat, listing_detail.lat), '
+            'lon=coalesce(excluded.lon, listing_detail.lon), '
+            "precision=case when lower(trim(coalesce(excluded.precision, ''))) in ('', 'inconnu') then listing_detail.precision else excluded.precision end, "
+            "geo_source=case when lower(trim(coalesce(excluded.geo_source, ''))) in ('', 'aucun', 'inconnu') "
+            'then listing_detail.geo_source else excluded.geo_source end, '
+            "floor=coalesce(nullif(trim(excluded.floor), ''), listing_detail.floor), "
+            'has_elevator=coalesce(excluded.has_elevator, listing_detail.has_elevator), '
+            'bathtub=coalesce(excluded.bathtub, listing_detail.bathtub), '
+            'furnished=coalesce(excluded.furnished, listing_detail.furnished), '
+            'charges_eur=coalesce(excluded.charges_eur, listing_detail.charges_eur), '
+            'bedrooms=coalesce(excluded.bedrooms, listing_detail.bedrooms), '
+            "description_full=coalesce(nullif(trim(excluded.description_full), ''), listing_detail.description_full), "
+            'notes=excluded.notes',
             (ss, si, now(), status, rec.get('address'), rec.get('street'), rec.get('residence'),
              rec.get('postal_code'), rec.get('locality'), rec.get('lat'), rec.get('lon'),
              rec.get('precision'), rec.get('geo_source'), rec.get('floor'),

@@ -157,7 +157,7 @@ export default function Detail({ l, onClose }) {
           {l.description && (
             <div className="mt-4">
               <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-faint">
-                Description {l.detail_read && <span className="text-p5">· page lue en entier</span>}
+                Description {l.detail_read && <span className="text-p5">· description complète récupérée</span>}
               </p>
               <p className="whitespace-pre-line text-[13px] leading-relaxed text-muted">
                 {l.description}
@@ -170,6 +170,7 @@ export default function Detail({ l, onClose }) {
             {l.agency && <span>Annonceur : {l.agency}</span>}
             <span>Vue pour la 1re fois {dateFR(l.seen_first)}</span>
             <span>Dernière vue {ilYA(l.seen_last)}</span>
+            {l.published && <span>Publiée par la source le {dateFR(l.published)}</span>}
           </div>
         </div>
 

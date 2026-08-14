@@ -1,0 +1,60 @@
+"""One non-destructive eligibility policy shared by every public consumer."""
+from __future__ import annotations
+
+from dataclasses import dataclass
+import re
+import unicodedata
+from typing import Any, Mapping
+
+MIN_SURFACE_M2 = 65.0
+MAX_RENT_EUR = 1700.0
+
+@dataclass(frozen=True)
+class PublicationDecision:
+    eligible: bool
+    reason: str | None = None
+
+def _first(row: Mapping[str, Any], *keys: str) -> Any:
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+def _number(value: Any) -> float | None:
+    if isinstance(value, bool) or value in (None, ""):
+        return None
+    try:
+        return float(str(value).replace("\u202f", "").replace(" ", "").replace(",", "."))
+    except (TypeError, ValueError):
+        return None
+
+def _norm(value: Any) -> str:
+    text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", " ", text).strip()
+
+def _excluded_district(city: Any, district: Any) -> str | None:
+    if _norm(city) not in {"saint denis", "st denis"}:
+        return None
+    value = _norm(district)
+    if re.search(r"\b(?:la )?providence\b", value):
+        return "saint_denis_providence"
+    if re.search(r"\b(?:saint|st) francois\b", value):
+        return "saint_denis_saint_francois"
+    return None
+
+def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
+    surface = _number(_first(row, "surface", "surface_m2"))
+    if surface is None or surface <= 0:
+        return PublicationDecision(False, "surface_missing_or_invalid")
+    if surface < MIN_SURFACE_M2:
+        return PublicationDecision(False, "surface_below_65")
+    rent = _number(_first(row, "rent", "rent_eur", "price"))
+    if rent is None or rent <= 0:
+        return PublicationDecision(False, "rent_missing_or_invalid")
+    if rent > MAX_RENT_EUR:
+        return PublicationDecision(False, "rent_above_1700")
+    city = _first(row, "commune", "city")
+    district = _first(row, "quartier", "district", "primary_zone", "location_label")
+    reason = _excluded_district(city, district)
+    return PublicationDecision(not bool(reason), reason)

@@ -6,7 +6,7 @@ import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path('/opt/data/projects/reunion-immo-search')
+ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('reunion_watch_pipeline', ROOT / 'scripts' / 'reunion_watch_pipeline.py')
 assert spec is not None and spec.loader is not None
 pipeline = importlib.util.module_from_spec(spec)
