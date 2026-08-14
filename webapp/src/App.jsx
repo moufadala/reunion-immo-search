@@ -293,7 +293,7 @@ export default function App() {
           </>
         )}
 
-        {onglet === "mouvements" && <Mouvements listings={listings} />}
+        {onglet === "mouvements" && <Mouvements listings={listings} movements={data?.movements} />}
         {onglet === "sources" && <Sources sources={data.sources} meta={data.meta} />}
 
         <footer className="mt-4 border-t border-line pt-4 text-[11.5px] leading-relaxed text-faint">

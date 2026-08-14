@@ -219,8 +219,8 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
         <div className="mt-auto flex items-center justify-between gap-2 border-t border-line pt-2">
           <span className="truncate text-[11px] text-faint">
             {l.source}
-            {l.detail_read && <span className="ml-1 text-p5" title="Page de l'annonce lue en entier">✓</span>}
-            {" : récupérée "}{ilYA(l.seen_last)}
+            {l.detail_read && <span className="ml-1 text-p5" title="Description complète récupérée">✓</span>}
+            {l.published ? <> · publiée {ilYA(l.published)}</> : <> · repérée {ilYA(l.seen_first)}</>}
           </span>
           <div className="flex shrink-0 gap-1.5">
             {carte && (

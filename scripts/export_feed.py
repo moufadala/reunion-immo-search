@@ -20,9 +20,12 @@ from datetime import datetime, timezone, timedelta
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from profils import PROFILS, scorer  # noqa: E402
 import geo_quartiers as gq  # noqa: E402
 from enrich_source_details_v3 import llm_input_hash  # noqa: E402
+from src.publication_policy import evaluate_publication  # noqa: E402
+from src.public_feed_dedup import deduplicate_public_feed  # noqa: E402
 
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 EVENTS_DB = os.environ.get('IMMO_EVENTS_DB', '/opt/data/artifacts/immo-alerts/history.sqlite')
@@ -308,6 +311,55 @@ def market_counts_from_history():
         except Exception:
             pass
     return {'retirees_7j': int(row['n'] if row else 0)}
+
+def load_movement_events(since_iso):
+    """Recent transitions stay separate from the active-only inventory."""
+    if not os.path.exists(EVENTS_DB):
+        return []
+    h = None
+    try:
+        h = sqlite3.connect('file:%s?mode=ro' % EVENTS_DB, uri=True)
+        h.row_factory = sqlite3.Row
+        rows = h.execute(
+            '''
+            SELECT e.event_id, e.listing_id, e.event_type, e.event_at,
+                   e.details_json, c.raw_json
+            FROM listing_events e
+            LEFT JOIN listing_current c ON c.id=e.listing_id
+            WHERE e.event_type IN ('new','disappeared','reappeared')
+              AND e.event_at >= ?
+            ORDER BY e.event_at DESC, e.event_id DESC
+            ''', (since_iso,),
+        ).fetchall()
+    except sqlite3.Error:
+        return []
+    finally:
+        if h:
+            h.close()
+    events = []
+    for row in rows:
+        try:
+            item = json.loads(row['raw_json'] or '{}')
+        except (TypeError, ValueError):
+            item = {}
+        try:
+            details = json.loads(row['details_json'] or '{}')
+        except (TypeError, ValueError):
+            details = {}
+        item = dict(item)
+        if not evaluate_publication(item).eligible:
+            continue
+
+        item.setdefault('rent', item.get('rent_eur', item.get('price')))
+        item.setdefault('surface', item.get('surface_m2'))
+        item.setdefault('image', item.get('image_url'))
+        item.setdefault('id', row['listing_id'])
+        item.setdefault('title', details.get('title'))
+        item.setdefault('url', details.get('url'))
+        item.update({'event_id': row['event_id'], 'event_type': row['event_type'],
+                     'event_at': row['event_at']})
+        events.append(item)
+    return events
 
 
 def commune_of(city_norm, enrich_city):
@@ -639,7 +691,8 @@ def main():
             'images': galeries_man.get(k) or galleries.get(k)
                       or ([thumbs[k]] if k in thumbs else []),
             'description': source_text,
-            'detail_read': bool(d.get('http_status') == 200),
+            'detail_fetched': bool(d.get('http_status') == 200),
+            'detail_read': bool(str(d.get('description_full') or '').strip()),
             'llm_extraction': llm_fields,
             'llm_extraction_status': llm_status,
         }
@@ -699,6 +752,11 @@ def main():
                 compter_exclusion('saint_denis_quartier_description:' + q_desc, listing)
                 continue
 
+        publication = evaluate_publication(listing)
+        if not publication.eligible:
+            compter_exclusion(publication.reason or 'publication_policy', listing)
+            continue
+
         listings.append(listing)
 
     # --- trajet + score par profil ---
@@ -723,16 +781,21 @@ def main():
     new7 = [x for x in listings if (x['seen_first'] or '') >= d7]
     gone = [x for x in listings if not x['active']]
     gone7 = [x for x in gone if (x['seen_last'] or '') >= d7]
+    movement_events = load_movement_events((now - timedelta(days=30)).isoformat())
 
     movements = {
-        'nouvelles_7j': len(new7),
+        'nouvelles_7j': sum(1 for x in movement_events if x['event_type'] == 'new' and x['event_at'] >= d7),
         'disparues_total': len(gone),
-        'disparues_7j': len(gone7),
+        'reapparues_7j': sum(1 for x in movement_events if x['event_type'] == 'reappeared' and x['event_at'] >= d7),
+        'events': movement_events,
+        'disparues_7j': sum(1 for x in movement_events if x['event_type'] == 'disappeared' and x['event_at'] >= d7),
         'actives': sum(1 for x in listings if x['active']),
     }
     # Do not mix withdrawn inventory into the public availability feed. Historical
     # counts remain in `movements` and the dedicated changes/history artifacts.
     listings = active_public_listings(listings)
+    listings, dedup_report = deduplicate_public_feed(listings)
+    movements['actives'] = len(listings)
 
 
     # --- sante des sources
@@ -753,6 +816,7 @@ def main():
         'hors_perimetre_exclues': hors_perimetre,
         'exclusions_produit': dict(filtres_produit),
         'diagnostics_actifs_avant_filtres': dict(diagnostics_actifs),
+        'deduplication': dedup_report,
         'total': len(listings),
         'actives': movements['actives'],
         'avec_point_carte': sum(1 for x in listings if x['lat']),
@@ -764,7 +828,7 @@ def main():
         'detail_lu': sum(1 for x in listings if x['detail_read']),
         'fraiches': sum(1 for x in listings if x['fraiche'] and x['active']),
         'marche': {
-            'retirees_7j': market_history.get('retirees_7j', 0),
+            'retirees_7j': movements['disparues_7j'],
             'nouvelles_7j': movements['nouvelles_7j'],
             'actives': movements['actives'],
         },

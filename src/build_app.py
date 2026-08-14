@@ -8,6 +8,7 @@ from normalize_db import refresh as refresh_product_enrichment
 from listing_changes import export_changes, render_changes_html
 from source_health import build_payload as build_source_health_payload, render_html as render_source_health_html
 from saved_search_admin import build_payload as build_saved_search_admin_payload, render_html as render_saved_search_admin_html
+from publication_policy import evaluate_publication
 
 import os
 
@@ -300,6 +301,11 @@ for r in rows:
     if item['rent_eur'] and item['rent_eur']>10000:
         item['residential_status']='excluded_bad_rent'
         item['residential_reasons']=(item.get('residential_reasons') or []) + ['rent_eur>10000']
+        suspects.append(item)
+        continue
+    publication = evaluate_publication(item)
+    if not publication.eligible:
+        item['publication_exclusion_reason'] = publication.reason
         suspects.append(item)
         continue
     if item['residential_status']=='residential_candidate':

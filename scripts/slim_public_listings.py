@@ -11,6 +11,9 @@ import re
 import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.publication_policy import evaluate_publication  # noqa: E402
+
 DEFAULT_APP = Path('/opt/data/projects/reunion-immo-search/artifacts/app')
 
 KEEP_TOP = {
@@ -219,10 +222,13 @@ def main(argv: list[str] | None = None):
     payload = json.loads(path.read_text(encoding='utf-8'))
     before = path.stat().st_size
     new_items = []
-    excluded = {'missing_or_invalid_price': 0}
+    excluded = {'missing_or_invalid_price': 0, 'publication_policy': 0}
     for x in payload.get('listings', []):
         if not public_price_ok(x):
             excluded['missing_or_invalid_price'] += 1
+            continue
+        if not evaluate_publication(x).eligible:
+            excluded['publication_policy'] += 1
             continue
         y = {k: x.get(k) for k in KEEP_TOP if k in x and x.get(k) not in (None,'',[],{})}
         if 'location_intelligence' in y:
