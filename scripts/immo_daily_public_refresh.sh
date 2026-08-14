@@ -268,14 +268,19 @@ run_step clean_stage_gate bash -lc '
   done
   chmod -R a+rX "$stage"
   "$PY" - "$stage" <<"PY"
-import json, sys
+import json, os, sys
 from pathlib import Path
 app=Path(sys.argv[1])
 data=json.loads((app/"listings.json").read_text())
 items=data.get("listings") or []
-assert len(items) >= 400, len(items)
-assert sum(1 for x in items if x.get("local_image_url")) >= 350
-assert sum(1 for x in items if isinstance(x.get("local_image_urls"), list) and len(x["local_image_urls"]) > 1) >= 100
+min_public=int(os.environ.get("IMMO_MIN_PUBLIC_LISTINGS", "150"))
+min_local_ratio=float(os.environ.get("IMMO_MIN_LOCAL_IMAGE_RATIO", "0.70"))
+min_multi_ratio=float(os.environ.get("IMMO_MIN_MULTI_IMAGE_RATIO", "0.15"))
+assert len(items) >= min_public, {"count": len(items), "min": min_public}
+local=sum(1 for x in items if x.get("local_image_url"))
+multi=sum(1 for x in items if isinstance(x.get("local_image_urls"), list) and len(x["local_image_urls"]) > 1)
+assert local >= int(len(items) * min_local_ratio), {"local": local, "count": len(items), "min_ratio": min_local_ratio}
+assert multi >= int(len(items) * min_multi_ratio), {"multi": multi, "count": len(items), "min_ratio": min_multi_ratio}
 assert sum(1 for x in items if x.get("opportunity_analysis")) == len(items)
 PY
 ' "$PROJECT" "$CLEAN_STAGE"

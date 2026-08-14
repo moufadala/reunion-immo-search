@@ -8,6 +8,7 @@ import re
 import shlex
 import subprocess
 import sys
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
@@ -41,6 +42,46 @@ REQUIRED_IN_CONTAINER = (
     "v2/index.html",
     "v2/feed.json",
 )
+PUBLICATION_MIN_SURFACE_M2 = 65.0
+PUBLICATION_MAX_RENT_EUR = 1700
+EXCLUDED_SAINT_DENIS_QUARTIERS = ("providence", "saint-francois")
+
+
+def norm(value: object) -> str:
+    if not value:
+        return ""
+    text = unicodedata.normalize("NFD", str(value)).encode("ascii", "ignore").decode().lower()
+    text = re.sub(r"\bst\b", "saint", text)
+    text = re.sub(r"\bste\b", "sainte", text)
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+
+
+def as_float(value: object) -> float | None:
+    if value in (None, ""):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def as_int(value: object) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(round(float(value)))
+    except (TypeError, ValueError):
+        return None
+
+
+def saint_denis_excluded_quartier(item: dict[str, object]) -> str | None:
+    if norm(item.get("commune")) != norm("Saint-Denis"):
+        return None
+    hay = norm(" ".join(str(item.get(k) or "") for k in ("quartier", "location_label", "title")))
+    for needle in EXCLUDED_SAINT_DENIS_QUARTIERS:
+        if needle in hay:
+            return needle
+    return None
 
 
 def parse_dt(value: object) -> datetime | None:
@@ -161,6 +202,63 @@ def main() -> int:
         meta = feed.get("meta") if isinstance(feed.get("meta"), dict) else {}
         listings = feed.get("listings") if isinstance(feed.get("listings"), list) else []
         active_count = sum(1 for item in listings if isinstance(item, dict) and item.get("active"))
+        rent_violations = []
+        surface_violations = []
+        quartier_violations = []
+        duplicate_signatures: dict[tuple[object, ...], list[object]] = {}
+        hidden_duplicate_rows = 0
+        for item in listings:
+            if not isinstance(item, dict) or not item.get("active"):
+                continue
+            if item.get("display_canonical") is False:
+                hidden_duplicate_rows += 1
+            rent = as_int(item.get("rent"))
+            surface = as_float(item.get("surface"))
+            if rent is None or rent > PUBLICATION_MAX_RENT_EUR:
+                rent_violations.append({"id": item.get("id"), "rent": item.get("rent")})
+            if surface is None or surface < PUBLICATION_MIN_SURFACE_M2:
+                surface_violations.append({"id": item.get("id"), "surface": item.get("surface")})
+            if rent is not None and surface is not None:
+                signature = (norm(item.get("title")), norm(item.get("commune")), rent, round(surface, 1), item.get("rooms") or "")
+                if signature[0] and signature[1]:
+                    duplicate_signatures.setdefault(signature, []).append(item.get("id"))
+            excluded_quartier = saint_denis_excluded_quartier(item)
+            if excluded_quartier:
+                quartier_violations.append({
+                    "id": item.get("id"),
+                    "quartier": item.get("quartier"),
+                    "location_label": item.get("location_label"),
+                    "rule": excluded_quartier,
+                })
+        add_check(
+            checks,
+            "publication_rent_contract",
+            not rent_violations,
+            "aucune annonce active avec loyer inconnu ou >1700" if not rent_violations else f"{len(rent_violations)} annonce(s) violent le contrat loyer",
+            {"max_rent_eur": PUBLICATION_MAX_RENT_EUR, "violations": rent_violations[:20]},
+        )
+        add_check(
+            checks,
+            "publication_surface_contract",
+            not surface_violations,
+            "aucune annonce active avec surface inconnue ou <65" if not surface_violations else f"{len(surface_violations)} annonce(s) violent le contrat surface",
+            {"min_surface_m2": PUBLICATION_MIN_SURFACE_M2, "violations": surface_violations[:20]},
+        )
+        add_check(
+            checks,
+            "publication_saint_denis_quartier_contract",
+            not quartier_violations,
+            "aucune annonce active Saint-Denis Providence/Saint-François" if not quartier_violations else f"{len(quartier_violations)} annonce(s) violent le contrat quartier Saint-Denis",
+            {"excluded": EXCLUDED_SAINT_DENIS_QUARTIERS, "violations": quartier_violations[:20]},
+        )
+        exact_duplicate_violations = {"|".join(map(str, key)): ids for key, ids in duplicate_signatures.items() if len(ids) > 1}
+        add_check(
+            checks,
+            "publication_strong_dedup_contract",
+            not exact_duplicate_violations and hidden_duplicate_rows == 0,
+            "aucun doublon fort exact publié dans le feed V2" if not exact_duplicate_violations and hidden_duplicate_rows == 0 else f"{len(exact_duplicate_violations)} signature(s) doublon fort ou {hidden_duplicate_rows} ligne(s) masquée(s) encore servie(s)",
+            {"policy": "same normalized title + commune + rent + surface + rooms must appear once in feed", "violations": dict(list(exact_duplicate_violations.items())[:20]), "hidden_rows_still_served": hidden_duplicate_rows},
+        )
         raw = meta.get("genere_le") if isinstance(meta, dict) else None
         generated_at = parse_dt(raw)
         if generated_at is None:

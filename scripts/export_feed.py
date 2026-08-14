@@ -68,14 +68,22 @@ def norm(s):
 
 
 EXCLUDED_COMMUNE_NORMS = {norm('Saint-André')}
+PUBLICATION_MIN_SURFACE_M2 = 65.0
+PUBLICATION_MAX_RENT_EUR = 1700
+DETAIL_READ_MIN_CHARS = 80
 EXCLUDED_QUARTIER_LABELS = {
     'bellepierre': 'Bellepierre',
     'montgaillard': 'Montgaillard',
     'bas-de-la-riviere': 'Bas de la Rivière',
+    'providence': 'Providence',
+    'saint-francois': 'Saint-François',
 }
-DESCRIPTION_EXCLUDED_QUARTIERS = ('bellepierre', 'montgaillard', 'la-montagne', 'bas-de-la-riviere')
+DESCRIPTION_EXCLUDED_QUARTIERS = (
+    'bellepierre', 'montgaillard', 'la-montagne', 'bas-de-la-riviere',
+    'providence', 'la-providence', 'saint-francois',
+)
 DESCRIPTION_LOCATION_RE = re.compile(
-    r'\b(?:situe(?:e|es|s)?\s+a|situe(?:e|es|s)?\s+au|a|au|aux|location(?:\s+(?:de|d|un|une|appartement|studio|maison|t[0-9]|f[0-9]|meuble|meublee)){0,8}|louer\s+a)\s+(?P<q>bellepierre|montgaillard|la\s+montagne|bas\s+de\s+la\s+riviere)\b'
+    r'\b(?:situe(?:e|es|s)?\s+a|situe(?:e|es|s)?\s+au|a|au|aux|location(?:\s+(?:de|d|un|une|appartement|studio|maison|t[0-9]|f[0-9]|meuble|meublee)){0,8}|louer\s+a)\s+(?P<q>bellepierre|montgaillard|la\s+montagne|bas\s+de\s+la\s+riviere|(?:la\s+)?providence|saint\s+francois)\b'
 )
 DESCRIPTION_REPERE_RE = re.compile(
     r'\b(?:vue|face|proche|pres|minutes?\s+de|a\s+\d+\s*(?:min|minutes?)\s+de|acces|route|lycee\s+de|chu\s+de|secteur|preference|souhait)\b'
@@ -129,6 +137,10 @@ def excluded_quartier_from_description(title, description, location_label=None):
     # comme reperes ou souhaits dans la description, pas Montgaillard en titre.
     if 'montgaillard' in title_norm:
         return 'Montgaillard'
+    if re.search(r'\b(?:la\s+)?providence\b', title_norm):
+        return 'Providence'
+    if re.search(r'\bsaint\s+francois\b', title_norm):
+        return 'Saint-François'
 
     for m in re.finditer(r'\bmontgaillard\b', txt):
         before = txt[max(0, m.start() - 100):m.start()]
@@ -136,6 +148,15 @@ def excluded_quartier_from_description(title, description, location_label=None):
             continue
         if re.search(r'\b(?:situe(?:e|es|s)?\s+a\s+saint\s+denis|location\b.{0,80}\bsaint\s+denis|loue\b.{0,80}\bsaint\s+denis)\b', before):
             return 'Montgaillard'
+
+    for needle, label in ((r'\b(?:la\s+)?providence\b', 'Providence'),
+                          (r'\bsaint\s+francois\b', 'Saint-François')):
+        for m in re.finditer(needle, txt):
+            before = txt[max(0, m.start() - 100):m.start()]
+            if DESCRIPTION_REPERE_RE.search(before):
+                continue
+            if re.search(r'\b(?:quartier|secteur|situe(?:e|es|s)?\s+a\s+saint\s+denis|location\b.{0,80}\bsaint\s+denis|loue\b.{0,80}\bsaint\s+denis)\b', before):
+                return label
 
     for m in DESCRIPTION_LOCATION_RE.finditer(txt):
         before = txt[max(0, m.start() - 70):m.start()]
@@ -147,13 +168,102 @@ def excluded_quartier_from_description(title, description, location_label=None):
             'montgaillard': 'Montgaillard',
             'la-montagne': 'La Montagne',
             'bas-de-la-riviere': 'Bas de la Rivière',
+            'providence': 'Providence',
+            'la-providence': 'Providence',
+            'saint-francois': 'Saint-François',
         }.get(q)
+    return None
+
+
+def detail_text_ok(description_full, min_chars=DETAIL_READ_MIN_CHARS):
+    """A detail page is read only when HTTP content produced useful text."""
+    return len(str(description_full or '').strip()) >= min_chars
+
+
+def public_rule_violation(listing):
+    """Return the first non-destructive public publication exclusion reason."""
+    rent_value = as_int(listing.get('rent'))
+    if rent_value is None:
+        return 'loyer_inconnu'
+    if rent_value > PUBLICATION_MAX_RENT_EUR:
+        return 'loyer_sup_1700'
+    surface_value = as_float(listing.get('surface'))
+    if surface_value is None:
+        return 'surface_inconnue'
+    if surface_value < PUBLICATION_MIN_SURFACE_M2:
+        return 'surface_inf_65'
     return None
 
 
 def active_public_listings(listings):
     """The public feed is an availability feed; history lives in movements/pages."""
     return [item for item in listings if item.get('active') is True]
+
+
+def canonical_public_feed(listings):
+    """Hide only strong, obvious cross-source duplicates from the V2 feed.
+
+    The historical DB-level `is_canonical` is intentionally not used as a hard
+    publication filter here: its older duplicate_key can be too weak for product
+    hiding. This V2 policy is narrower and non-destructive: exact same normalized
+    title + commune + rent + surface + rooms, seen on multiple sources. Suspects
+    and near matches remain visible.
+    """
+    source_priority = {'zimo': 0, 'leboncoin': 1, 'seloger': 2, 'bienici': 3, 'ofim': 4, 'ofim_rss': 5}
+    for item in listings:
+        item['display_canonical'] = True
+        item['canonical_display_id'] = item.get('id')
+        item['dedup_decision'] = item.get('dedup_decision') or ''
+        item['dedup_reason'] = item.get('dedup_reason') or ''
+
+    buckets = defaultdict(list)
+    for item in listings:
+        rent_value = as_int(item.get('rent'))
+        surface_value = as_float(item.get('surface'))
+        if rent_value is None or surface_value is None:
+            continue
+        key = (
+            norm(item.get('title')),
+            norm(item.get('commune')),
+            rent_value,
+            round(surface_value, 1),
+            item.get('rooms') or '',
+        )
+        if key[0] and key[1]:
+            buckets[key].append(item)
+
+    groups = []
+    for key, members in buckets.items():
+        sources = sorted(set(str(x.get('source') or '') for x in members))
+        if len(members) < 2 or len(sources) < 2:
+            continue
+
+        def rank(x):
+            return (
+                source_priority.get(str(x.get('source') or ''), 99),
+                0 if x.get('image') else 1,
+                -len(str(x.get('description') or '')),
+                str(x.get('id') or ''),
+            )
+
+        canonical = sorted(members, key=rank)[0]
+        canonical_id = canonical.get('id')
+        member_ids = [x.get('id') for x in members]
+        for item in members:
+            item['canonical_display_id'] = canonical_id
+            item['dedup_decision'] = 'auto_duplicate' if item is not canonical else 'canonical'
+            item['dedup_reason'] = 'doublon fort: même titre, commune, loyer, surface et pièces sur plusieurs sources'
+            if item is not canonical:
+                item['display_canonical'] = False
+        groups.append({'canonical_id': canonical_id, 'member_ids': member_ids, 'sources': sources, 'signature': key})
+
+    visible = [item for item in listings if item.get('display_canonical') is not False]
+    return visible, {
+        'policy': 'V2 exact-signature strong duplicates only; suspects/near matches stay visible',
+        'groups': len(groups),
+        'hidden_rows': len(listings) - len(visible),
+        'examples': groups[:20],
+    }
 
 
 def coverage_from_feed(now, listings):
@@ -639,7 +749,7 @@ def main():
             'images': galeries_man.get(k) or galleries.get(k)
                       or ([thumbs[k]] if k in thumbs else []),
             'description': source_text,
-            'detail_read': bool(d.get('http_status') == 200),
+            'detail_read': bool(d.get('http_status') == 200 and detail_text_ok(d.get('description_full'))),
             'llm_extraction': llm_fields,
             'llm_extraction_status': llm_status,
         }
@@ -665,10 +775,9 @@ def main():
                 diagnostics_actifs['non_residentiel_flag_faible_garde'] += 1
             if listing['residential'] is False:
                 diagnostics_actifs['non_residentiel_servi_exclu'] += 1
-            if as_int(listing.get('rent')) is not None and as_int(listing.get('rent')) > 6000:
-                diagnostics_actifs['loyer_sup_6000'] += 1
-            if listing.get('surface') is not None and float(listing.get('surface')) < 9:
-                diagnostics_actifs['surface_inf_9'] += 1
+            violation = public_rule_violation(listing)
+            if violation:
+                diagnostics_actifs[violation] += 1
 
         # --- filtres produit publics (non destructifs DB, mais annonces non servies)
         # Ordre volontaire: chaque annonce est comptee dans la premiere regle qui
@@ -676,12 +785,9 @@ def main():
         if listing['residential'] is False:
             compter_exclusion('non_residentiel', listing)
             continue
-        if as_int(listing.get('rent')) is not None and as_int(listing.get('rent')) > 6000:
-            compter_exclusion('loyer_sup_6000', listing)
-            continue
-        surface_value = as_float(listing.get('surface'))
-        if surface_value is not None and surface_value < 9:
-            compter_exclusion('surface_inf_9', listing)
+        violation = public_rule_violation(listing)
+        if violation:
+            compter_exclusion(violation, listing)
             continue
         if norm(listing.get('commune')) in EXCLUDED_COMMUNE_NORMS:
             compter_exclusion('commune_saint_andre', listing)
@@ -733,6 +839,8 @@ def main():
     # Do not mix withdrawn inventory into the public availability feed. Historical
     # counts remain in `movements` and the dedicated changes/history artifacts.
     listings = active_public_listings(listings)
+    listings, dedup_display = canonical_public_feed(listings)
+    movements['actives'] = len(listings)
 
 
     # --- sante des sources
@@ -768,6 +876,7 @@ def main():
             'nouvelles_7j': movements['nouvelles_7j'],
             'actives': movements['actives'],
         },
+        'dedup_display': dedup_display,
         'precision': {PRECISION_LABEL.get(k, k): v for k, v in prec_counts.most_common()},
         'profils': {
             k: {'nom': v['nom'],

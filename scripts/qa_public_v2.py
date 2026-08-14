@@ -131,10 +131,23 @@ def qa_feed():
     meta = d.get("meta") if isinstance(d.get("meta"), dict) else {}
     diag = meta.get("diagnostics_actifs_avant_filtres") if isinstance(meta.get("diagnostics_actifs_avant_filtres"), dict) else {}
     reference = diag.get("depart_actives") or meta.get("actives") or len(actives)
+    raw_exclusions = meta.get("exclusions_produit")
+    exclusions = raw_exclusions if isinstance(raw_exclusions, dict) else {}
+    excluded_actives = sum(int(v or 0) for k, v in exclusions.items() if str(k).endswith("_actives") and ":" not in str(k))
+    raw_dedup_display = meta.get("dedup_display")
+    dedup_display = raw_dedup_display if isinstance(raw_dedup_display, dict) else {}
+    dedup_hidden = int(dedup_display.get("hidden_rows") or 0)
+    expected_after_filters = reference - excluded_actives - dedup_hidden if reference else len(actives)
     ratio = len(actives) / reference if reference else 0
-    check("feed_coherent_base", 0.25 <= ratio <= 1.0 and meta.get("actives") == len(actives),
-          f"{len(actives)} actives publiees pour {reference} avant filtres produit (ratio {ratio:.2f})",
-          {"feed": len(actives), "avant_filtres": reference, "meta_actives": meta.get("actives")})
+    check("feed_coherent_base", expected_after_filters == len(actives) and meta.get("actives") == len(actives),
+          f"{len(actives)} actives publiees = {reference} avant filtres - {excluded_actives} exclusions actives - {dedup_hidden} doublons forts (ratio {ratio:.2f})",
+          {"feed": len(actives), "avant_filtres": reference, "excluded_actives": excluded_actives, "dedup_hidden": dedup_hidden, "expected_after_filters": expected_after_filters, "meta_actives": meta.get("actives")})
+    surface_bad = [x.get("id") for x in actives if x.get("surface") in (None, "") or float(x.get("surface")) < 65]
+    rent_bad = [x.get("id") for x in actives if not x.get("rent") or int(float(x.get("rent"))) > 1700]
+    check("feed_surface_65_contract", not surface_bad,
+          "aucune annonce active avec surface inconnue ou <65" if not surface_bad else f"{len(surface_bad)} violation(s) surface", surface_bad[:20])
+    check("feed_rent_contract", not rent_bad,
+          "aucune annonce active avec loyer inconnu ou >1700" if not rent_bad else f"{len(rent_bad)} violation(s) loyer", rent_bad[:20])
     try:
         cov = json.load(open(os.path.join(APP, "coverage.json"), encoding="utf-8"))
         check("coverage_decrit_feed", cov.get("count") == len(actives),

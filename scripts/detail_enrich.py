@@ -627,8 +627,8 @@ def main():
 
     if a.stats:
         tot = c.execute('select count(*) from rental_listings').fetchone()[0]
-        done = c.execute('select count(*) from listing_detail').fetchone()[0]
-        print('annonces: %d | detail lu: %d (%.0f%%)' % (tot, done, 100.0 * done / max(tot, 1)))
+        done = c.execute("select count(*) from listing_detail where http_status=200 and length(trim(coalesce(description_full,'')))>=80").fetchone()[0]
+        print('annonces: %d | detail texte lu: %d (%.0f%%)' % (tot, done, 100.0 * done / max(tot, 1)))
         print('\n-- precision --')
         for p, k in c.execute('select precision, count(*) from listing_detail '
                               'group by 1 order by 2 desc'):
@@ -644,7 +644,8 @@ def main():
          'where r.url is not null')
     if not a.redo:
         q += (' and not exists (select 1 from listing_detail d where '
-              'd.source_site=r.source_site and d.source_id=r.source_id and d.http_status=200)')
+              'd.source_site=r.source_site and d.source_id=r.source_id '
+              "and d.http_status=200 and length(trim(coalesce(d.description_full,'')))>=80)")
     if a.only_active:
         q += ' and r.is_active=1'
     if a.source:
@@ -694,7 +695,10 @@ def main():
                       'w', encoding='utf-8') as f:
                 f.write(page)
             rec = process(page, fb or '')
-            ok += 1
+            if len(str(rec.get('description_full') or '').strip()) >= 80:
+                ok += 1
+            else:
+                note = 'HTTP %s sans texte detail exploitable' % status
         except urllib.error.HTTPError as e:
             status = e.code
             note = 'HTTP %s' % e.code
