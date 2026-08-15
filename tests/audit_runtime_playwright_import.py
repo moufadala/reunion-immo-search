@@ -44,9 +44,13 @@ def main() -> int:
         errors.append(f"unexpected venv prefix: {sys.prefix} != {expected_venv}")
     if site.ENABLE_USER_SITE:
         errors.append("user site is enabled inside project venv")
-    foreign_user_paths = [p for p in path_entries if "/.local/lib/python3.13/site-packages" in p]
+    runtime_minor = f"python{sys.version_info.major}.{sys.version_info.minor}"
+    foreign_user_paths = [
+        p for p in path_entries
+        if "/.local/lib/python" in p and runtime_minor not in p
+    ]
     if foreign_user_paths:
-        errors.append(f"foreign Python 3.13 user-site on sys.path: {foreign_user_paths}")
+        errors.append(f"foreign Python user-site on sys.path for {runtime_minor}: {foreign_user_paths}")
 
     for name in ("greenlet", "greenlet._greenlet", "playwright", "playwright.sync_api"):
         try:

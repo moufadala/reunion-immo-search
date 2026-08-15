@@ -46,7 +46,7 @@ def test_runtime_gate_rejects_python313_user_site_injection() -> None:
     assert proc.returncode == 1, proc.stdout + proc.stderr
     payload = json.loads(proc.stdout)
     assert payload["ok"] is False
-    assert any("Python 3.13 user-site" in error for error in payload["errors"])
+    assert any("foreign Python user-site" in error for error in payload["errors"])
 
 
 def test_daily_refresh_sanitizes_python_import_environment_before_steps() -> None:
