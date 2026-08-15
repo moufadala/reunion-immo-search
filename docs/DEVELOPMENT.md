@@ -11,17 +11,19 @@ Prérequis : Python 3.11 ou 3.12 et `uv`.
 uv sync --frozen --group dev
 ```
 
-Pour les audits qui pilotent un navigateur :
+Playwright est une dépendance runtime du pipeline immo, car `immo_daily_public_refresh.sh`
+exécute le collecteur SeLoger avec l'interpréteur exact du projet. Il doit donc être présent
+dans `.venv`, pas dans un user-site Python externe.
+
+Pour installer seulement les binaires navigateur nécessaires aux audits explicites :
 
 ```bash
-uv sync --frozen --group dev --extra browser
 uv run playwright install chromium
 ```
 
 Les binaires Chromium ne sont pas inclus dans `uv.lock` et doivent être installés séparément.
 Ils peuvent ajouter plusieurs centaines de Mo, plus les révisions conservées dans le cache
-Playwright. Ne lancer cette installation que pour un audit navigateur explicite ; le socle
-minimal ne la lance pas et son environnement `.venv` mesuré occupe environ 17,4 Mo sur Windows.
+Playwright. Ne lancer cette installation que pour un audit navigateur explicite.
 
 ## Tests automatiques sûrs
 

@@ -8,12 +8,20 @@ export PYTHONNOUSERSITE=1
 # Success is JSON on stdout. Detailed logs go to the run directory.
 
 umask 077
+# Keep the project runtime hermetic. A previous run inherited a Python 3.13
+# user-site path while executing the project Python 3.12 venv, which broke the
+# native greenlet._greenlet extension used by Playwright.
+export PYTHONNOUSERSITE=1
+unset PYTHONPATH
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
 export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/.cache/ms-playwright}"
 
 PROJECT="/opt/data/projects/reunion-immo-search"
 PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
-if [ ! -x "$PY" ]; then PY=python3; fi
+if [ ! -x "$PY" ]; then
+  printf 'IMMO_PROJECT_PYTHON is not executable: %s\n' "$PY" >&2
+  exit 64
+fi
 export PY
 CLEAN_PROJECT="/opt/data/projects/reunion-immo-clean-app"
 ROOT="/opt/data"
@@ -112,6 +120,34 @@ PY
 run_step pipeline_invariants "$PY" "$PROJECT/tests/test_pipeline_invariants.py"
 run_step mapping_golden_regression "$PY" "$PROJECT/tests/test_mapping_golden.py"
 run_step runtime_script_contracts "$PY" "$PROJECT/tests/audit_pipeline_script_contracts.py" --runtime-check
+run_step browser_runtime_import_gate "$PY" - <<'PY'
+import importlib
+import json
+import site
+import sys
+
+minor = f"python{sys.version_info.major}.{sys.version_info.minor}"
+foreign_user_site = [
+    path for path in sys.path
+    if "/.local/lib/python" in path and minor not in path
+]
+if foreign_user_site:
+    raise SystemExit(
+        "foreign Python user-site on sys.path for runtime %s: %s"
+        % (minor, foreign_user_site)
+    )
+
+playwright = importlib.import_module("playwright.sync_api")
+greenlet_ext = importlib.import_module("greenlet._greenlet")
+print(json.dumps({
+    "ok": True,
+    "executable": sys.executable,
+    "version": sys.version.split()[0],
+    "enable_user_site": site.ENABLE_USER_SITE,
+    "playwright": getattr(playwright, "__file__", None),
+    "greenlet_ext": getattr(greenlet_ext, "__file__", None),
+}, ensure_ascii=False, indent=2))
+PY
 
 # Roll back source-detail/stage DB and public-app mutations if a downstream gate fails.
 ENRICHMENT_DB_BACKUP=""
@@ -197,7 +233,11 @@ run_step realestate_refresh \
     --limit 15
 
 # SeLoger is a separate CDP collector: collect a fresh artifact, then import it into DB.
-run_step seloger_cdp_collect "$PY" "$ROOT/scripts/seloger_multi_page.py"
+# Use the repo-controlled collector, not the legacy /opt/data/scripts copy: the
+# latter used to prepend a Python 3.13 user-site to this Python 3.12 venv and
+# broke greenlet._greenlet at runtime.
+run_step playwright_import_gate "$PY" "$PROJECT/tests/audit_runtime_playwright_import.py"
+run_step seloger_cdp_collect "$PY" "$PROJECT/scripts/seloger_multi_page.py"
 run_step seloger_import "$PY" "$PROJECT/src/import_seloger_multipage.py" --db "$DB" --artifact "$SELOGER_ARTIFACT" --max-age-hours 6
 
 # Recover source-detail descriptions before building the public artifact.
