@@ -108,9 +108,10 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
 
   return (
     <article
-      onClick={() => onOuvrir(l)}
+      data-testid="listing-card"
+      data-listing-id={l.id}
       className={cx(
-        "group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border bg-surface",
+        "group flex flex-col overflow-hidden rounded-[16px] border bg-surface",
         "shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-300",
         "active:scale-[0.995] sm:hover:-translate-y-0.5 sm:hover:shadow-[var(--shadow-lift)]",
         // une annonce fraîche ne se rate pas : bordure et fond distincts
@@ -224,6 +225,10 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
             {l.published ? <> · publiée {ilYA(l.published)}</> : <> · repérée {ilYA(l.seen_first)}</>}
           </span>
           <div className="flex shrink-0 gap-1.5">
+            <button type="button" onClick={() => onOuvrir(l)}
+              className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-muted active:bg-sunken">
+              Détails
+            </button>
             {carte && (
               <a href={carte} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
                 className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-muted active:bg-sunken">

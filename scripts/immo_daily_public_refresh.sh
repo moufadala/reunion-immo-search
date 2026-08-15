@@ -442,7 +442,7 @@ start_local_audit_server "$PROJECT/artifacts/app" "$PY" "$LOCAL_AUDIT_PORT" \
   "$RUN_DIR/local_audit_server.stdout" "$RUN_DIR/local_audit_server.stderr"
 run_step browser_qa_preflight "$PY" "$PROJECT/tests/audit_browser_qa_preflight.py"
 run_step public_user_search_audit env IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/" "$PY" "$PROJECT/tests/audit_user_search_cases.py"
-run_step public_changes_filter_audit env IMMO_CHANGES_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/changes.html?rev=changes-audit" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
+run_step public_changes_filter_audit env IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
 stop_local_audit_server
 run_step daily_summary "$PY" "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --out "$RUN_DIR/ops_cockpit"

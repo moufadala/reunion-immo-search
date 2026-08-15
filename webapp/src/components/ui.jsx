@@ -122,7 +122,7 @@ export function Stat({ value, label, sub, tone }) {
    Prouvé le 27/07 : dans un onglet en arrière-plan, Chrome gèle les transitions
    et l'IntersectionObserver ne se déclenche pas — la page reste blanche.
    D'où le filet : au bout de 1,2 s, on affiche quoi qu'il arrive. */
-export function Reveal({ children, className, delay = 0 }) {
+export function Reveal({ children, className, delay = 0, ...props }) {
   const ref = useRef(null);
   const [vu, setVu] = useState(false);
   useEffect(() => {
@@ -137,7 +137,7 @@ export function Reveal({ children, className, delay = 0 }) {
     return () => { clearTimeout(filet); io.disconnect(); };
   }, []);
   return (
-    <div ref={ref} style={{ transitionDelay: `${delay}ms` }}
+    <div {...props} ref={ref} style={{ transitionDelay: `${delay}ms` }}
       className={cx("reveal", vu && "in", className)}>
       {children}
     </div>

@@ -51,9 +51,10 @@ function Header({ meta, onglet, setOnglet }) {
             <ThemeToggle />
           </div>
         </div>
-        <nav className="flex gap-1">
+        <nav aria-label="Navigation principale" className="flex gap-1">
           {ONGLETS.map((o) => (
             <button key={o.id} onClick={() => setOnglet(o.id)}
+              aria-current={onglet === o.id ? "page" : undefined}
               className={cx(
                 "relative rounded-lg px-3 py-1.5 text-[13.5px] font-bold transition-colors cursor-pointer",
                 onglet === o.id ? "text-accent" : "text-muted hover:text-ink"
@@ -201,7 +202,7 @@ export default function App() {
     <>
       <Header meta={data.meta} onglet={onglet} setOnglet={setOnglet} />
 
-      <main className="mx-auto flex max-w-[1400px] flex-col gap-5 px-4 py-5 sm:px-6 sm:py-7">
+      <main data-testid="app-root" className="mx-auto flex max-w-[1400px] flex-col gap-5 px-4 py-5 sm:px-6 sm:py-7">
         {onglet === "annonces" && (
           <>
             <Reveal className="grid grid-cols-2 gap-5 rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)] sm:grid-cols-4 sm:p-5">
@@ -250,11 +251,11 @@ export default function App() {
                 réafficher <Filters f={f} set={setF} ... /> — la logique est intacte. */}
             <div className="flex items-center justify-between gap-3">
               <p className="text-[13px] text-muted">
-                <strong className="text-ink tabular-nums">{filtrees.length}</strong> annonce
+                <strong data-testid="listing-count" className="text-ink tabular-nums">{filtrees.length}</strong> annonce
                 {filtrees.length > 1 ? "s" : ""}
                 <span className="text-faint"> · les plus fraîches et les mieux notées d'abord</span>
               </p>
-              <select value={f.tri} onChange={(e) => setF({ ...f, tri: e.target.value })}
+              <select aria-label="Trier les annonces" value={f.tri} onChange={(e) => setF({ ...f, tri: e.target.value })}
                 className="h-9 rounded-xl border border-line bg-surface px-2.5 text-[13px]
                            font-semibold text-ink outline-none">
                 <option value="pertinence">Fraîches + mes critères</option>
@@ -274,7 +275,7 @@ export default function App() {
               </Empty>
             ) : (
               <>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div data-testid="listings-grid" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {visibles.map((l, i) => (
                     <Reveal key={l.id} delay={Math.min(i % 12, 8) * 25}>
                       <Card l={l} feedPerime={feedPerime} onOuvrir={setOuvert} />

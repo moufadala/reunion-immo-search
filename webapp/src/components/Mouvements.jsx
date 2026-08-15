@@ -28,9 +28,9 @@ function Ligne({ l, motif }) {
   );
 }
 
-function Bloc({ titre, question, reponse, items, motif, tone }) {
+function Bloc({ titre, question, reponse, items, motif, tone, eventType }) {
   return (
-    <Reveal className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+    <Reveal aria-label={titre} data-event-type={eventType} className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h3 className="text-[15px] font-extrabold text-ink">{titre}</h3>
@@ -45,7 +45,9 @@ function Bloc({ titre, question, reponse, items, motif, tone }) {
         <p className="rounded-xl bg-sunken px-3 py-4 text-center text-[12.5px] text-faint">{reponse}</p>
       ) : (
         <div className="-mx-1 flex flex-col">
-          {items.slice(0, 8).map((l) => <Ligne key={l.id} l={l} motif={motif(l)} />)}
+          {items.slice(0, 8).map((l) => (
+            <Ligne key={l.event_id || `${l.id}:${l.event_type || "listing"}:${l.event_at || ""}`} l={l} motif={motif(l)} />
+          ))}
           {items.length > 8 && (
             <p className="px-2.5 pt-2 text-[11.5px] text-faint">
               + {items.length - 8} autre{items.length - 8 > 1 ? "s" : ""}
@@ -104,7 +106,11 @@ function Activite({ events }) {
 export default function Mouvements({ listings, movements }) {
   const events = movements?.events || [];
   const { nouvelles, retirees, revenues, longues } = useMemo(() => {
-    const recent = (e) => (joursDepuis(e.event_at) ?? 999) <= 7;
+    const recent = (e) => {
+      const at = Date.parse(e.event_at);
+      const age = Date.now() - at;
+      return Number.isFinite(at) && age >= 0 && age <= 7 * 86400000;
+    };
     return {
       nouvelles: events.filter((e) => e.event_type === "new" && recent(e)),
       retirees: events.filter((e) => e.event_type === "disappeared" && recent(e)),
@@ -121,21 +127,21 @@ export default function Mouvements({ listings, movements }) {
   return (
     <div className="flex flex-col gap-4">
       <Reveal className="grid grid-cols-2 gap-5 rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)] sm:grid-cols-4">
-        <Stat value={listings.filter((l) => l.active).length} label="En ligne" tone="accent"
-          sub="annonces disponibles maintenant" />
-        <Stat value={nouvelles.length} label="Nouvelles" sub="apparues ces 7 derniers jours" />
-        <Stat value={retirees.length} label="Retirées" sub="disparues ces 7 derniers jours" />
-        <Stat value={revenues.length} label="Réapparues" sub="revenues ces 7 derniers jours" />
+        <div data-testid="movement-online"><Stat value={listings.filter((l) => l.active).length} label="En ligne" tone="accent"
+          sub="annonces disponibles maintenant" /></div>
+        <div data-testid="movement-new"><Stat value={nouvelles.length} label="Nouvelles" sub="apparues ces 7 derniers jours" /></div>
+        <div data-testid="movement-withdrawn"><Stat value={retirees.length} label="Retirées" sub="disparues ces 7 derniers jours" /></div>
+        <div data-testid="movement-reappeared"><Stat value={revenues.length} label="Réapparues" sub="revenues ces 7 derniers jours" /></div>
       </Reveal>
 
       <Activite events={events} />
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Bloc titre="Nouvelles annonces" tone="accent"
+        <Bloc titre="Nouvelles annonces" tone="accent" eventType="new"
           question="Qu'est-ce qui est apparu depuis une semaine ?"
           reponse="Rien de neuf cette semaine."
           items={nouvelles} motif={(l) => dateFR(l.event_at)} />
-        <Bloc titre="Annonces retirées" tone="danger"
+        <Bloc titre="Annonces retirées" tone="danger" eventType="disappeared"
           question="Qu'est-ce qui a disparu des portails cette semaine ?"
           reponse="Aucune annonce retirée cette semaine."
           items={retirees} motif={(l) => dateFR(l.event_at)} />
@@ -146,7 +152,7 @@ export default function Mouvements({ listings, movements }) {
         reponse="Aucune annonce ancienne encore en ligne."
         items={longues} motif={(l) => `depuis ${joursDepuis(l.seen_first)} j`} />
 
-      <Bloc titre="Annonces réapparues"
+      <Bloc titre="Annonces réapparues" eventType="reappeared"
         question="Qu'est-ce qui est revenu sur un portail cette semaine ?"
         reponse="Aucune annonce réapparue cette semaine."
         items={revenues} motif={(l) => dateFR(l.event_at)} />
