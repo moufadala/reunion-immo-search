@@ -96,7 +96,7 @@ def main() -> int:
             dialog.wait_for(state="hidden")
 
         page.get_by_role("button", name="Sources", exact=True).click()
-        page.get_by_text("Santé des sources", exact=False).first.wait_for(state="visible")
+        page.get_by_test_id("sources-panel").wait_for(state="visible")
         page.get_by_role("button", name="Annonces", exact=True).click()
         page.get_by_test_id("listing-count").wait_for(state="visible")
 

@@ -10,6 +10,7 @@ def test_v2_app_exposes_stable_accessible_browser_contract():
     assert 'data-testid="app-root"' in app
     assert 'data-testid="listing-count"' in app
     assert 'data-testid="listings-grid"' in app
+    assert 'data-testid="sources-panel"' in app
     assert 'aria-label="Navigation principale"' in app
     assert 'aria-current={onglet === o.id ? "page" : undefined}' in app
     assert 'aria-label="Trier les annonces"' in app

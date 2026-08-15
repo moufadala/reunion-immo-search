@@ -74,7 +74,7 @@ function Header({ meta, onglet, setOnglet }) {
 function Sources({ sources, meta }) {
   const BLOQUES = { seloger: "DataDome", zimo: "anti-bot", superimmo: "503" };
   return (
-    <div className="flex flex-col gap-4">
+    <div data-testid="sources-panel" className="flex flex-col gap-4">
       <Reveal className="rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
         <h3 className="text-[15px] font-extrabold text-ink">Qualité de la localisation</h3>
         <p className="mt-0.5 text-[12.5px] text-muted">
