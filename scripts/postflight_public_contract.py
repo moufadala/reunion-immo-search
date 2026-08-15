@@ -181,6 +181,52 @@ def container_http_check(container: str, paths: tuple[str, ...], checks: list[di
     )
 
 
+def validate_group_summaries(listings: list[dict[str, object]], published: dict[str, object]) -> list[str]:
+    allowed = {"group_id", "canonical_display_id", "member_count", "sources", "reason"}
+    cards: dict[str, dict[str, object]] = {}
+    errors: list[str] = []
+    for item in listings:
+        group_id = item.get("dedup_group_id")
+        if not group_id:
+            continue
+        if not isinstance(group_id, str) or group_id in cards:
+            errors.append(f"duplicate_or_invalid_card_group:{group_id}")
+            continue
+        cards[group_id] = item
+    summaries = published.get("group_summaries")
+    if not isinstance(summaries, list):
+        return errors + ["group_summaries_not_list"]
+    seen: set[str] = set()
+    for summary in summaries:
+        if not isinstance(summary, dict) or set(summary) != allowed:
+            errors.append("summary_keys_or_type")
+            continue
+        group_id = summary.get("group_id")
+        sources = summary.get("sources")
+        if not isinstance(group_id, str) or group_id in seen:
+            errors.append(f"duplicate_or_invalid_summary_group:{group_id}")
+            continue
+        seen.add(group_id)
+        card = cards.get(group_id)
+        if card is None:
+            errors.append(f"summary_without_card:{group_id}")
+            continue
+        links = card.get("also_on") if isinstance(card.get("also_on"), list) else []
+        expected = {
+            "group_id": group_id,
+            "canonical_display_id": card.get("canonical_display_id"),
+            "member_count": len(links),
+            "sources": sorted({str(link.get("source")) for link in links if isinstance(link, dict) and link.get("source")}),
+            "reason": card.get("dedup_reason"),
+        }
+        if summary != expected or not isinstance(sources, list) or not all(isinstance(source, str) for source in sources):
+            errors.append(f"summary_mismatch:{group_id}")
+    if seen != set(cards):
+        errors.append("group_set_mismatch")
+    if published.get("groups") != len(cards):
+        errors.append("group_count_mismatch")
+    return errors
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True, help="Chemin artifacts/app final")
@@ -214,12 +260,23 @@ def main() -> int:
         scope_violations = []
         active_listings: list[dict[str, object]] = []
         hidden_duplicate_rows = 0
+        dedup_trace_violations = []
         for item in listings:
             if not isinstance(item, dict) or not item.get("active"):
                 continue
             active_listings.append(item)
             if item.get("display_canonical") is False:
                 hidden_duplicate_rows += 1
+            in_group = bool(item.get("dedup_group_id"))
+            trace_ok = (
+                item.get("canonical") is True
+                and item.get("display_canonical") is True
+                and item.get("canonical_display_id") == item.get("id")
+                and item.get("dedup_decision") == "canonical"
+                and bool(item.get("also_on")) == in_group
+            )
+            if not trace_ok:
+                dedup_trace_violations.append({"id": item.get("id"), "in_group": in_group})
             rent = as_int(item.get("rent"))
             surface = as_float(item.get("surface"))
             if rent is None or rent > PUBLICATION_MAX_RENT_EUR:
@@ -275,6 +332,16 @@ def main() -> int:
             duplicate_rows == 0 and hidden_duplicate_rows == 0,
             "le feed est un point fixe du moteur de déduplication public" if duplicate_rows == 0 and hidden_duplicate_rows == 0 else f"{duplicate_rows} doublon(s) fort(s) détecté(s) par le moteur public ou {hidden_duplicate_rows} ligne(s) masquée(s) encore servie(s)",
             {"policy": "same conservative engine as export_feed; doubt stays visible", "remaining_dedup": remaining_dedup, "remaining_visible": len(remaining_visible), "hidden_rows_still_served": hidden_duplicate_rows},
+        )
+        published_dedup = meta.get("deduplication") if isinstance(meta.get("deduplication"), dict) else {}
+        summaries = published_dedup.get("group_summaries") if isinstance(published_dedup.get("group_summaries"), list) else []
+        summary_errors = validate_group_summaries(active_listings, published_dedup)
+        expected_groups = published_dedup.get("groups", 0)
+        trace_ok = not dedup_trace_violations and not summary_errors
+        add_check(
+            checks, "publication_dedup_trace_contract", trace_ok,
+            "chaque carte visible est canonique et les groupes sont tracés sans URL" if trace_ok else "traçabilité canonique publique incohérente",
+            {"violations": dedup_trace_violations[:20], "groups": expected_groups, "summaries": len(summaries), "summary_errors": summary_errors[:20]},
         )
         raw = meta.get("genere_le") if isinstance(meta, dict) else None
         generated_at = parse_dt(raw)

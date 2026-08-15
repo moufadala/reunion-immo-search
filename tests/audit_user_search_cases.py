@@ -12,10 +12,15 @@ from __future__ import annotations
 import json
 import os
 import re
+from pathlib import Path
 import sys
 import urllib.parse
 import urllib.request
 from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from src.browser_qa_runtime import launch_chromium
 
 URL = os.environ.get("IMMO_PUBLIC_URL", "https://immo.148.230.103.174.sslip.io/")
 
@@ -67,7 +72,7 @@ def main() -> int:
     has_riviere_des_pluies = listing_payload_has(r"rivi[eè]res?\s+des\s+pluies")
     has_beausejour = listing_payload_has(r"beaus[eé]jour")
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = launch_chromium(p)
         page = browser.new_page(viewport={"width": 390, "height": 844})
         page.goto(URL, wait_until="networkidle", timeout=45_000)
         page.evaluate("localStorage.clear(); sessionStorage.clear();")

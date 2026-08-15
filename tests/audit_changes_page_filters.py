@@ -6,8 +6,13 @@ so the gate keeps validating truth when the watch data changes.
 """
 from __future__ import annotations
 import json, os, sys
+from pathlib import Path
 from urllib.request import urlopen
 from playwright.sync_api import sync_playwright
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from src.browser_qa_runtime import launch_chromium
 
 URL=os.environ.get('IMMO_CHANGES_URL','https://immo.148.230.103.174.sslip.io/changes.html?rev=changes-audit')
 BASE=URL.split('/changes.html',1)[0]
@@ -28,7 +33,7 @@ def expected_counts() -> dict[str, int]:
 EXPECT=expected_counts()
 errors=[]
 with sync_playwright() as p:
-    browser=p.chromium.launch(headless=True)
+    browser=launch_chromium(p)
     page=browser.new_page(viewport={'width':390,'height':844})
     console=[]
     page.on('console', lambda m: console.append(f'{m.type}: {m.text}'))

@@ -17,7 +17,7 @@ def _run_gate(env: dict[str, str] | None = None) -> subprocess.CompletedProcess[
     if env:
         merged.update(env)
     return subprocess.run(
-        [sys.executable, str(GATE)],
+        [str(ROOT / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")), str(GATE)],
         cwd=ROOT,
         env=merged,
         text=True,

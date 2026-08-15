@@ -53,6 +53,31 @@ def _same_mirrored_content(a: dict[str, Any], b: dict[str, Any]) -> bool:
     return SequenceMatcher(None, description_a, description_b, autojunk=False).ratio() >= 0.88
 
 
+_BUSINESS_REFERENCE_RE = re.compile(r"\breference\s+annonce\s*:?\s*([a-z0-9-]{5,})\b", re.IGNORECASE)
+
+
+def _business_references(item: dict[str, Any]) -> set[str]:
+    text = unicodedata.normalize("NFKD", f"{item.get('title') or ''} {item.get('description') or ''}").encode("ascii", "ignore").decode().lower()
+    return {re.sub(r"[^a-z0-9]", "", match) for match in _BUSINESS_REFERENCE_RE.findall(text)}
+
+
+def _source_identifier(item: dict[str, Any]) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(item.get("id") or "").split(":", 1)[-1].lower())
+
+
+def _same_business_reference(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    if _norm(a.get("source")) == _norm(b.get("source")):
+        return False
+    refs_a, refs_b = _business_references(a), _business_references(b)
+    if refs_a and refs_b and refs_a.isdisjoint(refs_b):
+        return False
+
+    def points_to(refs: set[str], other: dict[str, Any]) -> bool:
+        source_id = _source_identifier(other)
+        return len(source_id) >= 5 and any(ref.endswith(source_id) and len(ref) - len(source_id) <= 4 for ref in refs)
+
+    return points_to(refs_a, b) or points_to(refs_b, a)
+
 def _duplicate_reason(a: dict[str, Any], b: dict[str, Any]) -> str | None:
     if _norm(a.get("url")) and _norm(a.get("url")) == _norm(b.get("url")):
         return "same_url"
@@ -70,6 +95,8 @@ def _duplicate_reason(a: dict[str, Any], b: dict[str, Any]) -> str | None:
                          and _norm(a.get("bedrooms")) != _norm(b.get("bedrooms")))
     if not bedrooms_conflict and address_a and address_a == address_b and common_images:
         return "same_address_and_photo"
+    if _same_business_reference(a, b):
+        return "same_business_reference"
     if _same_mirrored_content(a, b):
         return "same_title_and_description"
     return None
@@ -84,6 +111,8 @@ def _merge_complementary(primary: dict[str, Any], secondary: dict[str, Any]) -> 
     for key, value in secondary.items():
         if merged.get(key) in (None, "", [], {}) and value not in (None, "", [], {}):
             merged[key] = value
+    if secondary.get("image_locale") is True and merged.get("image") == secondary.get("image"):
+        merged["image_locale"] = True
     merged["images"] = list(dict.fromkeys(
         list(primary.get("images") or []) + list(secondary.get("images") or [])
     ))
@@ -94,11 +123,24 @@ def _link(item: dict[str, Any]) -> dict[str, Any]:
     return {"id": item.get("id"), "source": item.get("source"), "url": item.get("url")}
 
 
-def deduplicate_public_feed(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, int]]:
+def deduplicate_public_feed(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     visible: list[dict[str, Any]] = []
     hidden = groups = 0
     for original in items:
         item = dict(original)
+        # DB/deep-dedup flags describe source inventory, not the public product.
+        # Every row returned here is a canonical public card.
+        for stale_key in (
+            'also_on', 'seen_also_on', 'dedup_group_id', 'canonical_id',
+            'dedup_reason', 'dedup_confidence',
+        ):
+            item.pop(stale_key, None)
+        item.update({
+            'canonical': True,
+            'canonical_display_id': item.get('id'),
+            'display_canonical': True,
+            'dedup_decision': 'canonical',
+        })
         found = next(((existing, _duplicate_reason(existing, item)) for existing in visible if _duplicate_reason(existing, item)), None)
         if found is None:
             visible.append(item)
@@ -125,4 +167,17 @@ def deduplicate_public_feed(items: list[dict[str, Any]]) -> tuple[list[dict[str,
         })
         visible[visible.index(match)] = canonical
         hidden += 1
-    return visible, {"input": len(items), "visible": len(visible), "groups": groups, "hidden_duplicates": hidden}
+    group_summaries = [{
+        "group_id": item["dedup_group_id"],
+        "canonical_display_id": item["canonical_display_id"],
+        "member_count": len(item["also_on"]),
+        "sources": item["seen_also_on"],
+        "reason": item["dedup_reason"],
+    } for item in visible if item.get("dedup_group_id")]
+    return visible, {
+        "input": len(items),
+        "visible": len(visible),
+        "groups": groups,
+        "hidden_duplicates": hidden,
+        "group_summaries": group_summaries,
+    }

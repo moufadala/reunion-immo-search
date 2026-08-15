@@ -123,3 +123,5 @@ def test_postflight_reuses_the_public_dedup_engine_instead_of_title_signature() 
     assert "from src.public_feed_dedup import deduplicate_public_feed" in source
     assert "remaining_visible, remaining_dedup = deduplicate_public_feed(active_listings)" in source
     assert "duplicate_signatures" not in source
+    assert '"publication_dedup_trace_contract"' in source
+    assert '"group_summaries"' in source
