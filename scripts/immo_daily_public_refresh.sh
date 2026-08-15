@@ -4,7 +4,7 @@ unset PYTHONPATH PYTHONHOME
 export PYTHONNOUSERSITE=1
 
 
-# Daily non-agent product refresh for the public Réunion immo dashboard.
+# Daily non-agent product refresh for the public RÃƒÂ©union immo dashboard.
 # Success is JSON on stdout. Detailed logs go to the run directory.
 
 umask 077
@@ -170,10 +170,11 @@ DB_PROMOTE_BACKUP=""
 APP_SWAP_DONE=0
 APP_KEEP=0
 BACKUP_APP=""
+source "$PROJECT/scripts/local_audit_server.sh"
 LOCAL_AUDIT_PID=""
 restore_on_failure() {
   local rc=$?
-  if [ -n "${LOCAL_AUDIT_PID:-}" ]; then kill "$LOCAL_AUDIT_PID" >/dev/null 2>&1 || true; fi
+  stop_local_audit_server
   if [ "$rc" -ne 0 ] \
     && [ -n "${ENRICHMENT_DB_BACKUP:-}" ] \
     && [ "${ENRICHMENT_DB_KEEP:-0}" != "1" ] \
@@ -209,6 +210,8 @@ restore_on_failure() {
   exit "$rc"
 }
 trap restore_on_failure EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 if [ "$STAGE_DB_MODE" = "1" ]; then
   run_step stage_db_init "$PY" -c '
@@ -435,12 +438,12 @@ run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
 run_step public_v2_qa env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2.json"
 report_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 LOCAL_AUDIT_PORT="${IMMO_LOCAL_AUDIT_PORT:-18089}"
-(cd "$PROJECT/artifacts/app" && "$PY" -m http.server "$LOCAL_AUDIT_PORT" --bind 127.0.0.1 >"$RUN_DIR/local_audit_server.stdout" 2>"$RUN_DIR/local_audit_server.stderr") &
-LOCAL_AUDIT_PID=$!
-sleep 1
+start_local_audit_server "$PROJECT/artifacts/app" "$PY" "$LOCAL_AUDIT_PORT" \
+  "$RUN_DIR/local_audit_server.stdout" "$RUN_DIR/local_audit_server.stderr"
 run_step browser_qa_preflight "$PY" "$PROJECT/tests/audit_browser_qa_preflight.py"
 run_step public_user_search_audit env IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/" "$PY" "$PROJECT/tests/audit_user_search_cases.py"
 run_step public_changes_filter_audit env IMMO_CHANGES_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/changes.html?rev=changes-audit" "$PY" "$PROJECT/tests/audit_changes_page_filters.py"
+stop_local_audit_server
 run_step daily_summary "$PY" "$PROJECT/scripts/generate_daily_summary.py" --app "$PROJECT/artifacts/app" --out-dir "$RUN_DIR/daily_summary"
 run_step ops_cockpit "$PY" "$PROJECT/scripts/generate_ops_cockpit.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --out "$RUN_DIR/ops_cockpit"
 # P0 Privacy: saved_search_admin writes to run_dir only; do not promote to public app.
