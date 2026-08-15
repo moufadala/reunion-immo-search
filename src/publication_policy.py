@@ -55,6 +55,11 @@ def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
     if rent > MAX_RENT_EUR:
         return PublicationDecision(False, "rent_above_1700")
     city = _first(row, "commune", "city")
+    city_norm = _norm(city)
+    if not city_norm:
+        return PublicationDecision(False, "commune_missing_or_invalid")
+    if city_norm not in {"saint denis", "st denis", "sainte marie", "ste marie"}:
+        return PublicationDecision(False, "commune_outside_scope")
     district = _first(row, "quartier", "district", "primary_zone", "location_label")
     reason = _excluded_district(city, district)
     return PublicationDecision(not bool(reason), reason)

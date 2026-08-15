@@ -22,6 +22,14 @@ def test_schema_aliases_are_supported() -> None:
     decision = evaluate_publication({"surface_m2": "65", "rent_eur": "1700", "city": "Sainte-Marie"})
     assert decision.eligible
 
+def test_only_saint_denis_and_sainte_marie_are_public() -> None:
+    assert evaluate_publication(row(commune="Saint-Denis")).eligible
+    assert evaluate_publication(row(commune="Sainte-Marie")).eligible
+    assert evaluate_publication(row(commune="Sainte-Suzanne")).reason == "commune_outside_scope"
+    assert evaluate_publication(row(commune="Saint-Andre")).reason == "commune_outside_scope"
+    assert evaluate_publication(row(commune=None)).reason == "commune_missing_or_invalid"
+
+
 
 def test_excluded_saint_denis_quartiers_handle_spelling_variants() -> None:
     for quartier in ["Providence", "La Providence", "Saint-François", "Saint Francois", "St-François"]:

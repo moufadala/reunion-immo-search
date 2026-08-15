@@ -9,6 +9,13 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.publication_policy import evaluate_publication
+
 # Correctif 2026-07-27 :
 #   1. Une basic auth Traefik protege desormais le site (feed.json contient des
 #      donnees personnelles). Verifier le CONTENU en frappant directement le
@@ -25,7 +32,7 @@ from pathlib import Path
 
 PUBLIC_BASE = "https://immo.148.230.103.174.sslip.io/"
 LOCAL_APP_DIR = Path(os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR", "/opt/data/projects/reunion-immo-search/artifacts/app"))
-MIN_LISTINGS = 500
+MIN_LISTINGS = 100
 MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
 MIN_LOCAL_PHOTO_RATIO = 0.85
 MAX_FEED_AGE_HOURS = 36  # meme seuil que la banniere client "feed perime"
@@ -93,6 +100,27 @@ def fetch_externe_sans_auth(path: str) -> int:
         return e.code
 
 
+def feed_contract_errors(data: dict[str, object]) -> list[str]:
+    errors: list[str] = []
+    rows = data.get("listings") if isinstance(data.get("listings"), list) else []
+    policy_bad = [
+        str(row.get("id") or "?")
+        for row in rows
+        if isinstance(row, dict) and row.get("active", True) and not evaluate_publication(row).eligible
+    ]
+    if policy_bad:
+        errors.append(f"publication policy violated by {len(policy_bad)} listing(s): {policy_bad[:10]}")
+    meta = data.get("meta") if isinstance(data.get("meta"), dict) else {}
+    market = meta.get("marche") if isinstance(meta.get("marche"), dict) else {}
+    movements = data.get("movements") if isinstance(data.get("movements"), dict) else {}
+    retired = market.get("retirees_7j")
+    disappeared = movements.get("disparues_7j")
+    if retired is not None and disappeared is not None and int(retired) != int(disappeared):
+        errors.append(
+            f"movement counters disagree: meta.marche.retirees_7j={retired} movements.disparues_7j={disappeared}"
+        )
+    return errors
+
 def main() -> int:
     errors: list[str] = []
     evidence: dict[str, object] = {"checked_at": datetime.now(timezone.utc).isoformat()}
@@ -131,6 +159,7 @@ def main() -> int:
         evidence["feed_status"] = status
         data = json.loads(body.decode("utf-8"))
         check_feed_freshness(data, evidence, errors)
+        errors.extend(feed_contract_errors(data))
         rows = data.get("listings") or []
         total = len(rows)
         seloger = sum(1 for x in rows if str(x.get("source", "")).lower() == "seloger")

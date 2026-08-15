@@ -205,6 +205,7 @@ def main() -> int:
         rent_violations = []
         surface_violations = []
         quartier_violations = []
+        scope_violations = []
         duplicate_signatures: dict[tuple[object, ...], list[object]] = {}
         hidden_duplicate_rows = 0
         for item in listings:
@@ -218,6 +219,10 @@ def main() -> int:
                 rent_violations.append({"id": item.get("id"), "rent": item.get("rent")})
             if surface is None or surface < PUBLICATION_MIN_SURFACE_M2:
                 surface_violations.append({"id": item.get("id"), "surface": item.get("surface")})
+            commune_norm = norm(item.get("commune"))
+            if commune_norm not in {norm("Saint-Denis"), norm("Sainte-Marie")}:
+                scope_violations.append({"id": item.get("id"), "commune": item.get("commune")})
+
             if rent is not None and surface is not None:
                 signature = (norm(item.get("title")), norm(item.get("commune")), rent, round(surface, 1), item.get("rooms") or "")
                 if signature[0] and signature[1]:
@@ -244,6 +249,14 @@ def main() -> int:
             "aucune annonce active avec surface inconnue ou <65" if not surface_violations else f"{len(surface_violations)} annonce(s) violent le contrat surface",
             {"min_surface_m2": PUBLICATION_MIN_SURFACE_M2, "violations": surface_violations[:20]},
         )
+        add_check(
+            checks,
+            "publication_commune_scope_contract",
+            not scope_violations,
+            "toutes les annonces actives sont a Saint-Denis ou Sainte-Marie" if not scope_violations else f"{len(scope_violations)} annonce(s) hors perimetre",
+            {"allowed": ["Saint-Denis", "Sainte-Marie"], "violations": scope_violations[:20]},
+        )
+
         add_check(
             checks,
             "publication_saint_denis_quartier_contract",

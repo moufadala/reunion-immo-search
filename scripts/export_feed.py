@@ -37,7 +37,7 @@ OUT = os.environ.get('IMMO_FEED_OUT', ROOT + '/artifacts/app/feed.json')
 DIST = ROOT + '/config/distances_quartiers.json'
 
 COMMUNES = ['Saint-Denis', 'Sainte-Marie', 'Sainte-Suzanne', 'Saint-André']
-SERVE_COMMUNES = ['Saint-Denis', 'Sainte-Marie', 'Sainte-Suzanne']
+SERVE_COMMUNES = ['Saint-Denis', 'Sainte-Marie']
 
 # ordre de confiance, du plus precis au moins precis
 PRECISION_RANK = {

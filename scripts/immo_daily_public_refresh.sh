@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+unset PYTHONPATH PYTHONHOME
+export PYTHONNOUSERSITE=1
+
 
 # Daily non-agent product refresh for the public Réunion immo dashboard.
 # Success is JSON on stdout. Detailed logs go to the run directory.
@@ -172,6 +175,15 @@ src.close()
   DB="$STAGE_DB"
   export IMMO_DB_PATH="$DB"
 fi
+
+# Fail fast with the exact interpreter used by SeLoger. This prevents a late
+# crash after all source scrapers when a foreign user-site leaks into sys.path.
+run_step browser_runtime_preflight "$PY" -c '
+import json, sys
+import greenlet
+from playwright.sync_api import sync_playwright
+print(json.dumps({"executable": sys.executable, "version": sys.version, "greenlet": greenlet.__file__}))
+'
 
 # Refresh API/RSS/HTML sources already supported by realestate_watch.
 run_step realestate_refresh \

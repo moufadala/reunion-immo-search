@@ -32,7 +32,7 @@ Code de sortie : 0 = publication saine. 1 = probleme.
 LECTURE SEULE.
 """
 from __future__ import annotations
-import argparse, json, os, re, sqlite3, sys, urllib.request, base64
+import argparse, json, os, re, sqlite3, sys, urllib.request, base64, unicodedata
 
 def racine() -> str:
     """/opt/hermes/data D'ABORD : sur l'hote les deux existent, /opt/data y est un leurre."""
@@ -144,10 +144,17 @@ def qa_feed():
           {"feed": len(actives), "avant_filtres": reference, "excluded_actives": excluded_actives, "dedup_hidden": dedup_hidden, "expected_after_filters": expected_after_filters, "meta_actives": meta.get("actives")})
     surface_bad = [x.get("id") for x in actives if x.get("surface") in (None, "") or float(x.get("surface")) < 65]
     rent_bad = [x.get("id") for x in actives if not x.get("rent") or int(float(x.get("rent"))) > 1700]
+    def norm_city(value):
+        text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
+        return re.sub(r"[^a-z0-9]+", " ", text).strip()
+    allowed_cities = {"saint denis", "st denis", "sainte marie", "ste marie"}
+    city_bad = [x.get("id") for x in actives if norm_city(x.get("commune")) not in allowed_cities]
     check("feed_surface_65_contract", not surface_bad,
           "aucune annonce active avec surface inconnue ou <65" if not surface_bad else f"{len(surface_bad)} violation(s) surface", surface_bad[:20])
     check("feed_rent_contract", not rent_bad,
           "aucune annonce active avec loyer inconnu ou >1700" if not rent_bad else f"{len(rent_bad)} violation(s) loyer", rent_bad[:20])
+    check("feed_commune_scope_contract", not city_bad,
+          "scope Saint-Denis/Sainte-Marie respecte" if not city_bad else f"{len(city_bad)} violation(s) de perimetre", city_bad[:20])
     try:
         cov = json.load(open(os.path.join(APP, "coverage.json"), encoding="utf-8"))
         check("coverage_decrit_feed", cov.get("count") == len(actives),
