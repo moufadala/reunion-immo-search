@@ -40,3 +40,10 @@ def test_excluded_saint_denis_quartiers_handle_spelling_variants() -> None:
 def test_quartier_words_do_not_exclude_other_cities_or_nearby_landmarks() -> None:
     assert evaluate_publication(row(commune="Sainte-Marie", quartier="Providence")).eligible
     assert evaluate_publication(row(quartier=None, description="À 10 minutes de Providence")).eligible
+
+def test_manifestly_wrong_location_is_excluded_even_when_commune_is_mislabeled():
+    candidate = row(
+        commune="Saint-Denis",
+        title="Appartement T3 - Plaine-des-Cafres",
+    )
+    assert evaluate_publication(candidate).reason == "manifest_outside_scope"

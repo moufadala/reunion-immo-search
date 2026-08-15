@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import re
 import unicodedata
 from typing import Any, Mapping
+from src.geo_scope_guard import manifest_outside_scope
+
 
 MIN_SURFACE_M2 = 65.0
 MAX_RENT_EUR = 1700.0
@@ -60,6 +62,9 @@ def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
         return PublicationDecision(False, "commune_missing_or_invalid")
     if city_norm not in {"saint denis", "st denis", "sainte marie", "ste marie"}:
         return PublicationDecision(False, "commune_outside_scope")
+    outside = manifest_outside_scope(row)
+    if outside is not None:
+        return PublicationDecision(False, "manifest_outside_scope")
     district = _first(row, "quartier", "district", "primary_zone", "location_label")
     reason = _excluded_district(city, district)
     return PublicationDecision(not bool(reason), reason)

@@ -44,6 +44,9 @@ def main() -> int:
         errors.append(f"unexpected venv prefix: {sys.prefix} != {expected_venv}")
     if site.ENABLE_USER_SITE:
         errors.append("user site is enabled inside project venv")
+    if os.environ.get("PYTHONPATH"):
+        errors.append("foreign Python user-site injection via PYTHONPATH is forbidden")
+
     runtime_minor = f"python{sys.version_info.major}.{sys.version_info.minor}"
     foreign_user_paths = [
         p for p in path_entries
