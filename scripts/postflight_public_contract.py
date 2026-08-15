@@ -13,6 +13,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.public_feed_dedup import deduplicate_public_feed
+
 # Final publication contract. This is intentionally stricter than
 # immo_public_monitor.py: monitor freshness is a 36h watchdog, postflight is a
 # same-run gate and defaults to 2h.
@@ -206,11 +212,12 @@ def main() -> int:
         surface_violations = []
         quartier_violations = []
         scope_violations = []
-        duplicate_signatures: dict[tuple[object, ...], list[object]] = {}
+        active_listings: list[dict[str, object]] = []
         hidden_duplicate_rows = 0
         for item in listings:
             if not isinstance(item, dict) or not item.get("active"):
                 continue
+            active_listings.append(item)
             if item.get("display_canonical") is False:
                 hidden_duplicate_rows += 1
             rent = as_int(item.get("rent"))
@@ -223,10 +230,6 @@ def main() -> int:
             if commune_norm not in {norm("Saint-Denis"), norm("Sainte-Marie")}:
                 scope_violations.append({"id": item.get("id"), "commune": item.get("commune")})
 
-            if rent is not None and surface is not None:
-                signature = (norm(item.get("title")), norm(item.get("commune")), rent, round(surface, 1), item.get("rooms") or "")
-                if signature[0] and signature[1]:
-                    duplicate_signatures.setdefault(signature, []).append(item.get("id"))
             excluded_quartier = saint_denis_excluded_quartier(item)
             if excluded_quartier:
                 quartier_violations.append({
@@ -264,13 +267,14 @@ def main() -> int:
             "aucune annonce active Saint-Denis Providence/Saint-François" if not quartier_violations else f"{len(quartier_violations)} annonce(s) violent le contrat quartier Saint-Denis",
             {"excluded": EXCLUDED_SAINT_DENIS_QUARTIERS, "violations": quartier_violations[:20]},
         )
-        exact_duplicate_violations = {"|".join(map(str, key)): ids for key, ids in duplicate_signatures.items() if len(ids) > 1}
+        remaining_visible, remaining_dedup = deduplicate_public_feed(active_listings)
+        duplicate_rows = remaining_dedup.get("hidden_duplicates", 0)
         add_check(
             checks,
             "publication_strong_dedup_contract",
-            not exact_duplicate_violations and hidden_duplicate_rows == 0,
-            "aucun doublon fort exact publié dans le feed V2" if not exact_duplicate_violations and hidden_duplicate_rows == 0 else f"{len(exact_duplicate_violations)} signature(s) doublon fort ou {hidden_duplicate_rows} ligne(s) masquée(s) encore servie(s)",
-            {"policy": "same normalized title + commune + rent + surface + rooms must appear once in feed", "violations": dict(list(exact_duplicate_violations.items())[:20]), "hidden_rows_still_served": hidden_duplicate_rows},
+            duplicate_rows == 0 and hidden_duplicate_rows == 0,
+            "le feed est un point fixe du moteur de déduplication public" if duplicate_rows == 0 and hidden_duplicate_rows == 0 else f"{duplicate_rows} doublon(s) fort(s) détecté(s) par le moteur public ou {hidden_duplicate_rows} ligne(s) masquée(s) encore servie(s)",
+            {"policy": "same conservative engine as export_feed; doubt stays visible", "remaining_dedup": remaining_dedup, "remaining_visible": len(remaining_visible), "hidden_rows_still_served": hidden_duplicate_rows},
         )
         raw = meta.get("genere_le") if isinstance(meta, dict) else None
         generated_at = parse_dt(raw)

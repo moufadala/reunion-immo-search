@@ -198,14 +198,13 @@ restore_on_failure() {
     && [ -d "${BACKUP_APP:-}" ]; then
     printf 'Restoring artifacts/app after failed post-swap gate rc=%s\n' "$rc" >&2
     printf 'backup_app: %s\n' "$BACKUP_APP" >&2
-    rm -rf "$PROJECT/artifacts/app"
-    cp -a "$BACKUP_APP" "$PROJECT/artifacts/app"
-    chmod -R a+rX "$PROJECT/artifacts/app"
-    # Recreate nginx after replacing the bind-mounted directory. Otherwise
-    # Docker can keep serving the removed inode and public checks see an empty
-    # /usr/share/nginx/html (403 on /, 404 on files) until a manual publish.
-    # Best-effort only: keep the original failure as the script exit code.
-    bash "$PROJECT/deploy/publish-traefik.sh" >&2 || true
+    "$PY" "$PROJECT/scripts/rollback_public_app.py" --apply --backup "$BACKUP_APP" \
+      --target "$PROJECT/artifacts/app" \
+      --media-copy-mode hardlink \
+      --json-out "$RUN_DIR/rollback_app_failure.json" >&2 || {
+        printf 'CRITICAL: transactional app rollback failed; candidate left in place\n' >&2
+      }
+
   fi
   exit "$rc"
 }
@@ -453,7 +452,7 @@ report_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" 
 report_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 report_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
 run_step public_v2_qa_final env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2_final.json"
-run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --apply --json-out "$RUN_DIR/artifact_retention.json"
+run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --protect "$BACKUP_APP" --apply --json-out "$RUN_DIR/artifact_retention.json"
 run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" --warn-only --save-state --json "$RUN_DIR/immo_health_state_save.json"
 # P1 final postflight: this must remain the last blocking publication gate.
 # Keep it after every producer/audit that can touch artifacts/app, but before

@@ -27,7 +27,7 @@ PROTECTED_NAMES = {
     "vaults",
     "moufadal-second-brain",
 }
-ALLOWED_STAGE_PREFIXES = ("daily-clean-stage-", "daily-tech-stage-", "app.pre-promote-")
+ALLOWED_STAGE_PREFIXES = ("daily-clean-stage-", "daily-tech-stage-", "app.pre-promote-", "app.pre-rollback-")
 
 
 @dataclass(frozen=True)
@@ -90,7 +90,7 @@ def retention_candidates(
         raise ValueError("keep counts must be >= 0")
     protected_paths = {p.resolve() for p in (protected_paths or set())}
     candidates: list[Candidate] = []
-    for prefix, keep in (("daily-clean-stage-", keep_daily), ("daily-tech-stage-", keep_daily), ("app.pre-promote-", keep_pre_promote)):
+    for prefix, keep in (("daily-clean-stage-", keep_daily), ("daily-tech-stage-", keep_daily), ("app.pre-promote-", keep_pre_promote), ("app.pre-rollback-", keep_pre_promote)):
         items = [p for p in artifacts_root.iterdir() if p.name.startswith(prefix)] if artifacts_root.exists() else []
         items = sorted(items, key=newest_key, reverse=True)
         kept = 0
@@ -144,6 +144,8 @@ def summarize(artifacts_root: Path) -> dict[str, Any]:
         "app_pre_promote_count": len(names("app.pre-promote-")),
         "app_pre_promote": names("app.pre-promote-"),
         "bak_count": len(bak),
+        "app_pre_rollback_count": len(names("app.pre-rollback-")),
+        "app_pre_rollback": names("app.pre-rollback-"),
         "bak": bak,
     }
 
