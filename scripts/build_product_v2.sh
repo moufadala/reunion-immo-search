@@ -15,24 +15,25 @@ set -euo pipefail
 PROJECT="${IMMO_PROJECT:-/opt/data/projects/reunion-immo-search}"
 PY="${PY:-${IMMO_PROJECT_PYTHON:-python3}}"
 APP="${IMMO_APP_PATH:-$PROJECT/artifacts/app}"
-# BEGIN WEBAPP DIST FRESHNESS GUARD
-WEBAPP_SRC_DIR="$PROJECT/webapp/src"
-WEBAPP_DIST_INDEX="$PROJECT/webapp/dist/index.html"
-if [ -d "$WEBAPP_SRC_DIR" ] && [ -f "$WEBAPP_DIST_INDEX" ]; then
-  STALE_SRC_FILE=$(find "$WEBAPP_SRC_DIR" -type f -newer "$WEBAPP_DIST_INDEX" -print -quit)
-  if [ -n "$STALE_SRC_FILE" ]; then
-    echo "BLOCK: webapp/src is newer than webapp/dist/index.html; rebuild webapp before publishing. First newer file: $STALE_SRC_FILE" >&2
-    exit 2
-  fi
-else
-  echo "BLOCK: missing webapp/src or webapp/dist/index.html; cannot publish webapp artifact safely." >&2
-  exit 2
-fi
-# END WEBAPP DIST FRESHNESS GUARD
-
-DIST="$PROJECT/webapp/dist"
+WEBAPP="$PROJECT/webapp"
+DIST="$APP/v2"
 # 1 = l'app v2 devient aussi la page d'accueil (/). 0 = seulement /v2/.
 V2_RACINE="${IMMO_V2_AS_ROOT:-0}"
+
+if [ ! -f "$WEBAPP/package.json" ] || [ ! -f "$WEBAPP/package-lock.json" ]; then
+  echo "BLOCK: missing webapp package manifest or lockfile; cannot build reproducibly." >&2
+  exit 2
+fi
+
+echo "== 0/6 build interface reproductible =="
+mkdir -p "$APP"
+(
+  cd "$WEBAPP"
+  npm_config_cache="${NPM_CONFIG_CACHE:-/tmp/npm-immo}" npm ci --prefer-offline --no-audit --no-fund
+  npm run build -- --outDir "$DIST" --emptyOutDir
+)
+
+
 
 export_feed_once() {
   # Ne PAS piper directement dans `head` : sous `set -o pipefail`, la fermeture
@@ -64,15 +65,6 @@ echo "== 5/6 feed final =="
 export_feed_once
 
 echo "== 6/6 interface =="
-if [ ! -s "$DIST/index.html" ]; then
-  echo "ERREUR: build absent ($DIST/index.html). Lancer d'abord :" >&2
-  echo "  cd $PROJECT/webapp && npm_config_cache=/tmp/npm-immo npm ci && npm run build" >&2
-  exit 1
-fi
-
-mkdir -p "$APP/v2"
-rm -rf "$APP/v2/assets"
-cp -r "$DIST/." "$APP/v2/"
 # feed servi depuis la racine de l'app : un seul fichier, pas de doublon de 1,3 Mo
 ln -sfn ../feed.json "$APP/v2/feed.json"
 
