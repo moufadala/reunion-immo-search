@@ -26,6 +26,7 @@ import geo_quartiers as gq  # noqa: E402
 from enrich_source_details_v3 import llm_input_hash  # noqa: E402
 from src.publication_policy import evaluate_publication  # noqa: E402
 from src.public_feed_dedup import deduplicate_public_feed  # noqa: E402
+from src.description_observability import assess_description  # noqa: E402
 
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 EVENTS_DB = os.environ.get('IMMO_EVENTS_DB', '/opt/data/artifacts/immo-alerts/history.sqlite')
@@ -183,6 +184,67 @@ def detail_text_ok(description_full, min_chars=DETAIL_READ_MIN_CHARS):
     return len(str(description_full or '').strip()) >= min_chars
 
 
+
+def _parse_observed_at(value):
+    if not value:
+        return None
+    text = str(value).strip()
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def description_quality_payload(description, detail, fallback_seen_at=None):
+    attempted_at = _parse_observed_at(detail.get("fetched_at")) if detail else None
+    version = "detail-enrich-v1" if attempted_at else "source-card-v1"
+    attempted_at = attempted_at or _parse_observed_at(fallback_seen_at)
+    observation = assess_description(
+        description,
+        extractor_version=version,
+        attempted_at=attempted_at,
+        http_status=detail.get("http_status") if detail else None,
+    )
+    return {
+        "status": observation.status,
+        "length": observation.length,
+        "sha256": observation.sha256,
+        "extractor_version": observation.extractor_version,
+        "attempted_at": observation.attempted_at.isoformat() if observation.attempted_at else None,
+        "succeeded_at": observation.succeeded_at.isoformat() if observation.succeeded_at else None,
+        "markers": list(observation.markers),
+    }
+
+def normalize_published_at(value, anchor_seen_at=None):
+    text = str(value or '').strip()
+    if not text:
+        return None
+    anchor = _parse_observed_at(anchor_seen_at) or datetime.now(timezone.utc)
+    folded = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode().lower()
+    relative = re.search(r"il y a\s+(\d+)\s*(h|heure|heures|j|jour|jours|sem|semaine|semaines|mois)\b", folded)
+    if relative:
+        amount = int(relative.group(1))
+        unit = relative.group(2)
+        if unit.startswith('h'):
+            parsed = anchor - timedelta(hours=amount)
+        elif unit.startswith('j'):
+            parsed = anchor - timedelta(days=amount)
+        elif unit.startswith('sem'):
+            parsed = anchor - timedelta(weeks=amount)
+        else:
+            parsed = anchor - timedelta(days=30 * amount)
+    elif folded == 'hier':
+        parsed = anchor - timedelta(days=1)
+    else:
+        parsed = _parse_observed_at(text)
+    if parsed is None or parsed.year < 2000 or parsed > anchor + timedelta(days=1):
+        return None
+    return parsed.isoformat()
 def public_rule_violation(listing):
     """Return the first non-destructive public publication exclusion reason."""
     rent_value = as_int(listing.get('rent'))
@@ -685,6 +747,7 @@ def main():
                         d.get('description_full') or r['description'],
                         r['district'], e.get('zone_normalized')))
         source_text = d.get('description_full') or r['description'] or ''
+        description_quality = description_quality_payload(source_text, d, r['seen_last_at'])
         llm = llm_extractions.get((r['source_site'], str(r['source_id'])))
         llm_fields = None
         llm_status = 'absent'
@@ -755,7 +818,7 @@ def main():
             'active': bool(r['is_active']),
             'seen_first': r['seen_first_at'],
             'seen_last': r['seen_last_at'],
-            'published': r['published_at'],
+            'published': normalize_published_at(r['published_at'], r['seen_first_at']),
             # prix / surface
             'rent': r['rent_eur'],
             'changement_prix': changement_prix,
@@ -801,6 +864,7 @@ def main():
             'images': galeries_man.get(k) or galleries.get(k)
                       or ([thumbs[k]] if k in thumbs else []),
             'description': source_text,
+            'description_quality': description_quality,
             'detail_fetched': bool(d.get('http_status') == 200),
             # Integrate both sides: keep the remote raw fetch signal, but keep
             # the stricter local product contract for "read" so a 200 with thin
@@ -928,12 +992,17 @@ def main():
     sources = [dict(nom=k, **v) for k, v in sorted(per_source.items())]
 
     prec_counts = Counter(x['location_precision'] for x in listings)
+    description_counts = Counter(
+        (x.get('description_quality') or {}).get('status', 'unknown')
+        for x in listings
+    )
     meta = {
         'genere_le': now.isoformat(),
         'perimetre': SERVE_COMMUNES,
         'hors_perimetre_exclues': hors_perimetre,
         'exclusions_produit': dict(filtres_produit),
         'diagnostics_actifs_avant_filtres': dict(diagnostics_actifs),
+        'descriptions': dict(description_counts),
         'deduplication': dedup_report,
         'total': len(listings),
         'actives': movements['actives'],

@@ -33,9 +33,21 @@ PROD_DB="${IMMO_DB_PATH:-/opt/data/data/reunion_watch.db}"
 STAGE_DB_MODE="${IMMO_STAGE_DB:-1}"
 STAGE_DB="$RUN_DIR/reunion_watch.stage.db"
 DB="$PROD_DB"
+HISTORY_DB="${IMMO_EVENTS_DB:-/opt/data/artifacts/immo-alerts/history.sqlite}"
+HISTORY_STAGE="$RUN_DIR/history.stage.sqlite"
+export IMMO_EVENTS_DB="$HISTORY_STAGE"
 export IMMO_DB_PATH="$DB"
 SELOGER_ARTIFACT="/opt/data/artifacts/realestate/seloger_multipage_results.json"
 mkdir -p "$RUN_DIR"
+"$PY" - "$HISTORY_DB" "$HISTORY_STAGE" <<'PYCODE'
+import pathlib, sqlite3, sys
+source, target = map(pathlib.Path, sys.argv[1:])
+target.parent.mkdir(parents=True, exist_ok=True)
+target.unlink(missing_ok=True)
+if source.exists():
+    with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
+        src.backup(dst)
+PYCODE
 
 "$PY" - "$RUN_DIR/scrapling_probe.json" <<'PYCODE'
 import json, os, pathlib, sys
@@ -301,8 +313,6 @@ run_step p0_product_polish bash -lc 'cd "$0" && "$PY" scripts/p0_product_polish.
 run_step product_hardening_v5 bash -lc 'cd "$0" && "$PY" scripts/patch_product_hardening_v5.py --app "$1"' "$PROJECT" "$CLEAN_STAGE"
 run_step domain_inventory_oracle_v2 "$PY" "$PROJECT/scripts/generate_domain_inventory_and_oracle_v2.py" --app "$CLEAN_STAGE"
 run_step slim_public_listings "$PY" "$PROJECT/scripts/slim_public_listings.py" "$CLEAN_STAGE"
-run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"
-report_step enhance_changes_decision bash -lc 'cp "$2" "$3/changes.json" && "$0" "$1" --app "$3"' "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" "$CLEAN_STAGE/changes.json" "$RUN_DIR"
 run_step wave2_detail_geo_photo "$PY" "$PROJECT/scripts/patch_wave2_lot_c_detail_geo_photo.py" --app "$CLEAN_STAGE"
 run_step opportunity_dedup_calibration "$PY" "$PROJECT/scripts/generate_opportunity_calibration.py" --app "$CLEAN_STAGE"
 # P0 Privacy: generate saved_searches output to run_dir only (never to the public-served stage).
@@ -379,6 +389,9 @@ if [ "$STAGE_DB_MODE" = "1" ]; then
   run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
 fi
 
+run_step listing_history_canonical "$PY" "$PROJECT/src/listing_history.py" --source-db "$PROD_DB" --db "$HISTORY_STAGE"
+run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --db "$HISTORY_STAGE" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"
+report_step enhance_changes_decision bash -lc 'cp "$2" "$3/changes.json" && "$0" "$1" --app "$3"' "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" "$CLEAN_STAGE/changes.json" "$RUN_DIR"
 run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" \
   --artifacts "$PROJECT/artifacts" \
   --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" \
@@ -446,6 +459,14 @@ run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" -
 # Keep it after every producer/audit that can touch artifacts/app, but before
 # APP_KEEP/DB_PROMOTE_KEEP so a failure still triggers the rollback trap.
 run_step postflight_public_contract env IMMO_MAX_FEED_AGE_H="${IMMO_MAX_FEED_AGE_H:-2}" "$PY" "$PROJECT/scripts/postflight_public_contract.py" --app "$PROJECT/artifacts/app" --container "${IMMO_PUBLIC_CONTAINER:-immo-dashboard}" --json-out "$RUN_DIR/postflight_public_contract.json"
+run_step promote_listing_history "$PY" -c '
+import os, pathlib, shutil, sys
+source, target = map(pathlib.Path, sys.argv[1:])
+target.parent.mkdir(parents=True, exist_ok=True)
+temporary = target.with_suffix(target.suffix + ".promoting")
+shutil.copy2(source, temporary)
+os.replace(temporary, target)
+' "$HISTORY_STAGE" "$HISTORY_DB"
 APP_KEEP=1
 ENRICHMENT_DB_KEEP=1
 DB_PROMOTE_KEEP=1

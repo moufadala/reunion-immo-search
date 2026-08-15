@@ -89,6 +89,10 @@ export default function Detail({ l, onClose }) {
                 </span>
               )}
               {!l.active && <Badge tone="danger">Retirée des portails</Badge>}
+              {l.description_quality?.status === "fetched_complete" && <Badge tone="success">Description exploitable</Badge>}
+              {["fetched_sparse", "blocked", "error"].includes(l.description_quality?.status) && (
+                <Badge tone="warning">Description incomplete</Badge>
+              )}
             </div>
           </div>
           <Button variant="ghost" size="sm" onClick={onClose} aria-label="Fermer">✕</Button>
@@ -172,6 +176,19 @@ export default function Detail({ l, onClose }) {
             <span>Dernière vue {ilYA(l.seen_last)}</span>
             {l.published && <span>Publiée par la source le {dateFR(l.published)}</span>}
           </div>
+          {l.also_on?.length > 1 && (
+            <div className="mt-3 rounded-xl border border-line bg-sunken p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-faint">Annonce retrouvee sur</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {l.also_on.map((item) => (
+                  <a key={item.id || item.url} href={item.url} target="_blank" rel="noreferrer"
+                    className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-[12px] font-bold text-accent hover:border-accent">
+                    {item.source || "Portail"}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="border-t border-line p-3">

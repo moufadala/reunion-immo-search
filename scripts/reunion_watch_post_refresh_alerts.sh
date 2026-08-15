@@ -18,7 +18,7 @@ STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 {
   echo "[$STAMP] reunion post-refresh alerts start" >&2
   cd "$PROJECT"
-  python3 src/listing_history.py >>"$LOG" 2>&1
+  # listing_history runs inside the gated refresh before feed export.
   python3 src/listing_changes.py >>"$LOG" 2>&1
   python3 src/source_health.py >>"$LOG" 2>&1
 
