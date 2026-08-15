@@ -2,6 +2,9 @@
 set -euo pipefail
 
 umask 077
+# Explicit launch overrides take precedence over shared defaults loaded below.
+CALLER_IMMO_MIN_FREE_GB="${IMMO_MIN_FREE_GB-}"
+CALLER_IMMO_MIN_FREE_GB_SET="${IMMO_MIN_FREE_GB+x}"
 # Hermes no-agent cron does not inherit the interactive terminal env.
 # Load shared secrets/env for the detached daily worker without printing them.
 if [ -r /opt/data/.env ]; then
@@ -9,6 +12,11 @@ if [ -r /opt/data/.env ]; then
   . /opt/data/.env
   set +a
 fi
+if [ "$CALLER_IMMO_MIN_FREE_GB_SET" = x ]; then
+  export IMMO_MIN_FREE_GB="$CALLER_IMMO_MIN_FREE_GB"
+fi
+unset CALLER_IMMO_MIN_FREE_GB CALLER_IMMO_MIN_FREE_GB_SET
+
 BASE_DIR="/opt/data/artifacts/reunion-watch-async"
 LOG_DIR="/opt/data/logs"
 mkdir -p "$BASE_DIR" "$LOG_DIR"
