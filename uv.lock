@@ -208,12 +208,8 @@ name = "reunion-immo-search"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "pydantic" },
-]
-
-[package.optional-dependencies]
-browser = [
     { name = "playwright" },
+    { name = "pydantic" },
 ]
 
 [package.dev-dependencies]
@@ -223,10 +219,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "playwright", marker = "extra == 'browser'", specifier = ">=1.54,<2" },
+    { name = "playwright", specifier = ">=1.54,<2" },
     { name = "pydantic", specifier = ">=2.13,<3" },
 ]
-provides-extras = ["browser"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=9,<10" }]

@@ -20,6 +20,7 @@ RUNTIME_SCRIPT_CONTRACTS = [
     ("immo_saved_search_alerts.sh", "scripts/immo_saved_search_alerts.sh"),
     ("immo_daily_public_refresh.sh", "scripts/immo_daily_public_refresh.sh"),
     ("realestate_watch.py", "scripts/realestate_watch.py"),
+    ("seloger_multi_page.py", "scripts/seloger_multi_page.py"),
 ]
 
 RUNTIME_SCRIPT_ALLOWLIST: dict[str, str] = {
@@ -103,6 +104,7 @@ def main(argv: list[str] | None = None) -> int:
     errors: list[str] = []
     daily = (ROOT / "scripts" / "immo_daily_public_refresh.sh").read_text(encoding="utf-8")
     sprint = (ROOT / "scripts" / "run_product_v2_sprint.sh").read_text(encoding="utf-8")
+    seloger = (ROOT / "scripts" / "seloger_multi_page.py").read_text(encoding="utf-8")
 
     require_any(daily, [
         'run_step public_delta_guard python3 "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE"',
@@ -135,6 +137,13 @@ def main(argv: list[str] | None = None) -> int:
     require(sprint, "KEEP_APP=1", "sprint", errors)
 
     require(daily, "run_step postflight_public_contract", "daily refresh", errors)
+    require(daily, "run_step browser_runtime_import_gate", "daily refresh", errors)
+    require(daily, "importlib.import_module(\"playwright.sync_api\")", "daily refresh", errors)
+    require(daily, "importlib.import_module(\"greenlet._greenlet\")", "daily refresh", errors)
+    if "/opt/data/home/.local/lib/python3.13/site-packages" in seloger:
+        errors.append("seloger_multi_page: must not prepend a Python 3.13 user-site; use the selected runtime interpreter environment")
+    if "sys.path.insert(0, '/opt/data/home/.local/lib/python" in seloger:
+        errors.append("seloger_multi_page: must not hardcode a user-site into sys.path")
     order = [
         ("immo_health_state_save", daily.find("run_step immo_health_state_save")),
         ("postflight_public_contract", daily.find("run_step postflight_public_contract")),

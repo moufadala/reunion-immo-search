@@ -5,10 +5,10 @@ description = "Pipeline et portail de veille immobiliere a La Reunion"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "pydantic>=2.13,<3",
-]
-
-[project.optional-dependencies]
-browser = [
+    # Runtime dependency: immo_daily_public_refresh.sh calls
+    # scripts/seloger_multi_page.py with the project interpreter.
+    # Keep Playwright inside the project venv instead of relying on a
+    # user-site package from another Python minor version.
     "playwright>=1.54,<2",
 ]
 
