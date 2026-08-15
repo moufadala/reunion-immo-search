@@ -17,16 +17,17 @@ def _free_port():
 
 
 def _alive(pid):
-    try:
-        os.kill(pid, 0)
-        return True
-    except OSError:
-        return False
+    return subprocess.run(
+        [BASH, "-c", f"kill -0 {pid} 2>/dev/null"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    ).returncode == 0
 
 
 def _run_case(tmp_path, ending):
     port = _free_port()
     pid_file = tmp_path / "pid"
+    shell_pid_file = tmp_path / "shell_pid"
     script = tmp_path / "case.sh"
     script.write_text(f'''set -eu
 source "{LIB.as_posix()}"
@@ -35,6 +36,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 start_local_audit_server "{tmp_path.as_posix()}" "{sys.executable}" "{port}" "{(tmp_path/'out').as_posix()}" "{(tmp_path/'err').as_posix()}"
 printf '%s' "$LOCAL_AUDIT_PID" > "{pid_file.as_posix()}"
+printf '%s' "$BASHPID" > "{shell_pid_file.as_posix()}"
 {ending}
 ''', encoding="utf-8")
     proc = subprocess.Popen([BASH, str(script)])
@@ -43,24 +45,24 @@ printf '%s' "$LOCAL_AUDIT_PID" > "{pid_file.as_posix()}"
             break
         time.sleep(0.1)
     pid = int(pid_file.read_text())
-    return proc, pid
+    return proc, pid, int(shell_pid_file.read_text())
 
 
 def test_server_cleanup_on_success(tmp_path):
-    proc, pid = _run_case(tmp_path, "stop_local_audit_server")
+    proc, pid, _ = _run_case(tmp_path, "stop_local_audit_server")
     assert proc.wait(timeout=10) == 0
     assert not _alive(pid)
 
 
 def test_server_cleanup_on_failure(tmp_path):
-    proc, pid = _run_case(tmp_path, "exit 7")
+    proc, pid, _ = _run_case(tmp_path, "exit 7")
     assert proc.wait(timeout=10) == 7
     assert not _alive(pid)
 
 
 def test_server_cleanup_on_termination(tmp_path):
-    proc, pid = _run_case(tmp_path, "sleep 30")
-    proc.terminate()
+    proc, pid, shell_pid = _run_case(tmp_path, "sleep 30 & wait $!")
+    subprocess.run([BASH, "-c", f"kill -TERM {shell_pid}"], check=True)
     assert proc.wait(timeout=10) != 0
     assert not _alive(pid)
 
