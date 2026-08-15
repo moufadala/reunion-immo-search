@@ -76,7 +76,18 @@ def deduplicate_public_feed(items: list[dict[str, Any]]) -> tuple[list[dict[str,
         canonical = item if _quality(item) > _quality(match) else match
         other = match if canonical is item else item
         canonical = _merge_complementary(canonical, other)
-        canonical.update({"also_on": links, "dedup_group_id": group_id, "canonical_id": canonical.get("id"), "dedup_reason": reason, "dedup_confidence": "high"})
+        canonical_id = canonical.get("id")
+        canonical.update({
+            "also_on": links,
+            "seen_also_on": sorted({str(link.get("source")) for link in links if link.get("source")}),
+            "dedup_group_id": group_id,
+            "canonical_id": canonical_id,
+            "canonical_display_id": canonical_id,
+            "display_canonical": True,
+            "dedup_decision": "canonical",
+            "dedup_reason": reason,
+            "dedup_confidence": "high",
+        })
         visible[visible.index(match)] = canonical
         hidden += 1
     return visible, {"input": len(items), "visible": len(visible), "groups": groups, "hidden_duplicates": hidden}

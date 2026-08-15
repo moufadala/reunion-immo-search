@@ -45,6 +45,37 @@ def _excluded_district(city: Any, district: Any) -> str | None:
         return "saint_denis_saint_francois"
     return None
 
+def _has_affirmative_location(pattern: str, text: str) -> bool:
+    proximity = re.compile(r"(?:(?:proche|a proximite|a cote) d(?:e|u|es)|a \d+ (?:minutes?|km) d(?:e|u|es))(?: quartier)?\s*$")
+    for match in re.finditer(pattern, text):
+        if not proximity.search(text[max(0, match.start() - 40):match.start()]):
+            return True
+    return False
+
+
+def _excluded_district_from_text(city: Any, row: Mapping[str, Any]) -> str | None:
+    """Detect only affirmative district locations, never proximity or street mentions."""
+    if _norm(city) not in {"saint denis", "st denis"}:
+        return None
+    title = _norm(row.get("title"))
+    description = _norm(row.get("description"))
+    text = f"{title} {description}".strip()
+
+    saint_francois_location = _has_affirmative_location(
+        r"\b(?:quartier(?: de)?|(?:secteur )?(?:bas|hauts?) de) (?:saint|st) francois\b",
+        text,
+    )
+    saint_francois_title = _has_affirmative_location(r"\b(?:saint|st) francois$", title)
+    if saint_francois_location or saint_francois_title:
+        return "saint_denis_saint_francois"
+
+    if _has_affirmative_location(r"\b(?:quartier de la|secteur(?: de la)?) providence\b", text):
+        return "saint_denis_providence"
+    return None
+
+
+
+
 def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
     surface = _number(_first(row, "surface", "surface_m2"))
     if surface is None or surface <= 0:
@@ -66,5 +97,5 @@ def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
     if outside is not None:
         return PublicationDecision(False, "manifest_outside_scope")
     district = _first(row, "quartier", "district", "primary_zone", "location_label")
-    reason = _excluded_district(city, district)
+    reason = _excluded_district(city, district) or _excluded_district_from_text(city, row)
     return PublicationDecision(not bool(reason), reason)

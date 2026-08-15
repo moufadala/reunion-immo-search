@@ -8,11 +8,22 @@ def listing(id, **values):
 
 
 def test_strong_cross_portal_duplicate_keeps_one_card_and_all_links() -> None:
-    items = [listing("a:1", address="4 rue des Flamboyants", images=["unique.jpg"]), listing("b:2", address="4 rue des Flamboyants", images=["unique.jpg"])]
+    items = [
+        listing("a:1", address="4 rue des Flamboyants", images=["common.jpg", "a.jpg"], balcony=True),
+        listing("b:2", address="4 rue des Flamboyants", images=["common.jpg", "b.jpg"], elevator=True),
+    ]
     visible, report = deduplicate_public_feed(items)
     assert len(visible) == 1
     assert {x["source"] for x in visible[0]["also_on"]} == {"a", "b"}
+    assert visible[0]["seen_also_on"] == ["a", "b"]
+    assert visible[0]["display_canonical"] is True
+    assert visible[0]["canonical_display_id"] == visible[0]["id"]
+    assert visible[0]["dedup_decision"] == "canonical"
+    assert visible[0]["dedup_group_id"].startswith("dedup:")
     assert report["hidden_duplicates"] == 1
+    assert set(visible[0]["images"]) == {"common.jpg", "a.jpg", "b.jpg"}
+    assert visible[0]["balcony"] is True
+    assert visible[0]["elevator"] is True
 
 
 def test_similar_numbers_without_strong_evidence_remain_visible() -> None:

@@ -7,16 +7,49 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-def load_listings(app_dir: Path) -> list[dict]:
-    path = app_dir / "listings.json"
+from src.public_feed_dedup import deduplicate_public_feed
+from src.publication_policy import evaluate_publication
+
+
+def load_listings(app_dir: Path) -> tuple[list[dict], Path]:
+    feed = app_dir / "feed.json"
+    path = feed if feed.exists() else app_dir / "listings.json"
     if not path.exists():
         raise SystemExit(f"listings.json missing: {path}")
     data = json.loads(path.read_text(encoding="utf-8"))
     rows = data.get("listings", data if isinstance(data, list) else [])
     if not isinstance(rows, list):
         raise SystemExit(f"listings payload is not a list/object[listings]: {path}")
-    return [r for r in rows if isinstance(r, dict)]
+    return [r for r in rows if isinstance(r, dict)], path
+
+
+def _dedup_shape(row: dict) -> dict:
+    shaped = dict(row)
+    shaped.setdefault("commune", row.get("city"))
+    shaped.setdefault("type", row.get("property_type"))
+    shaped.setdefault("rent", row.get("rent_eur", row.get("price")))
+    if not shaped.get("images"):
+        gallery = row.get("local_image_urls")
+        if isinstance(gallery, list) and gallery:
+            shaped["images"] = gallery
+        else:
+            image = row.get("local_image_url") or row.get("image_url")
+            shaped["images"] = [image] if image else []
+    return shaped
+
+
+def public_product(app_dir: Path) -> tuple[list[dict], Path, dict[str, int]]:
+    rows, path = load_listings(app_dir)
+    eligible = [_dedup_shape(row) for row in rows if row.get("active") is not False and evaluate_publication(row).eligible]
+    visible, dedup = deduplicate_public_feed(eligible)
+    return visible, path, dedup
+
+
+
 
 
 def source_of(row: dict) -> str:
@@ -40,8 +73,8 @@ def main() -> int:
     ap.add_argument("--json-out", type=Path)
     args = ap.parse_args()
 
-    baseline = load_listings(args.baseline)
-    candidate = load_listings(args.candidate)
+    baseline, baseline_input, baseline_dedup = public_product(args.baseline)
+    candidate, candidate_input, candidate_dedup = public_product(args.candidate)
     base_count = len(baseline)
     cand_count = len(candidate)
     base_by_source = Counter(source_of(r) for r in baseline)
@@ -69,6 +102,11 @@ def main() -> int:
         "baseline": str(args.baseline),
         "candidate": str(args.candidate),
         "baseline_count": base_count,
+        "product_boundary": "active_public_policy_dedup",
+        "baseline_input": str(baseline_input),
+        "candidate_input": str(candidate_input),
+        "baseline_dedup": baseline_dedup,
+        "candidate_dedup": candidate_dedup,
         "candidate_count": cand_count,
         "global_drop_pct": round(global_drop, 2),
         "max_drop_pct": args.max_drop_pct,
