@@ -112,6 +112,9 @@ def main() -> int:
             after = photo.get_attribute("src")
             if not before or not after or after == before:
                 failures.append("card gallery next arrow did not change the photo")
+            gallery_card.get_by_role("button", name="Photo précédente").click()
+            if before:
+                expect(photo).to_have_attribute("src", before)
             if page.get_by_role("dialog").is_visible():
                 failures.append("card gallery arrow opened the details dialog")
             evidence["gallery"] = {"before": before, "after": after}
