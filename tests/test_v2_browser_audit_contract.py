@@ -18,7 +18,12 @@ def test_v2_app_exposes_stable_accessible_browser_contract():
     assert 'data-listing-id={l.id}' in card
     assert 'age >= 0 && age <= 7 * 86400000' in movements
     assert 'key={l.event_id ||' in movements
-    assert '<button type="button" onClick={() => onOuvrir(l)}' in card
+    assert 'onClick={() => onOuvrir(l)}' in card
+    assert 'data-testid="card-photo"' in card
+    assert 'aria-label="Photo précédente"' in card
+    assert 'aria-label="Photo suivante"' in card
+    assert 'e.stopPropagation()' in card
+    assert 'cursor-pointer' in card
     assert 'role="button"' not in card and 'tabIndex={0}' not in card
     for testid in ("movement-online", "movement-new", "movement-withdrawn", "movement-reappeared"):
         assert f'data-testid="{testid}"' in movements

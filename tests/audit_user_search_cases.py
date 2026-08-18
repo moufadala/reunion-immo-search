@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -88,12 +89,32 @@ def main() -> int:
             loaded_ids = cards.evaluate_all("els => els.map(e => e.dataset.listingId)")
             if loaded_ids != expected_loaded_ids:
                 failures.append("load-more did not render the exact next immutable feed page")
+
         if cards.count():
-            cards.first.get_by_role("button", name="Détails", exact=True).click()
+            cards.first.click(position={"x": 20, "y": 20})
             dialog = page.get_by_role("dialog")
             dialog.wait_for(state="visible")
             page.get_by_role("button", name="Fermer").click()
             dialog.wait_for(state="hidden")
+
+        next_photo = page.get_by_role("button", name="Photo suivante")
+        load_more = page.get_by_role("button", name=re.compile(r"Afficher \d+ de plus"))
+        while next_photo.count() == 0 and load_more.count():
+            load_more.click()
+        if next_photo.count() == 0:
+            failures.append("no card gallery was rendered from the feed")
+        else:
+            gallery_card = next_photo.first.locator("xpath=ancestor::*[@data-testid='listing-card']")
+            photo = gallery_card.get_by_test_id("card-photo")
+            before = photo.get_attribute("src")
+            next_photo.first.click()
+            expect(photo).not_to_have_attribute("src", before or "")
+            after = photo.get_attribute("src")
+            if not before or not after or after == before:
+                failures.append("card gallery next arrow did not change the photo")
+            if page.get_by_role("dialog").is_visible():
+                failures.append("card gallery arrow opened the details dialog")
+            evidence["gallery"] = {"before": before, "after": after}
 
         page.get_by_role("button", name="Sources", exact=True).click()
         page.get_by_test_id("sources-panel").wait_for(state="visible")

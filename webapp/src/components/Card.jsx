@@ -100,18 +100,30 @@ function deltaPrix(delta) {
 
 export default function Card({ l, feedPerime = false, onOuvrir }) {
   const [imgKo, setImgKo] = useState(false);
+  const [imageIndex, setImageIndex] = useState(0);
+  const images = Array.from(new Set([
+    l.image,
+    ...(Array.isArray(l.images) ? l.images : []),
+  ].filter(Boolean)));
+  const currentImage = images.length ? images[imageIndex % images.length] : null;
   const p = precisionDe(l);
   const ch = chambresEstimees(l);
   const m = prixAuM2(l);
   const carte = osmUrl(l.lat, l.lon);
   const best = l.meilleur_profil ? l.profils[l.meilleur_profil] : null;
+  const changerPhoto = (e, delta) => {
+    e.stopPropagation();
+    setImgKo(false);
+    setImageIndex((index) => (index + delta + images.length) % images.length);
+  };
 
   return (
     <article
       data-testid="listing-card"
       data-listing-id={l.id}
+      onClick={() => onOuvrir(l)}
       className={cx(
-        "group flex flex-col overflow-hidden rounded-[16px] border bg-surface",
+        "group flex cursor-pointer flex-col overflow-hidden rounded-[16px] border bg-surface",
         "shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-300",
         "active:scale-[0.995] sm:hover:-translate-y-0.5 sm:hover:shadow-[var(--shadow-lift)]",
         // une annonce fraîche ne se rate pas : bordure et fond distincts
@@ -122,11 +134,29 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
       )}
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-sunken">
-        {l.image && !imgKo ? (
-          <img src={l.image} alt="" loading="lazy" onError={() => setImgKo(true)}
+        {currentImage && !imgKo ? (
+          <img data-testid="card-photo" src={currentImage}
+            alt={images.length > 1 ? `Photo ${imageIndex % images.length + 1} sur ${images.length}` : ""}
+            loading="lazy" onError={() => setImgKo(true)}
             className="h-full w-full object-cover transition-transform duration-500 sm:group-hover:scale-[1.045]" />
         ) : (
           <div className="grid h-full place-items-center text-[12px] text-faint">Photo indisponible</div>
+        )}
+
+        {images.length > 1 && (
+          <>
+            <button type="button" aria-label="Photo précédente" onClick={(e) => changerPhoto(e, -1)}
+              className="absolute left-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-xl font-bold text-canvas shadow backdrop-blur-sm active:bg-ink/90">
+              ‹
+            </button>
+            <button type="button" aria-label="Photo suivante" onClick={(e) => changerPhoto(e, 1)}
+              className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-full bg-ink/70 text-xl font-bold text-canvas shadow backdrop-blur-sm active:bg-ink/90">
+              ›
+            </button>
+            <span className="absolute bottom-2.5 left-2.5 rounded-full bg-ink/70 px-2 py-1 text-[11px] font-bold tabular-nums text-canvas backdrop-blur-sm">
+              {imageIndex % images.length + 1}/{images.length}
+            </span>
+          </>
         )}
 
         <div className="absolute left-2.5 top-2.5 flex max-w-[75%] flex-wrap gap-1.5">
@@ -225,7 +255,7 @@ export default function Card({ l, feedPerime = false, onOuvrir }) {
             {l.published ? <> · publiée {ilYA(l.published)}</> : <> · repérée {ilYA(l.seen_first)}</>}
           </span>
           <div className="flex shrink-0 gap-1.5">
-            <button type="button" onClick={() => onOuvrir(l)}
+            <button type="button" onClick={(e) => { e.stopPropagation(); onOuvrir(l); }}
               className="rounded-lg px-2 py-1.5 text-[12px] font-bold text-muted active:bg-sunken">
               Détails
             </button>
