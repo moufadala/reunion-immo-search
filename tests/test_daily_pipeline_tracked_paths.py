@@ -17,11 +17,11 @@ def test_every_repo_script_invoked_by_daily_pipeline_exists_and_is_git_tracked()
     source = DAILY.read_text(encoding="utf-8")
     invoked = sorted(set(REPO_SCRIPT.findall(source)))
     tracked_proc = subprocess.run(
-        ["git", "ls-files", "-z"],
+        ["git", "-c", f"safe.directory={ROOT.resolve()}", "ls-files", "-z"],
         cwd=ROOT,
         capture_output=True,
-        check=True,
     )
+    assert tracked_proc.returncode == 0, tracked_proc.stderr.decode("utf-8", errors="replace")
     tracked = set(tracked_proc.stdout.decode("utf-8").split("\0"))
 
     assert "scripts/qa_public_external_v2.py" in invoked
