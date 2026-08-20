@@ -30,6 +30,10 @@ def test_every_repo_script_invoked_by_daily_pipeline_exists_and_is_git_tracked()
     assert [path for path in invoked if path not in tracked] == []
 
 
-def test_bienici_runtime_script_is_covered_by_copy_integrity_contract() -> None:
-    source = (ROOT / "tests" / "audit_pipeline_script_contracts.py").read_text(encoding="utf-8")
-    assert '("bienici_rental_scraper.py", "scripts/bienici_rental_scraper.py")' in source
+def test_bienici_runtime_script_executes_from_repository() -> None:
+    watcher = (ROOT / "scripts" / "realestate_watch.py").read_text(encoding="utf-8")
+    audit = (ROOT / "tests" / "audit_pipeline_script_contracts.py").read_text(encoding="utf-8")
+
+    assert "BIENICI_SCRAPER = PROJECT_ROOT / 'scripts/bienici_rental_scraper.py'" in watcher
+    assert "'source': 'bienici', 'script': BIENICI_SCRAPER" in watcher
+    assert '("bienici_rental_scraper.py", "scripts/bienici_rental_scraper.py")' not in audit

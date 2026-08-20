@@ -20,7 +20,6 @@ RUNTIME_SCRIPT_CONTRACTS = [
     ("immo_saved_search_alerts.sh", "scripts/immo_saved_search_alerts.sh"),
     ("immo_daily_public_refresh.sh", "scripts/immo_daily_public_refresh.sh"),
     ("realestate_watch.py", "scripts/realestate_watch.py"),
-    ("bienici_rental_scraper.py", "scripts/bienici_rental_scraper.py"),
     ("seloger_multi_page.py", "scripts/seloger_multi_page.py"),
 ]
 

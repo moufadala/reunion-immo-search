@@ -40,10 +40,11 @@ SOURCE_COVERAGE_FLOORS = {'zimo': 0.50, 'immo974': 0.50}
 COMPLETE_SCOPE_SOURCES = {'domimmo'}
 PARTIAL_SOURCE_STALE_GRACE_DAYS = 7
 MULTI_SCRAPER = ROOT / 'scripts/realestate_multi_sources_scraper.py'
+BIENICI_SCRAPER = PROJECT_ROOT / 'scripts/bienici_rental_scraper.py'
 # One source = one process, sequential SQLite writer. Timeouts are deliberately
 # per source so a slow/broken source cannot starve the following ones.
 SOURCE_JOBS = [
-    {'source': 'bienici', 'script': ROOT / 'scripts/bienici_rental_scraper.py', 'timeout': 300, 'args': []},
+    {'source': 'bienici', 'script': BIENICI_SCRAPER, 'timeout': 300, 'args': []},
     {'source': 'ofim', 'script': MULTI_SCRAPER, 'timeout': 540, 'args': ['--only', 'ofim']},
     {'source': 'domimmo', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'domimmo']},
     {'source': 'locamoi', 'script': MULTI_SCRAPER, 'timeout': 120, 'args': ['--only', 'locamoi']},

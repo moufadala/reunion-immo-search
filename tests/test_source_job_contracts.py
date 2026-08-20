@@ -15,6 +15,14 @@ def test_ofim_job_uses_the_catalogue_scraper_and_has_no_duplicate_rss_job():
     assert "ofim_rss" in source_health.AUXILIARY_SOURCES
 
 
+def test_bienici_job_executes_the_repository_scraper():
+    jobs = {job["source"]: job for job in realestate_watch.SOURCE_JOBS}
+
+    expected = realestate_watch.PROJECT_ROOT / "scripts" / "bienici_rental_scraper.py"
+    assert realestate_watch.BIENICI_SCRAPER == expected
+    assert jobs["bienici"]["script"] == expected
+
+
 def test_every_watch_portal_is_blocking_and_source_health_tracks_all_fourteen():
     assert realestate_watch.NON_BLOCKING_REFRESH_SOURCES == set()
     assert realestate_watch.CRITICAL_REFRESH_SOURCES == {
