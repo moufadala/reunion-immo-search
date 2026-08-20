@@ -332,10 +332,74 @@ def test_citya_uses_strict_cards_and_rejects_goldens_outside_target_scope(monkey
     _install_fetch(monkeypatch, pages)
 
     listings = multi.scrape_citya(max_pages=50, delay=0)
-
     assert {item.source_id for item in listings} == {"GES11111111-542"}
     assert all(item.city in {"Saint-Denis", "Sainte-Marie"} for item in listings)
     meta = multi.SOURCE_RUNTIME_META["citya"]
     assert meta["full_snapshot_proof"] is True
     assert meta["rejected_out_of_scope"] >= 2
     assert meta["rejected_non_card"] >= 1
+
+
+def test_citya_cards_with_normal_recaptcha_mentions_are_not_a_challenge(monkeypatch):
+    card = _citya_card("GES11111111-542", "Saint-Denis")
+    html = (
+        _citya_page(card, total=1)
+        + '<script src="https://www.google.com/recaptcha/api.js"></script>'
+        + '<p>Ce site est protege par reCAPTCHA.</p>'
+    )
+    pages = {}
+    for _commune, slug in multi.CITYA_COMMUNES.items():
+        for ptype in ("appartement", "maison"):
+            pages[f"https://www.citya.com/annonces/location/{ptype}/{slug}"] = [html]
+    _install_fetch(monkeypatch, pages)
+
+    listings = multi.scrape_citya(max_pages=50, delay=0)
+
+    assert {item.source_id for item in listings} == {"GES11111111-542"}
+    meta = multi.SOURCE_RUNTIME_META["citya"]
+    assert meta["full_snapshot_proof"] is True
+    assert "blocked_or_challenge_page" not in meta["truncation_signals"]
+
+
+def test_superimmo_retries_one_transient_fetch_then_completes(monkeypatch):
+    attempts = defaultdict(int)
+
+    def fake_fetch(url: str, method: str = "GET", data=None):
+        attempts[url] += 1
+        if attempts[url] == 1:
+            raise TimeoutError("transient")
+        sid = "m1" if "sainte-marie" in url else "d1"
+        return _listing_page(sid, total=1), url
+
+    monkeypatch.setattr(multi, "fetch", fake_fetch)
+    monkeypatch.setattr(multi.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(multi, "save_raw", lambda *_: None)
+
+    listings = multi.scrape_superimmo(max_pages=50, delay=0)
+
+    assert {item.source_id for item in listings} == {"d1", "m1"}
+    assert set(attempts.values()) == {2}
+    meta = multi.SOURCE_RUNTIME_META["superimmo"]
+    assert meta["full_snapshot_proof"] is True
+    assert meta["retries"] == 2
+    assert "fetch_failure" not in meta["truncation_signals"]
+
+
+def test_superimmo_exhausted_fetch_retries_remain_partial(monkeypatch):
+    attempts = defaultdict(int)
+
+    def always_fails(url: str, method: str = "GET", data=None):
+        attempts[url] += 1
+        raise TimeoutError("still down")
+
+    monkeypatch.setattr(multi, "fetch", always_fails)
+    monkeypatch.setattr(multi.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(multi, "save_raw", lambda *_: None)
+
+    assert multi.scrape_superimmo(max_pages=50, delay=0) == []
+
+    assert set(attempts.values()) == {3}
+    meta = multi.SOURCE_RUNTIME_META["superimmo"]
+    assert meta["full_snapshot_proof"] is False
+    assert meta["retries"] == 4
+    assert "fetch_failure" in meta["truncation_signals"]

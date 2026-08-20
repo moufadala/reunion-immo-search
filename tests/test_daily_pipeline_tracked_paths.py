@@ -28,3 +28,8 @@ def test_every_repo_script_invoked_by_daily_pipeline_exists_and_is_git_tracked()
     assert invoked, "daily pipeline must expose literal, portable repo script paths"
     assert [path for path in invoked if not (ROOT / path).is_file()] == []
     assert [path for path in invoked if path not in tracked] == []
+
+
+def test_bienici_runtime_script_is_covered_by_copy_integrity_contract() -> None:
+    source = (ROOT / "tests" / "audit_pipeline_script_contracts.py").read_text(encoding="utf-8")
+    assert '("bienici_rental_scraper.py", "scripts/bienici_rental_scraper.py")' in source

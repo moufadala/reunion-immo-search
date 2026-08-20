@@ -66,7 +66,7 @@ def test_leboncoin_actor_non_saturated_with_both_cities_proves_one_logical_snaps
         {"list_id": 2, "location": {"city": "Sainte-Marie"}},
     ]
     meta = multi._leboncoin_runtime_meta(
-        items, dataset_id="ds", mode="actor_run", max_items=700,
+        items, dataset_id="ds", mode="actor_run", max_items=multi.LEBONCOIN_DATASET_CAPACITY,
     )
     assert meta["full_snapshot_proof"] is True
     assert meta["pages_attempted"] == 1

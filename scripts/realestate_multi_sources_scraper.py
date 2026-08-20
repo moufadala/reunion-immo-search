@@ -207,7 +207,6 @@ def _blocked_or_challenge_page(text):
         'attention required! | cloudflare',
         'sorry, you have been blocked',
         'cf-chl-',
-        'captcha',
         'access denied',
         'enable cookies to continue',
     ))
@@ -275,7 +274,7 @@ def _merge_rejection_reasons(source, reasons):
 
 
 def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
-                        page_url, parse_items, item_key):
+                        page_url, parse_items, item_key, fetch_retries=0):
     found = []
     all_unique_global = set()
     safety_rejected = set()
@@ -284,6 +283,7 @@ def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
     pages_attempted = 0
     pages_succeeded = 0
     raw_items = 0
+    retries = 0
     pre_unique_rejections = {'missing_id': 0, 'duplicate_raw': 0}
     cap_reached = False
 
@@ -297,11 +297,20 @@ def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
         for page in range(1, max_pages + 1):
             url = page_url(base, page)
             pages_attempted += 1
-            try:
-                text, _ = fetch(url)
-            except Exception:
-                signals.append('fetch_failure')
-                state['terminal'] = f'fetch_failure:page:{page}'
+            fetch_succeeded = False
+            for attempt in range(fetch_retries + 1):
+                try:
+                    text, _ = fetch(url)
+                    fetch_succeeded = True
+                    break
+                except Exception:
+                    if attempt < fetch_retries:
+                        retries += 1
+                        time.sleep(delay)
+                        continue
+                    signals.append('fetch_failure')
+                    state['terminal'] = f'fetch_failure:page:{page}'
+            if not fetch_succeeded:
                 break
             pages_succeeded += 1
             page_items = list(parse_items(text))
@@ -370,6 +379,7 @@ def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
                 {'missing_id': pre_unique_rejections['missing_id']}
                 if pre_unique_rejections['missing_id'] else {}
             ),
+            'retries': retries,
             'pre_unique_rejections_by_reason': (
                 {'duplicate_raw': pre_unique_rejections['duplicate_raw']}
                 if pre_unique_rejections['duplicate_raw'] else {}
@@ -463,6 +473,7 @@ def scrape_superimmo(max_pages=50, max_items=2000, delay=1.5):
         max_pages=max_pages, max_items=max_items, delay=delay,
         page_url=lambda base, page: base if page == 1 else f'{base}/p/{page}',
         parse_items=_superimmo_articles, item_key=lambda item: item[0],
+        fetch_retries=2,
     )
     out = []
     rejected_out_of_scope = set()
@@ -1008,7 +1019,7 @@ DEFAULT_LEBONCOIN_ACTOR = 'scrapifier~leboncoin-universal-scraper'
 LEBONCOIN_COMMUNES = [
     ('Saint-Denis', '97400'), ('Sainte-Marie', '97438'),
 ]
-LEBONCOIN_SNAPSHOT_MAX_PAGES = 10
+LEBONCOIN_SNAPSHOT_MAX_PAGES = 20
 LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE = 35
 LEBONCOIN_DATASET_CAPACITY = (
     len(LEBONCOIN_COMMUNES) * LEBONCOIN_SNAPSHOT_MAX_PAGES * LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE
@@ -1119,9 +1130,34 @@ def _lbc_image(item):
     return None
 
 
+def _leboncoin_rejection_reason(item):
+    if not isinstance(item, dict):
+        return 'non_object'
+    ret_value = (_lbc_attr(item, 'real_estate_type')
+                 or _lbc_attr(item, 'realEstateType'))
+    ret_label = (_lbc_attr_label(item, 'real_estate_type')
+                 or _lbc_attr_label(item, 'realEstateType'))
+    value = str(ret_value).strip() if ret_value is not None else ''
+    label = f'{ret_label or ""} {value}'.lower()
+    if not (
+        value in LEBONCOIN_RESIDENTIAL_TYPE_VALUES
+        or any(token in label for token in LEBONCOIN_RESIDENTIAL_TYPE_LABELS)
+    ):
+        return 'non_residential'
+    native_id = item.get('listId') or item.get('list_id') or item.get('id') or item.get('ad_id')
+    if native_id in (None, ''):
+        return 'missing_id'
+    location = item.get('location') if isinstance(item.get('location'), dict) else {}
+    zipcode = clean(location.get('zipcode') or location.get('postal_code') or item.get('zipcode'))
+    if not zipcode or not zipcode.startswith('974'):
+        return 'non_974'
+    return None
+
 def _map_leboncoin_item(item):
     """Map one Apify leboncoin dataset item to a Listing, or None when the ad is
     not a residential rental (keeps land/parking/commercial out). Handles both
+    if _leboncoin_rejection_reason(item) is not None:
+        return None
     the native leboncoin ad shape (attributes list) and a flattened item shape."""
     if not isinstance(item, dict):
         return None
@@ -1179,10 +1215,17 @@ def _map_leboncoin_item(item):
 
 def _leboncoin_listings(items):
     out = []
+    rejected = {}
     for item in items or []:
+        reason = _leboncoin_rejection_reason(item)
+        if reason:
+            rejected[reason] = rejected.get(reason, 0) + 1
+            continue
         listing = _map_leboncoin_item(item)
         if listing is not None:
             out.append(listing)
+    if 'leboncoin' in SOURCE_RUNTIME_META:
+        _merge_rejection_reasons('leboncoin', rejected)
     return out
 
 
@@ -1308,6 +1351,7 @@ def _leboncoin_runtime_meta(items, *, dataset_id, mode, max_items):
         'truncation_signals': signals,
         'full_snapshot_proof': full_snapshot_proof,
         'snapshot_proof': 'apify_actor_succeeded_non_saturated_all_expected_cities' if full_snapshot_proof else None,
+        'rejected_items_by_reason': {},
     }
 
 
@@ -1940,35 +1984,106 @@ def _domimmo_item_id(item):
     return hashlib.md5(json.dumps(item, sort_keys=True, default=str).encode()).hexdigest()
 
 
-def scrape_domimmo(max_items=500):
+DOMIMMO_RENTAL_CATEGORY = 6
+DOMIMMO_RESIDENTIAL_TYPES = (1, 2)
+DOMIMMO_PAGE_LIMIT = 500
+DOMIMMO_MAX_PAGES_PER_TYPE = 20
+
+
+def scrape_domimmo(max_items=5000):
     source = 'domimmo'
-    requested_limit = min(max(1, int(max_items)), 500)
-    url = 'https://www.keldom.com/api/domimmo/offers?' + urlencode({'limit': requested_limit})
-    try:
-        text, _ = fetch(url)
-    except Exception:
-        _set_snapshot_meta(
-            source, found=[], route_states={'api': {
-                'status': 'failed', 'terminal': 'fetch_failure', 'items': 0,
-            }}, pages_attempted=1, pages_succeeded=0, raw_items=0,
-            signals=['fetch_failure'], extra={'rejected_items_by_reason': {}},
-        )
-        raise
-    try:
-        payload = json.loads(text)
-        items = payload if isinstance(payload, list) else (
-            payload.get('items') or payload.get('data') or []
-        )
-        if not isinstance(items, list):
-            raise ValueError('Domimmo payload has no item list')
-    except Exception:
-        _set_snapshot_meta(
-            source, found=[], route_states={'api': {
-                'status': 'failed', 'terminal': 'invalid_payload', 'items': 0,
-            }}, pages_attempted=1, pages_succeeded=1, raw_items=0,
-            signals=['invalid_payload'], extra={'rejected_items_by_reason': {}},
-        )
-        raise
+    max_items = max(1, int(max_items))
+    page_limit = min(max_items, DOMIMMO_PAGE_LIMIT)
+    items = []
+    route_states = {}
+    signals = []
+    pages_attempted = 0
+    pages_succeeded = 0
+    raw_items = 0
+    cap_reached = False
+
+    for property_type in DOMIMMO_RESIDENTIAL_TYPES:
+        route_key = f'type:{property_type}'
+        state = {'status': 'partial', 'terminal': None, 'items': 0}
+        route_ids = set()
+        if cap_reached:
+            state['terminal'] = f'safety_item_cap_reached:{max_items}'
+            route_states[route_key] = state
+            continue
+        for page in range(1, DOMIMMO_MAX_PAGES_PER_TYPE + 1):
+            url = 'https://www.keldom.com/api/domimmo/offers?' + urlencode({
+                'id_di_ad_cat': DOMIMMO_RENTAL_CATEGORY,
+                'id_di_ad_type': property_type,
+                'limit': page_limit,
+                'page': page,
+            })
+            pages_attempted += 1
+            try:
+                text, _ = fetch(url)
+            except Exception:
+                state['terminal'] = f'fetch_failure:page:{page}'
+                route_states[route_key] = state
+                _set_snapshot_meta(
+                    source, found=[], route_states=route_states,
+                    pages_attempted=pages_attempted,
+                    pages_succeeded=pages_succeeded, raw_items=raw_items,
+                    signals=[*signals, 'fetch_failure'],
+                    extra={'rejected_items_by_reason': {}},
+                )
+                raise
+            try:
+                payload = json.loads(text)
+                page_items = payload if isinstance(payload, list) else (
+                    payload.get('items') or payload.get('data') or []
+                )
+                if not isinstance(page_items, list):
+                    raise ValueError('Domimmo payload has no item list')
+            except Exception:
+                state['terminal'] = f'invalid_payload:page:{page}'
+                route_states[route_key] = state
+                _set_snapshot_meta(
+                    source, found=[], route_states=route_states,
+                    pages_attempted=pages_attempted,
+                    pages_succeeded=pages_succeeded + 1, raw_items=raw_items,
+                    signals=[*signals, 'invalid_payload'],
+                    extra={'rejected_items_by_reason': {}},
+                )
+                raise
+            pages_succeeded += 1
+            raw_items += len(page_items)
+            new_ids = 0
+            for item in page_items:
+                if not isinstance(item, dict):
+                    continue
+                sid = _domimmo_item_id(item)
+                if sid not in route_ids:
+                    route_ids.add(sid)
+                    new_ids += 1
+            items.extend(page_items)
+            state['items'] = len(route_ids)
+            if len(items) >= max_items:
+                signal = f'safety_item_cap_reached:{max_items}'
+                signals.append(signal)
+                state['terminal'] = signal
+                cap_reached = True
+                break
+            if len(page_items) < page_limit:
+                state.update(
+                    status='complete',
+                    terminal='empty_page' if not page_items else 'short_page',
+                )
+                break
+            if not new_ids:
+                signals.append('pagination_stalled_at_limit')
+                state['terminal'] = f'pagination_stalled_at_limit:page:{page}'
+                break
+            if page == DOMIMMO_MAX_PAGES_PER_TYPE:
+                signal = f'safety_page_cap_reached:{DOMIMMO_MAX_PAGES_PER_TYPE}'
+                signals.append(signal)
+                state['terminal'] = signal
+                break
+        route_states[route_key] = state
+
     unique = {}
     duplicate_raw = 0
     non_object_items = 0
@@ -1981,29 +2096,24 @@ def scrape_domimmo(max_items=500):
             duplicate_raw += 1
         else:
             unique[sid] = item
-    saturated = len(items) >= requested_limit
-    signals = ['api_limit_reached'] if saturated else []
-    terminal = 'api_limit_reached' if saturated else 'api_response_below_limit'
     _set_snapshot_meta(
         source, found=[(None, sid, None) for sid in unique],
-        route_states={'api': {
-            'status': 'partial' if saturated else 'complete',
-            'terminal': terminal, 'items': len(unique),
-        }}, pages_attempted=1, pages_succeeded=1, raw_items=len(items),
+        route_states=route_states, pages_attempted=pages_attempted,
+        pages_succeeded=pages_succeeded, raw_items=raw_items,
         signals=signals, extra={
             'parsed_items': len(items) - non_object_items,
             'unique_ids': len(unique),
             'unparsed_items_by_reason': (
                 {'non_object_item': non_object_items} if non_object_items else {}
             ),
-            'snapshot_proof': None if saturated else 'api_response_below_limit',
             'pre_unique_rejections_by_reason': (
                 {'duplicate_raw': duplicate_raw} if duplicate_raw else {}
             ),
             'rejected_items_by_reason': {},
-            'api_limit': requested_limit,
+            'api_limit': page_limit,
         },
     )
+
     out = []
     rejected = {
         'not_rental': set(), 'out_of_scope': set(),
@@ -2014,10 +2124,7 @@ def scrape_domimmo(max_items=500):
         title = clean(item.get('title'))
         description = clean(item.get('description'))
         hay = f'{title or ""} {description or ""}'.lower()
-        if str(transaction) != '2' and not (
-            transaction in (None, '')
-            and any(token in hay for token in ('location', 'à louer', 'a louer', 'loyer'))
-        ):
+        if str(transaction) != '6':
             rejected['not_rental'].add(sid)
             continue
         city = _target_city(item.get('city'))

@@ -423,12 +423,12 @@ def _domimmo_item(
     sid: str,
     city: str,
     *,
-    transaction: int = 2,
+    transaction: int = 6,
     location: str = "REU",
     kind: int = 1,
 ):
     title = "Appartement T3 à louer" if kind == 1 else "Maison T3 à louer"
-    if transaction != 2:
+    if transaction != 6:
         title = title.replace("à louer", "à vendre")
     return {
         "id": sid,
@@ -452,13 +452,16 @@ def test_domimmo_non_saturated_api_snapshot_accounts_for_every_unique_item(monke
         _domimmo_item("d1", "Saint-Denis"),
         _domimmo_item("m1", "Sainte-Marie", kind=2),
         _domimmo_item("x1", "Saint-Paul"),
-        _domimmo_item("sale1", "Saint-Denis", transaction=1),
+        _domimmo_item("new1", "Saint-Denis", transaction=2),
     ]
-    monkeypatch.setattr(
-        multi,
-        "fetch",
-        lambda url, method="GET", data=None: (json.dumps(payload), url),
-    )
+    def fake_fetch(url, method="GET", data=None):
+        query = parse_qs(urlsplit(url).query)
+        assert query["id_di_ad_cat"] == ["6"]
+        property_type = int(query["id_di_ad_type"][0])
+        selected = [item for item in payload if item["id_di_ad_type"] == property_type]
+        return json.dumps(selected), url
+
+    monkeypatch.setattr(multi, "fetch", fake_fetch)
 
     rows = multi.scrape_domimmo(max_items=5000)
 
@@ -468,7 +471,7 @@ def test_domimmo_non_saturated_api_snapshot_accounts_for_every_unique_item(monke
         "domimmo", raw=4, unique=4, normalized=2,
         rejected={"out_of_scope": 1, "not_rental": 1},
     )
-    assert multi.SOURCE_RUNTIME_META["domimmo"]["snapshot_proof"] == "api_response_below_limit"
+    assert multi.SOURCE_RUNTIME_META["domimmo"]["snapshot_proof"] == "all_target_routes_exhausted"
 
 
 def test_domimmo_full_api_page_is_partial_not_a_false_complete_snapshot(monkeypatch):
@@ -509,8 +512,42 @@ def test_fetch_failure_never_produces_authoritative_snapshot(monkeypatch, source
         runner()
     except TimeoutError:
         pass
-
     assert source in multi.SOURCE_RUNTIME_META
     meta = multi.SOURCE_RUNTIME_META[source]
     assert meta["full_snapshot_proof"] is False
     assert "fetch_failure" in meta["truncation_signals"]
+
+
+def test_domimmo_paginates_both_residential_types_with_real_category(monkeypatch):
+    monkeypatch.setattr(multi, "DOMIMMO_PAGE_LIMIT", 2, raising=False)
+    calls: list[tuple[int, int, int]] = []
+
+    def fake_fetch(url: str, method: str = "GET", data=None):
+        query = parse_qs(urlsplit(url).query)
+        category = int(query["id_di_ad_cat"][0])
+        property_type = int(query["id_di_ad_type"][0])
+        page = int(query["page"][0])
+        calls.append((category, property_type, page))
+        if property_type == 1 and page == 1:
+            payload = [
+                _domimmo_item("d1", "Saint-Denis", kind=1),
+                _domimmo_item("d2", "Saint-Denis", kind=1),
+            ]
+        elif property_type == 1 and page == 2:
+            payload = [_domimmo_item("d3", "Saint-Denis", kind=1)]
+        elif property_type == 2 and page == 1:
+            payload = [_domimmo_item("m1", "Sainte-Marie", kind=2)]
+        else:
+            payload = []
+        return json.dumps(payload), url
+
+    monkeypatch.setattr(multi, "fetch", fake_fetch)
+
+    rows = multi.scrape_domimmo(max_items=20)
+
+    assert {row.source_id for row in rows} == {"d1", "d2", "d3", "m1"}
+    assert calls == [(6, 1, 1), (6, 1, 2), (6, 2, 1)]
+    meta = multi.SOURCE_RUNTIME_META["domimmo"]
+    assert meta["full_snapshot_proof"] is True
+    assert meta["pages_attempted"] == meta["pages_succeeded"] == 3
+    assert meta["snapshot_proof"] == "all_target_routes_exhausted"

@@ -154,8 +154,9 @@ def test_supports_flattened_item_shape_and_label_type() -> None:
 
 
 def test_actor_input_is_a_bounded_full_snapshot_for_the_two_live_communes() -> None:
-    payload = rms._leboncoin_actor_input(700)
-    assert payload["max_pages"] == 10
+    payload = rms._leboncoin_actor_input(1400)
+    assert payload["max_pages"] == 20
+    assert rms.LEBONCOIN_DATASET_CAPACITY == 1400
     assert payload["limit_per_page"] == 35
     assert payload["max_age_days"] == 0
     source = MOD_PATH.read_text(encoding="utf-8")
@@ -275,6 +276,34 @@ def test_actor_run_must_succeed_and_return_items(monkeypatch) -> None:
     else:
         raise AssertionError("an empty Apify dataset must not be reported as successful")
     assert len(calls) == 2
+
+
+def test_leboncoin_rejection_accounting_is_exact() -> None:
+    valid = native_apartment()
+    non_residential = native_apartment()
+    non_residential["list_id"] = 2
+    non_residential["attributes"] = [
+        {"key": "real_estate_type", "value": "3", "value_label": "Terrain"}
+    ]
+    missing_id = native_apartment()
+    missing_id.pop("list_id")
+    non_974 = native_apartment()
+    non_974["list_id"] = 3
+    non_974["location"] = {"city": "Saint-Denis", "zipcode": "93200"}
+    rms.SOURCE_RUNTIME_META["leboncoin"] = {"rejected_items_by_reason": {}}
+
+    out = rms._leboncoin_listings([
+        valid,
+        "not-an-object",
+        non_residential,
+        missing_id,
+        non_974,
+    ])
+
+    assert [item.source_id for item in out] == ["2712345678"]
+    assert rms.SOURCE_RUNTIME_META["leboncoin"]["rejected_items_by_reason"] == {
+        "non_object": 1, "non_residential": 1, "missing_id": 1, "non_974": 1,
+    }
 
 def main() -> int:
     for test in [
