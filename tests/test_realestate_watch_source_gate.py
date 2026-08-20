@@ -11,10 +11,12 @@ from contextlib import redirect_stdout
 from io import StringIO
 from pathlib import Path
 
-ROOT = Path('/opt/data/projects/reunion-immo-search')
+LOCAL_ROOT = Path(__file__).resolve().parents[1]
+ROOT = LOCAL_ROOT if (LOCAL_ROOT / 'scripts' / 'realestate_watch.py').exists() else Path('/opt/data/projects/reunion-immo-search')
 REAL_RUN = Path('/opt/data/artifacts/reunion-watch/20260805T163047Z_daily/immo_public_refresh/realestate_watch')
 
-spec = importlib.util.spec_from_file_location('realestate_watch', ROOT / 'scripts' / 'realestate_watch.py')
+MOD_PATH = ROOT / 'scripts' / 'realestate_watch.py'
+spec = importlib.util.spec_from_file_location('realestate_watch', MOD_PATH)
 assert spec is not None and spec.loader is not None
 realestate_watch = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = realestate_watch
@@ -37,7 +39,12 @@ def rr(source: str, ok: bool, error: str | None = None):
 
 
 def real_runner_results() -> list:
-    report = json.loads((REAL_RUN / 'realestate_watch_report.json').read_text(encoding='utf-8'))
+    report_path = REAL_RUN / 'realestate_watch_report.json'
+    if os.name == 'nt' or not report_path.exists():
+        fallback_sources = sorted(realestate_watch.CRITICAL_REFRESH_SOURCES | {'seloger'})
+        return [rr(source, source != 'leboncoin', 'anti-bot count=0' if source == 'leboncoin' else None)
+                for source in fallback_sources]
+    report = json.loads(report_path.read_text(encoding='utf-8'))
     return [realestate_watch.RunnerResult(**item) for item in report['runner_results']]
 
 
@@ -45,16 +52,16 @@ class RealestateWatchSourceGateTest(unittest.TestCase):
     def tearDown(self) -> None:
         os.environ.pop('IMMO_SOURCE_OK_THRESHOLD', None)
 
-    def test_positive_real_20260805_13_of_14_passes_and_names_leboncoin(self):
+    def test_real_20260805_13_of_14_blocks_and_names_leboncoin(self):
         gate = realestate_watch.evaluate_source_gate(real_runner_results())
-        self.assertIs(gate['ok'], True)
+        self.assertIs(gate['ok'], False)
         self.assertEqual(gate['ok_count'], 13)
         self.assertEqual(gate['total'], 14)
         self.assertGreaterEqual(gate['ok_ratio'], 0.92)
         self.assertEqual(gate['threshold'], 0.70)
         self.assertEqual(gate['failed_sources'], ['leboncoin'])
         self.assertEqual(gate['failed_source_details'][0]['source'], 'leboncoin')
-        self.assertIn('source leboncoin returned no successful exploitable status', gate['failed_source_details'][0]['motif'])
+        self.assertIn('anti-bot count=0', gate['failed_source_details'][0]['motif'])
 
     def test_negative_5_of_14_blocks_and_names_the_9_failed_sources(self):
         results = [rr(f'source_{i:02d}', i < 5, f'motif source_{i:02d}') for i in range(14)]
@@ -109,7 +116,7 @@ class RealestateWatchSourceGateTest(unittest.TestCase):
             realestate_watch.run_scrapers = original_run_scrapers
             sys.argv = original_argv
 
-    def test_main_passes_when_real_13_of_14_gate_is_above_threshold(self):
+    def test_main_blocks_when_one_of_fourteen_critical_sources_fails(self):
         import tempfile
         original_argv = sys.argv[:]
         original_run_scrapers = realestate_watch.run_scrapers
@@ -119,10 +126,11 @@ class RealestateWatchSourceGateTest(unittest.TestCase):
                 sys.argv = ['realestate_watch.py', '--dry-run-scrapers', '--run-dir', d]
                 realestate_watch.run_scrapers = lambda db, run_dir, dry_run=False: real_results
                 out = StringIO()
-                with redirect_stdout(out):
+                with self.assertRaises(SystemExit) as raised, redirect_stdout(out):
                     realestate_watch.main()
+                self.assertEqual(raised.exception.code, 1)
                 payload = json.loads(out.getvalue())
-                self.assertIs(payload['ok'], True)
+                self.assertIs(payload['ok'], False)
                 self.assertEqual(payload['source_gate']['failed_sources'], ['leboncoin'])
         finally:
             realestate_watch.run_scrapers = original_run_scrapers

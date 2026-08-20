@@ -6,11 +6,12 @@ def test_duplicate_canonical_merges_gallery_and_missing_fields() -> None:
         "commune": "Saint-Denis", "type": "Appartement", "rooms": 3,
         "rent": 1100, "surface": 70, "address": "4 rue des Flamboyants",
         "active": True,
+        "title": "Appartement - référence agence GES12345678-123",
     }
-    detailed = {**common, "id": "a:1", "url": "https://a/1",
+    detailed = {**common, "id": "a:1", "source": "a", "url": "https://a/1",
                 "description": "Description complète " * 20,
                 "images": ["shared.jpg"], "bedrooms": None}
-    gallery = {**common, "id": "b:2", "url": "https://b/2",
+    gallery = {**common, "id": "b:2", "source": "b", "url": "https://b/2",
                "description": "Courte", "images": ["shared.jpg", "2.jpg", "3.jpg"],
                "bedrooms": 2}
 

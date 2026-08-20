@@ -3,9 +3,11 @@ set -euo pipefail
 
 umask 077
 LOCK_FILE="/tmp/reunion_watch_post_refresh_alerts.lock"
+FLOCK_BIN="${REUNION_WATCH_FLOCK_BIN:-flock}"
 exec 9>"$LOCK_FILE"
-if ! flock -n 9; then
-  exit 0
+if ! "$FLOCK_BIN" -n 9; then
+  echo "reunion post-refresh alerts lock busy; retry later" >&2
+  exit 75
 fi
 
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
@@ -24,7 +26,11 @@ STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
   echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] Phase C legacy watches retired: ingest.py/check_watches.py intentionally not run from this cron." >>"$LOG"
 
-  python3 src/source_health_alerts.py
+  if [ -n "${REUNION_WATCH_NOTIFY_SINK:-}" ]; then
+    python3 src/source_health_alerts.py --sink "$REUNION_WATCH_NOTIFY_SINK"
+  else
+    python3 src/source_health_alerts.py
+  fi
   python3 src/search_alerts.py
   rc=$?
   echo "[$STAMP] reunion post-refresh alerts exit=$rc" >&2

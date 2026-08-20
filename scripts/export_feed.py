@@ -16,12 +16,26 @@ import sqlite3
 import unicodedata
 import re
 from collections import Counter, defaultdict
+from collections.abc import Mapping
 from datetime import datetime, timezone, timedelta
+from pathlib import Path
 
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from profils import PROFILS, scorer  # noqa: E402
+try:
+    from profils import PROFILS, scorer  # type: ignore[import-not-found]  # noqa: E402
+except ModuleNotFoundError:
+    # The personalised profile file is intentionally untracked. Tests, reviews
+    # and fresh deployments still need a deterministic non-secret fallback.
+    import importlib.util
+    _profiles_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'profils.example.py')
+    _profiles_spec = importlib.util.spec_from_file_location('profils_example', _profiles_path)
+    if _profiles_spec is None or _profiles_spec.loader is None:
+        raise
+    _profiles_module = importlib.util.module_from_spec(_profiles_spec)
+    _profiles_spec.loader.exec_module(_profiles_module)
+    PROFILS, scorer = _profiles_module.PROFILS, _profiles_module.scorer
 import geo_quartiers as gq  # noqa: E402
 from enrich_source_details_v3 import llm_input_hash  # noqa: E402
 from src.publication_policy import evaluate_publication  # noqa: E402
@@ -32,6 +46,25 @@ DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 EVENTS_DB = os.environ.get('IMMO_EVENTS_DB', '/opt/data/artifacts/immo-alerts/history.sqlite')
 ROOT = '/opt/data/projects/reunion-immo-search'
 OUT = os.environ.get('IMMO_FEED_OUT', ROOT + '/artifacts/app/feed.json')
+APP_ROOT = Path(
+    os.environ.get("IMMO_APP_PATH") or str(Path(OUT).resolve().parent)
+).resolve()
+
+
+def app_file(*parts: str) -> Path:
+    path = APP_ROOT.joinpath(*parts).resolve(strict=False)
+    try:
+        path.relative_to(APP_ROOT)
+    except ValueError as exc:
+        raise ValueError(f"candidate app path escapes root: {path}") from exc
+    return path
+
+
+def local_media_exists(value: object) -> bool:
+    if not value:
+        return False
+    return app_file(str(value).lstrip("/\\")).exists()
+
 # distances precalculees quartier -> point de reference.
 # Le point de reference lui-meme reste dans ce fichier COTE SERVEUR et n'est
 # jamais recopie dans le feed servi : seules les durees en sortent.
@@ -76,18 +109,14 @@ PUBLICATION_MIN_SURFACE_M2 = 65.0
 PUBLICATION_MAX_RENT_EUR = 1700
 DETAIL_READ_MIN_CHARS = 80
 EXCLUDED_QUARTIER_LABELS = {
-    'bellepierre': 'Bellepierre',
-    'montgaillard': 'Montgaillard',
-    'bas-de-la-riviere': 'Bas de la Rivière',
     'providence': 'Providence',
     'saint-francois': 'Saint-François',
 }
 DESCRIPTION_EXCLUDED_QUARTIERS = (
-    'bellepierre', 'montgaillard', 'la-montagne', 'bas-de-la-riviere',
     'providence', 'la-providence', 'saint-francois',
 )
 DESCRIPTION_LOCATION_RE = re.compile(
-    r'\b(?:situe(?:e|es|s)?\s+a|situe(?:e|es|s)?\s+au|a|au|aux|location(?:\s+(?:de|d|un|une|appartement|studio|maison|t[0-9]|f[0-9]|meuble|meublee)){0,8}|louer\s+a)\s+(?P<q>bellepierre|montgaillard|la\s+montagne|bas\s+de\s+la\s+riviere|(?:la\s+)?providence|saint\s+francois)\b'
+    r'\b(?:situe(?:e|es|s)?\s+a|situe(?:e|es|s)?\s+au|a|au|aux|location(?:\s+(?:de|d|un|une|appartement|studio|maison|t[0-9]|f[0-9]|meuble|meublee)){0,8}|louer\s+a)\s+(?P<q>(?:la\s+)?providence|saint\s+francois)\b'
 )
 DESCRIPTION_REPERE_RE = re.compile(
     r'\b(?:vue|face|proche|pres|minutes?\s+de|a\s+\d+\s*(?:min|minutes?)\s+de|acces|route|lycee\s+de|chu\s+de|secteur|preference|souhait)\b'
@@ -101,9 +130,6 @@ def excluded_quartier_from_field(quartier):
     for needle, label in EXCLUDED_QUARTIER_LABELS.items():
         if needle in n:
             return label
-    # La Montagne doit attraper La Montagne 8eme / 15eme, mais pas "vue sur la montagne".
-    if re.search(r'(^|-)la-montagne($|-)', n):
-        return 'La Montagne'
     return None
 
 
@@ -136,22 +162,6 @@ def excluded_quartier_from_description(title, description, location_label=None):
     txt = norm(hay).replace('-', ' ')
     title_norm = norm(raw_title).replace('-', ' ')
 
-    # Cas tres fiable dans les donnees actuelles: Montgaillard dans le titre.
-    # Les faux positifs mesures par Moufadal concernent Bellepierre/La Montagne
-    # comme reperes ou souhaits dans la description, pas Montgaillard en titre.
-    if 'montgaillard' in title_norm:
-        return 'Montgaillard'
-    if re.search(r'\b(?:la\s+)?providence\b', title_norm):
-        return 'Providence'
-    if re.search(r'\bsaint\s+francois\b', title_norm):
-        return 'Saint-François'
-
-    for m in re.finditer(r'\bmontgaillard\b', txt):
-        before = txt[max(0, m.start() - 100):m.start()]
-        if DESCRIPTION_REPERE_RE.search(before):
-            continue
-        if re.search(r'\b(?:situe(?:e|es|s)?\s+a\s+saint\s+denis|location\b.{0,80}\bsaint\s+denis|loue\b.{0,80}\bsaint\s+denis)\b', before):
-            return 'Montgaillard'
 
     for needle, label in ((r'\b(?:la\s+)?providence\b', 'Providence'),
                           (r'\bsaint\s+francois\b', 'Saint-François')):
@@ -168,10 +178,6 @@ def excluded_quartier_from_description(title, description, location_label=None):
             continue
         q = norm(m.group('q'))
         return {
-            'bellepierre': 'Bellepierre',
-            'montgaillard': 'Montgaillard',
-            'la-montagne': 'La Montagne',
-            'bas-de-la-riviere': 'Bas de la Rivière',
             'providence': 'Providence',
             'la-providence': 'Providence',
             'saint-francois': 'Saint-François',
@@ -201,14 +207,19 @@ def _parse_observed_at(value):
 
 
 def description_quality_payload(description, detail, fallback_seen_at=None):
-    attempted_at = _parse_observed_at(detail.get("fetched_at")) if detail else None
+    attempted_at = (
+        _parse_observed_at(detail.get("description_attempted_at") or detail.get("fetched_at"))
+        if detail else None
+    )
     version = "detail-enrich-v1" if attempted_at else "source-card-v1"
     attempted_at = attempted_at or _parse_observed_at(fallback_seen_at)
+    full_text_evidence = bool(detail and detail.get("description_full_text_evidence"))
     observation = assess_description(
         description,
         extractor_version=version,
         attempted_at=attempted_at,
         http_status=detail.get("http_status") if detail else None,
+        full_text_evidence=full_text_evidence,
     )
     return {
         "status": observation.status,
@@ -218,7 +229,18 @@ def description_quality_payload(description, detail, fallback_seen_at=None):
         "attempted_at": observation.attempted_at.isoformat() if observation.attempted_at else None,
         "succeeded_at": observation.succeeded_at.isoformat() if observation.succeeded_at else None,
         "markers": list(observation.markers),
+        "full_text_evidence": observation.full_text_evidence,
     }
+
+
+def description_detail_read(detail, quality):
+    """True only when the published text is proven to come from a full detail block."""
+    return bool(
+        detail
+        and detail.get("http_status") == 200
+        and quality.get("full_text_evidence")
+        and quality.get("status") in {"fetched_complete", "source_short_complete"}
+    )
 
 def normalize_published_at(value, anchor_seen_at=None):
     text = str(value or '').strip()
@@ -263,6 +285,87 @@ def public_rule_violation(listing):
 def active_public_listings(listings):
     """The public feed is an availability feed; history lives in movements/pages."""
     return [item for item in listings if item.get('active') is True]
+
+def reconciliation_product_payload(active_input, excluded_ids, eligible_items, visible_items):
+    """Account for every active identity from DB input to one public card/link."""
+    if not isinstance(excluded_ids, Mapping):
+        raise TypeError('excluded_ids must be a mapping of identity to reason')
+    normalized_excluded_ids = {}
+    for raw_identity, raw_reason in excluded_ids.items():
+        identity = str(raw_identity or '').strip()
+        reason = str(raw_reason or '').strip()
+        if not identity or not reason:
+            raise ValueError('excluded_ids requires non-empty identities and reasons')
+        if identity in normalized_excluded_ids:
+            raise ValueError(f'duplicate excluded identity after normalization: {identity}')
+        normalized_excluded_ids[identity] = reason
+    normalized_excluded_ids = dict(sorted(normalized_excluded_ids.items()))
+    policy_exclusions = Counter(normalized_excluded_ids.values())
+
+    eligible_ids = [str(item.get('id') or '') for item in eligible_items]
+    visible_ids = [str(item.get('id') or '') for item in visible_items]
+    visible_set = set(visible_ids)
+    eligible_set = set(eligible_ids)
+    linked_ids = set()
+    invalid_also_on_links = 0
+    for item in visible_items:
+        links = item.get('also_on') or []
+        if not isinstance(links, list):
+            invalid_also_on_links += 1
+            continue
+        for link in links:
+            if not isinstance(link, dict) or not str(link.get('id') or '').strip():
+                invalid_also_on_links += 1
+                continue
+            linked_ids.add(str(link['id']).strip())
+    hidden_ids = [identity for identity in eligible_ids if identity in linked_ids and identity not in visible_set]
+    unexplained_eligible_ids = sorted(eligible_set - visible_set - set(hidden_ids))
+    unexpected_also_on_ids = sorted(linked_ids - eligible_set)
+    fields = {
+        'missing_title': sum(1 for item in visible_items if not item.get('title')),
+        'missing_rent': sum(1 for item in visible_items if as_int(item.get('rent')) is None),
+        'missing_surface': sum(1 for item in visible_items if as_float(item.get('surface')) is None),
+        'missing_commune': sum(1 for item in visible_items if not item.get('commune')),
+        'missing_description': sum(1 for item in visible_items if not str(item.get('description') or '').strip()),
+        'missing_photo': sum(
+            1 for item in visible_items
+            if not str(item.get('image') or '').strip()
+            and not any(
+                str(value or '').strip()
+                for value in (item.get('images') if isinstance(item.get('images'), list) else [])
+            )
+        ),
+    }
+    # A visible card without description or photo is never an acceptable,
+    # explained loss. Other gaps remain explicit accounting evidence.
+    hard_visible_requirements = {'missing_description', 'missing_photo'}
+    explanations = {
+        key: value for key, value in fields.items()
+        if value and key not in hard_visible_requirements
+    }
+    return {
+        'active_input': int(active_input),
+        'policy_exclusions': {str(k): int(v) for k, v in sorted(policy_exclusions.items())},
+        'excluded_ids': normalized_excluded_ids,
+        'eligible': len(eligible_ids),
+        'dedup_hidden': len(hidden_ids),
+        'visible': len(visible_ids),
+        'eligible_ids': eligible_ids,
+        'visible_ids': visible_ids,
+        'also_on_ids': hidden_ids,
+        'fields': fields,
+        'unexplained_eligible_ids': unexplained_eligible_ids,
+        'unexpected_also_on_ids': unexpected_also_on_ids,
+        'invalid_also_on_links': invalid_also_on_links,
+        'field_explanations': explanations,
+        'field_explanation_reasons': {
+            'missing_title': 'source_title_missing',
+            'missing_rent': 'publication_policy_should_exclude',
+            'missing_surface': 'publication_policy_should_exclude',
+            'missing_commune': 'publication_policy_should_exclude',
+        },
+    }
+
 
 
 def canonical_public_feed(listings):
@@ -614,15 +717,15 @@ def main():
     thumbs = {}
     galeries_man = {}
     try:
-        man = json.load(open(ROOT + '/artifacts/app/photos_manifest.json', encoding='utf-8'))
+        man = json.loads(app_file('photos_manifest.json').read_text(encoding='utf-8'))
         for cle, v in (man.get('photos') or {}).items():
             site, _, sid = cle.partition(':')
             k = (site, sid)
             loc = v.get('local')
-            if loc and os.path.exists(os.path.join(ROOT, 'artifacts/app', loc.lstrip('/'))):
+            if loc and local_media_exists(loc):
                 thumbs[k] = loc
             locs = ['/' + str(u).lstrip('/') for u in (v.get('locals') or [])
-                    if u and os.path.exists(os.path.join(ROOT, 'artifacts/app', str(u).lstrip('/')))]
+                    if u and local_media_exists(u)]
             if len(locs) > 1:
                 # Nouvelle source canonique de galerie : manifeste local,
                 # produit par cache_photos.py depuis listing_detail.photo_urls.
@@ -638,17 +741,17 @@ def main():
     # n'a toujours servi qu'UNE photo. On la recupere ici, sans y toucher.
     galleries = {}
     try:
-        old = json.load(open(ROOT + '/artifacts/app/listings.json', encoding='utf-8'))
+        old = json.loads(app_file('listings.json').read_text(encoding='utf-8'))
         items = old if isinstance(old, list) else (old.get('items') or old.get('listings') or [])
         for it in items:
             k2 = (it.get('source'), str(it.get('source_id')))
             u = it.get('local_image_url')
-            if k2 not in thumbs and u and os.path.exists(os.path.join(ROOT, 'artifacts/app', u)):
+            if k2 not in thumbs and u and local_media_exists(u):
                 thumbs[k2] = '/' + u.lstrip('/')
             urls = it.get('local_image_urls')
             if isinstance(urls, list) and len(urls) > 1:
                 ok = ['/' + u2.lstrip('/') for u2 in urls
-                      if u2 and os.path.exists(os.path.join(ROOT, 'artifacts/app', u2.lstrip('/')))]
+                      if u2 and local_media_exists(u2)]
                 if len(ok) > 1:
                     galleries[k2] = ok
     except (OSError, ValueError):
@@ -676,6 +779,7 @@ def main():
         # Les libelles nettoyes peuvent etre composes ("Bois de Nefles · Sainte-Clotilde")
         # et la commune seule n'est pas une cle de la table (qui contient
         # "Saint-Denis centre"). On essaie donc chaque morceau, puis la commune,
+
         # puis "<commune> centre".
         essais = []
         for champ in ('quartier', 'location_label'):
@@ -708,16 +812,28 @@ def main():
     hors_perimetre = 0
     filtres_produit = Counter()
     diagnostics_actifs = Counter()
+    reconciliation_active_input = 0
+    reconciliation_excluded_ids = {}
 
     def compter_exclusion(regle, listing):
         filtres_produit[regle] += 1
         if listing.get('active'):
             filtres_produit[regle + '_actives'] += 1
+            identity = str(listing.get('id') or '')
+            if identity and identity not in reconciliation_excluded_ids:
+                decision = evaluate_publication(listing)
+                reconciliation_excluded_ids[identity] = (
+                    decision.reason if not decision.eligible else regle
+                )
 
     for r in c.execute('select * from rental_listings order by seen_last_at desc'):
         k = (r['source_site'], r['source_id'])
         e = enrich.get(k, {})
         d = detail.get(k, {})
+        row_active = bool(r['is_active'])
+        row_identity = '%s:%s' % (r['source_site'], r['source_id'])
+        if row_active:
+            reconciliation_active_input += 1
 
         # Trouve le 27/07 (soir) : les scrapers n'ont pas de filtre commune a
         # la source (ex. zimo/citya ramenent toute l'ile) -- la base peut donc
@@ -727,6 +843,29 @@ def main():
         # seule, rien d'irreversible).
         if gq.looks_out_of_scope(r['city'], r['district'], e.get('city_normalized'), e.get('zone_normalized')):
             hors_perimetre += 1
+            if row_active:
+                normalized_city = e.get('city_normalized')
+                if not normalized_city or norm(normalized_city) in VIDES:
+                    normalized_city = r['city']
+                normalized_zone = e.get('zone_normalized') or r['district']
+                policy_input = {
+                    'surface_m2': r['surface_m2'],
+                    'rent_eur': r['rent_eur'],
+                    'commune': normalized_city,
+                    'quartier': normalized_zone,
+                    'property_type': e.get('property_type_normalized') or r['property_type'],
+                    'title': r['title'],
+                    'description': d.get('description_full') or r['description'],
+                    'residential': (
+                        bool(e.get('is_residential'))
+                        if e.get('is_residential') is not None
+                        else None
+                    ),
+                }
+                decision = evaluate_publication(policy_input)
+                reconciliation_excluded_ids[row_identity] = (
+                    decision.reason if not decision.eligible else 'manifest_outside_scope'
+                )
             continue
 
         lat, lon = d.get('lat'), d.get('lon')
@@ -866,10 +1005,8 @@ def main():
             'description': source_text,
             'description_quality': description_quality,
             'detail_fetched': bool(d.get('http_status') == 200),
-            # Integrate both sides: keep the remote raw fetch signal, but keep
-            # the stricter local product contract for "read" so a 200 with thin
-            # text is not presented as a complete detail page.
-            'detail_read': bool(d.get('http_status') == 200 and detail_text_ok(d.get('description_full'))),
+            # HTTP 200 alone is transport evidence; structural proof is required.
+            'detail_read': description_detail_read(d, description_quality),
             'llm_extraction': llm_fields,
             'llm_extraction_status': llm_status,
         }
@@ -932,6 +1069,7 @@ def main():
 
         listings.append(listing)
 
+    reconciliation_eligible = list(active_public_listings(listings))
     # --- trajet + score par profil ---
     for l in listings:
         l['trajet'] = trajet(l)
@@ -967,7 +1105,18 @@ def main():
     # Do not mix withdrawn inventory into the public availability feed. Historical
     # counts remain in `movements` and the dedicated changes/history artifacts.
     listings = active_public_listings(listings)
-    listings, dedup_report = deduplicate_public_feed(listings)
+    listings, dedup_report = deduplicate_public_feed(
+        listings,
+        # Validate the files belonging to this exact candidate product. OUT is
+        # redirected by build_product_v2 for transactional and temporary builds.
+        photo_root=os.path.dirname(os.path.abspath(OUT)),
+    )
+    reconciliation_product = reconciliation_product_payload(
+        reconciliation_active_input,
+        reconciliation_excluded_ids,
+        reconciliation_eligible,
+        listings,
+    )
     # Backward-compatible metadata for older audits/UI while the canonical
     # implementation lives in src.public_feed_dedup.
     dedup_display = {
@@ -1004,6 +1153,7 @@ def main():
         'diagnostics_actifs_avant_filtres': dict(diagnostics_actifs),
         'descriptions': dict(description_counts),
         'deduplication': dedup_report,
+        'reconciliation_product': reconciliation_product,
         'total': len(listings),
         'actives': movements['actives'],
         'avec_point_carte': sum(1 for x in listings if x['lat']),

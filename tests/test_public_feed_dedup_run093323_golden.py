@@ -121,7 +121,9 @@ def test_same_residence_and_signature_but_different_listing_text_stays_visible()
 def test_postflight_reuses_the_public_dedup_engine_instead_of_title_signature() -> None:
     source = (ROOT / "scripts" / "postflight_public_contract.py").read_text(encoding="utf-8")
     assert "from src.public_feed_dedup import deduplicate_public_feed" in source
-    assert "remaining_visible, remaining_dedup = deduplicate_public_feed(active_listings)" in source
+    assert "remaining_visible, remaining_dedup = deduplicate_public_feed(" in source
+    assert "active_listings, photo_root=app" in source
+    assert '"publication_photo_gallery_integrity"' in source
     assert "duplicate_signatures" not in source
     assert '"publication_dedup_trace_contract"' in source
     assert '"group_summaries"' in source

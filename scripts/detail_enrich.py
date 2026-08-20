@@ -36,6 +36,18 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from src.description_observability import (
+    assess_description,
+    select_description,
+)
+
+DESCRIPTION_EXTRACTOR_VERSION = "detail-enrich-v2"
 DB = os.environ.get('IMMO_DB_PATH', '/opt/data/data/reunion_watch.db')
 CACHE = '/opt/data/projects/reunion-immo-search/artifacts/detail_pages'
 UA = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -66,6 +78,17 @@ CREATE TABLE IF NOT EXISTS listing_detail (
   bedrooms    INTEGER,
   -- texte
   description_full TEXT,
+  description_content_state TEXT,
+  description_length INTEGER,
+  description_sha256 TEXT,
+  description_full_text_evidence INTEGER,
+  description_succeeded_at TEXT,
+  description_attempt_status TEXT,
+  description_attempted_at TEXT,
+  description_attempt_length INTEGER,
+  description_attempt_sha256 TEXT,
+  description_attempt_error TEXT,
+  description_extractor_version TEXT,
   notes       TEXT,
   PRIMARY KEY (source_site, source_id)
 );
@@ -78,11 +101,26 @@ COLS_CONFORT = [
     ('parking', 'INTEGER'), ('piscine', 'INTEGER'), ('clim', 'INTEGER'),
     ('niveaux', 'INTEGER'),
 ]
+COLS_DESCRIPTION_OBSERVABILITY = [
+    ('description_content_state', 'TEXT'),
+    ('description_length', 'INTEGER'),
+    ('description_sha256', 'TEXT'),
+    ('description_full_text_evidence', 'INTEGER'),
+    ('description_succeeded_at', 'TEXT'),
+    ('description_attempt_status', 'TEXT'),
+    ('description_attempted_at', 'TEXT'),
+    ('description_attempt_length', 'INTEGER'),
+    ('description_attempt_sha256', 'TEXT'),
+    ('description_attempt_error', 'TEXT'),
+    ('description_extractor_version', 'TEXT'),
+]
+
+
 
 
 def migrer(c):
     existantes = {r[1] for r in c.execute('pragma table_info(listing_detail)')}
-    for nom, typ in COLS_CONFORT:
+    for nom, typ in COLS_CONFORT + COLS_DESCRIPTION_OBSERVABILITY:
         if nom not in existantes:
             c.execute('alter table listing_detail add column %s %s' % (nom, typ))
     c.commit()
@@ -92,6 +130,54 @@ def migrer(c):
 
 def now():
     return datetime.now(timezone.utc).isoformat()
+
+
+def description_fields(existing, candidate, *, attempted_at, http_status,
+                       error=None, existing_succeeded_at=None,
+                       full_text_evidence=False,
+                       existing_full_text_evidence=False):
+    """Keep content and attempt evidence separate.
+
+    HTTP 200 is transport evidence only. The selected user-facing text is allowed
+    to change solely through select_description; empty/boilerplate attempts remain
+    visible in the attempt columns without erasing the previous source text.
+    """
+    attempted_dt = datetime.fromisoformat(str(attempted_at).replace('Z', '+00:00'))
+    observation = assess_description(
+        candidate,
+        extractor_version=DESCRIPTION_EXTRACTOR_VERSION,
+        attempted_at=attempted_dt,
+        http_status=http_status,
+        error=error,
+        now=attempted_dt,
+        full_text_evidence=full_text_evidence,
+    )
+    selection = select_description(
+        existing,
+        candidate,
+        candidate_observation=observation,
+        existing_succeeded_at=existing_succeeded_at,
+        now=attempted_dt,
+        existing_full_text_evidence=existing_full_text_evidence,
+    )
+    succeeded_at = existing_succeeded_at
+    if not selection.kept_existing and observation.succeeded_at is not None:
+        succeeded_at = observation.succeeded_at.isoformat()
+    return {
+        'description_full': selection.text,
+        'description_content_state': selection.content_state,
+        'description_length': selection.length,
+        'description_sha256': selection.sha256,
+        'description_full_text_evidence': int(selection.full_text_evidence),
+        'description_succeeded_at': succeeded_at,
+        'description_attempt_status': observation.status,
+        'description_attempted_at': attempted_at,
+        'description_attempt_length': observation.length,
+        'description_attempt_sha256': observation.sha256,
+        'description_attempt_error': error,
+        'description_extractor_version': DESCRIPTION_EXTRACTOR_VERSION,
+        'description_selection_reason': selection.reason,
+    }
 
 
 def clean(s):
@@ -449,20 +535,36 @@ def from_text(txt):
     return out
 
 
+DESCRIPTION_BODY_PATTERNS = (
+    r'<div[^>]+class=["\'][^"\']*(?:description|descriptif|texte-annonce)'
+    r'[^"\']*["\'][^>]*>(.*?)</div>',
+    r'<section[^>]+class=["\'][^"\']*description[^"\']*["\'][^>]*>(.*?)</section>',
+)
+
+
+def structural_description_candidates(page):
+    candidates = []
+    for pattern in DESCRIPTION_BODY_PATTERNS:
+        for match in re.finditer(pattern, page, re.S | re.I):
+            text = clean(match.group(1))
+            if len(text) >= 10:
+                candidates.append(text)
+    return candidates
+
+
 def best_description(page, fallback=''):
-    cands = []
+    structural = structural_description_candidates(page)
+    if structural:
+        return max(structural, key=len)
+    candidates = []
     for m in re.finditer(r'<meta[^>]+(?:property|name)=["\'](?:og:)?description["\']'
                          r'[^>]+content=["\']([^"\']{40,})["\']', page, re.I):
-        cands.append(clean(m.group(1)))
-    for pat in (r'<div[^>]+class=["\'][^"\']*(?:description|descriptif|texte-annonce)'
-                r'[^"\']*["\'][^>]*>(.*?)</div>',
-                r'<section[^>]+class=["\'][^"\']*description[^"\']*["\'][^>]*>(.*?)</section>'):
-        for m in re.finditer(pat, page, re.S | re.I):
-            cands.append(clean(m.group(1)))
-    cands = [c for c in cands if len(c) > 60]
-    if not cands:
+        candidates.append(clean(m.group(1)))
+    candidates = [candidate for candidate in candidates if len(candidate) >= 10]
+    if not candidates:
         return fallback
-    return max(cands, key=len)
+    source_text = max(candidates, key=len)
+    return source_text if len(source_text) >= len(fallback or '') else fallback
 
 
 def decide_precision(rec):
@@ -510,11 +612,12 @@ def process(page, fallback_desc):
             rec.update(mp)
             src.append('carte')
 
-    desc = best_description(page, fallback_desc)
-    # ne JAMAIS perdre du texte : si la vignette en dit plus, on la garde
-    if len(fallback_desc or '') > len(desc or ''):
-        desc = fallback_desc
+    detail_candidate = best_description(page, '')
+    desc = detail_candidate if len(detail_candidate) >= len(fallback_desc or '') else fallback_desc
     rec['description_full'] = desc
+    rec['_description_attempt_candidate'] = detail_candidate
+    rec['_description_full_text_evidence'] = bool(
+        structural_description_candidates(page))
 
     # PIEGE PROUVE (2026-07-27) : chercher une adresse dans TOUTE la page ramene
     # l'adresse de l'AGENCE ou des mentions legales (immo974 -> "3 Place de Fontenoy",
@@ -544,20 +647,35 @@ def reparse(c):
     """Re-extrait TOUT depuis les pages deja telechargees. Zero requete reseau :
     on peut donc ajouter des criteres sans redemander quoi que ce soit aux sites."""
     rows = c.execute(
-        'select r.source_site, r.source_id, r.description from rental_listings r '
+        'select r.source_site, r.source_id, r.description, d.description_full, '
+        'd.description_succeeded_at, d.description_full_text_evidence, '
+        'd.fetched_at, d.http_status '
+        'from rental_listings r '
         'join listing_detail d on d.source_site=r.source_site and d.source_id=r.source_id '
         'where d.http_status=200').fetchall()
     ok = manquant = 0
     champs = ['address', 'street', 'residence', 'postal_code', 'locality', 'lat', 'lon',
               'precision', 'geo_source', 'floor', 'has_elevator', 'bathtub', 'furnished',
-              'charges_eur', 'bedrooms', 'description_full'] + [n for n, _ in COLS_CONFORT]
-    for ss, si, fb in rows:
+              'charges_eur', 'bedrooms', 'description_full'] + [n for n, _ in COLS_CONFORT] + \
+             [n for n, _ in COLS_DESCRIPTION_OBSERVABILITY]
+    for (ss, si, fb, existing_desc, existing_succeeded_at,
+         existing_full_text_evidence, fetched_at, http_status) in rows:
         p = chemin_cache(ss, si)
         if not os.path.exists(p):
             manquant += 1
             continue
         with open(p, encoding='utf-8', errors='replace') as f:
             rec = process(f.read(), fb or '')
+        fields = description_fields(
+            existing_desc or fb or '',
+            rec.pop('_description_attempt_candidate', ''),
+            attempted_at=fetched_at or now(),
+            http_status=http_status,
+            existing_succeeded_at=existing_succeeded_at,
+            existing_full_text_evidence=bool(existing_full_text_evidence),
+            full_text_evidence=rec.pop('_description_full_text_evidence', False),
+        )
+        rec.update({name: fields.get(name) for name, _ in COLS_DESCRIPTION_OBSERVABILITY})
         sets = ', '.join('%s=?' % k for k in champs)
         c.execute('update listing_detail set %s where source_site=? and source_id=?' % sets,
                   [rec.get(k) for k in champs] + [ss, si])
@@ -627,7 +745,11 @@ def main():
 
     if a.stats:
         tot = c.execute('select count(*) from rental_listings').fetchone()[0]
-        done = c.execute("select count(*) from listing_detail where http_status=200 and length(trim(coalesce(description_full,'')))>=80").fetchone()[0]
+        done = c.execute(
+            "select count(*) from listing_detail where http_status=200 "
+            "and description_full_text_evidence=1 "
+            "and description_attempt_status in ('fetched_complete','source_short_complete')"
+        ).fetchone()[0]
         print('annonces: %d | detail texte lu: %d (%.0f%%)' % (tot, done, 100.0 * done / max(tot, 1)))
         print('\n-- precision --')
         for p, k in c.execute('select precision, count(*) from listing_detail '
@@ -645,7 +767,8 @@ def main():
     if not a.redo:
         q += (' and not exists (select 1 from listing_detail d where '
               'd.source_site=r.source_site and d.source_id=r.source_id '
-              "and d.http_status=200 and length(trim(coalesce(d.description_full,'')))>=80)")
+              "and d.http_status=200 and d.description_full_text_evidence=1 "
+              "and d.description_attempt_status in ('fetched_complete','source_short_complete'))")
     if a.only_active:
         q += ' and r.is_active=1'
     if a.source:
@@ -686,6 +809,18 @@ def main():
         status = None
         rec = {}
         note = ''
+        attempted_at = now()
+        existing_row = c.execute(
+            'select description_full, description_succeeded_at, '
+            'description_full_text_evidence from listing_detail '
+            'where source_site=? and source_id=?', (ss, si)
+        ).fetchone()
+        existing_desc = existing_row[0] if existing_row else (fb or '')
+        existing_succeeded_at = existing_row[1] if existing_row else None
+        existing_full_text_evidence = bool(existing_row[2]) if existing_row else False
+        attempt_error = None
+        detail_candidate = ''
+        full_text_evidence = False
         try:
             if ss == 'seloger':
                 status, page = fetch_cdp(url)
@@ -695,24 +830,46 @@ def main():
                       'w', encoding='utf-8') as f:
                 f.write(page)
             rec = process(page, fb or '')
-            if len(str(rec.get('description_full') or '').strip()) >= 80:
-                ok += 1
-            else:
-                note = 'HTTP %s sans texte detail exploitable' % status
+            detail_candidate = rec.pop('_description_attempt_candidate', '')
+            full_text_evidence = rec.pop('_description_full_text_evidence', False)
         except urllib.error.HTTPError as e:
             status = e.code
             note = 'HTTP %s' % e.code
+            attempt_error = note
             err += 1
         except Exception as e:
             note = '%s: %s' % (type(e).__name__, str(e)[:120])
             err += 1
+            attempt_error = note
+        fields = description_fields(
+            existing_desc,
+            detail_candidate,
+            attempted_at=attempted_at,
+            http_status=status,
+            error=attempt_error,
+            existing_succeeded_at=existing_succeeded_at,
+            existing_full_text_evidence=existing_full_text_evidence,
+            full_text_evidence=full_text_evidence,
+        )
+        rec.update({name: fields.get(name) for name, _ in COLS_DESCRIPTION_OBSERVABILITY})
+        rec['description_full'] = fields['description_full']
+        if fields['description_attempt_status'] in {
+                'fetched_complete', 'source_short_complete'}:
+            ok += 1
+        elif not note:
+            note = 'HTTP %s sans texte detail exploitable' % status
         last_host[host] = time.time()
 
         c.execute(
             'insert into listing_detail (source_site, source_id, fetched_at, '
             'http_status, address, street, residence, postal_code, locality, lat, lon, '
             'precision, geo_source, floor, has_elevator, bathtub, furnished, charges_eur, '
-            'bedrooms, description_full, notes) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '
+            'bedrooms, description_full, description_content_state, description_length, '
+            'description_sha256, description_full_text_evidence, description_succeeded_at, '
+            'description_attempt_status, '
+            'description_attempted_at, description_attempt_length, description_attempt_sha256, '
+            'description_attempt_error, description_extractor_version, notes) '
+            'values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) '
             'on conflict(source_site, source_id) do update set '
             'fetched_at=excluded.fetched_at, http_status=excluded.http_status, '
             "address=coalesce(nullif(trim(excluded.address), ''), listing_detail.address), "
@@ -732,12 +889,29 @@ def main():
             'charges_eur=coalesce(excluded.charges_eur, listing_detail.charges_eur), '
             'bedrooms=coalesce(excluded.bedrooms, listing_detail.bedrooms), '
             "description_full=coalesce(nullif(trim(excluded.description_full), ''), listing_detail.description_full), "
+            'description_content_state=excluded.description_content_state, '
+            'description_length=excluded.description_length, '
+            'description_sha256=excluded.description_sha256, '
+            'description_full_text_evidence=excluded.description_full_text_evidence, '
+            'description_succeeded_at=excluded.description_succeeded_at, '
+            'description_attempt_status=excluded.description_attempt_status, '
+            'description_attempted_at=excluded.description_attempted_at, '
+            'description_attempt_length=excluded.description_attempt_length, '
+            'description_attempt_sha256=excluded.description_attempt_sha256, '
+            'description_attempt_error=excluded.description_attempt_error, '
+            'description_extractor_version=excluded.description_extractor_version, '
             'notes=excluded.notes',
-            (ss, si, now(), status, rec.get('address'), rec.get('street'), rec.get('residence'),
+            (ss, si, attempted_at, status, rec.get('address'), rec.get('street'), rec.get('residence'),
              rec.get('postal_code'), rec.get('locality'), rec.get('lat'), rec.get('lon'),
              rec.get('precision'), rec.get('geo_source'), rec.get('floor'),
              rec.get('has_elevator'), rec.get('bathtub'), rec.get('furnished'),
-             rec.get('charges_eur'), rec.get('bedrooms'), rec.get('description_full'), note))
+             rec.get('charges_eur'), rec.get('bedrooms'), rec.get('description_full'),
+             rec.get('description_content_state'), rec.get('description_length'),
+             rec.get('description_sha256'), rec.get('description_full_text_evidence'),
+             rec.get('description_succeeded_at'),
+             rec.get('description_attempt_status'), rec.get('description_attempted_at'),
+             rec.get('description_attempt_length'), rec.get('description_attempt_sha256'),
+             rec.get('description_attempt_error'), rec.get('description_extractor_version'), note))
         c.commit()
         if i % 10 == 0 or i == len(rows):
             print('  %d/%d  ok=%d err=%d' % (i, len(rows), ok, err), flush=True)

@@ -12,6 +12,7 @@ This is technical ingestion, not final alert criteria.
 from __future__ import annotations
 import argparse, hashlib, html, json, os, re, sqlite3, ssl, time
 from dataclasses import dataclass, asdict, replace
+from html.parser import HTMLParser
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import Request, urlopen
@@ -35,6 +36,13 @@ except Exception:  # pragma: no cover
 SCRAPLING_MODE = 'auto'      # 'auto' | 'scrapling' | 'off'  (set from CLI in main)
 SCRAPLING_ENGINE = 'http'    # 'http' | 'stealth' | 'auto'
 FETCH_LOG = []               # per-fetch instrumentation (mode/status/duration/error_class)
+SOURCE_RUNTIME_META = {}     # adapter-only evidence (dataset ids, raw counts, caps)
+
+# Safety caps are adapter arguments now. Reaching one is recorded in that
+# adapter's runtime metadata; a fixed global cap would wrongly downgrade a
+# genuinely exhausted small catalogue.
+BOUNDED_PARTIAL_SOURCES = set()
+SOURCE_RESULT_CAPS = {}
 
 @dataclass
 class Listing:
@@ -154,163 +162,346 @@ def save_raw(site,sid,obj):
     path.write_text(json.dumps(obj,ensure_ascii=False,indent=2),encoding='utf-8')
     return str(path)
 
-# Trouve le 27/07 (soir) : ne lisait que le POST initial (1 page, ~20
-# annonces, toute l'ile, aucun cap avant). La pagination REELLE n'est pas
-# un parametre 'page' (teste et infirme : memes IDs), mais offset/results
-# en GET (ex. ?offset=20&results=20), verifie contre le lien natif
-# "SUIVANT" du site (~20 pages, ~400 annonces au total). Pas de filtre
-# commune a la source : le filtre reste client-side sur 'city'.
-def scrape_immo974(max_pages=8, page_size=20, delay=1.5):
-    arts=[]
-    for page in range(max_pages):
-        offset=page*page_size
-        if offset==0:
+TARGET_SCOPE = ('Saint-Denis', 'Sainte-Marie')
+ZIMO_CITY_ROUTES = {
+    'Saint-Denis': 'https://www.zimo.fr/annonces/immobilier/location/saint-denis-97400',
+    'Sainte-Marie': 'https://www.zimo.fr/annonces/immobilier/location/sainte-marie-97438',
+}
+SUPERIMMO_CITY_ROUTES = {
+    'Saint-Denis': 'https://www.superimmo.com/location/dom-tom/la-reunion/saint-denis-974',
+    'Sainte-Marie': 'https://www.superimmo.com/location/dom-tom/la-reunion/sainte-marie-97438',
+}
+FNAIM_CITY_ROUTES = {
+    'Saint-Denis': 'https://www.fnaim.re/38244-st-denis/locations',
+    'Sainte-Marie': 'https://www.fnaim.re/38245-ste-marie/locations/appartements',
+}
+
+
+def _reported_total(text):
+    patterns = [
+        r'<meta[^>]+name=["\']total-results["\'][^>]+content=["\']([0-9\s]+)',
+        r'<meta[^>]+content=["\']([0-9\s]+)["\'][^>]+name=["\']total-results["\']',
+        r'\bdata-total(?:-results)?=["\']([0-9\s]+)',
+        r'["\']total(?:Results|_results|Count)?["\']\s*:\s*([0-9]+)',
+        r'\b([0-9][0-9\s]*)\s+(?:annonces?|biens?)\b',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text or '', re.I)
+        if match:
+            return int(re.sub(r'\s+', '', match.group(1)))
+    return None
+
+
+def _has_next_page(text, next_page):
+    source = html.unescape(text or '')
+    if re.search(r'<(?:a|link)\b[^>]*\brel=["\'][^"\']*\bnext\b', source, re.I):
+        return True
+    if re.search(r'<a\b[^>]*\bhref=["\'][^"\']*(?:[?&]page=|/p/)' + str(next_page) + r'(?:\D|$)', source, re.I):
+        return True
+    return False
+
+
+def _blocked_or_challenge_page(text):
+    low = (text or '').lower()
+    return any(marker in low for marker in (
+        'attention required! | cloudflare',
+        'sorry, you have been blocked',
+        'cf-chl-',
+        'captcha',
+        'access denied',
+        'enable cookies to continue',
+    ))
+
+
+def _target_city(value):
+    value = clean(value)
+    if not value:
+        return None
+    low = value.lower().replace('-', ' ').replace('é', 'e').replace('è', 'e')
+    low = re.sub(r'\s+', ' ', low)
+    if re.search(r'\b(?:saint|st)\s+denis\b', low) or re.search(r'\b(?:sainte|ste)\s+clotilde\b', low):
+        return 'Saint-Denis'
+    if re.search(r'\b(?:sainte|ste)\s+marie\b', low):
+        return 'Sainte-Marie'
+    return None
+
+
+def _set_snapshot_meta(source, *, found, route_states, pages_attempted,
+                       pages_succeeded, raw_items, signals, extra=None):
+    signals = list(dict.fromkeys(str(item) for item in signals if item))
+    full = (
+        bool(route_states)
+        and all(row.get('status') == 'complete' for row in route_states.values())
+        and pages_attempted == pages_succeeded
+        and not signals
+    )
+    meta = {
+        'pages_attempted': pages_attempted,
+        'pages_succeeded': pages_succeeded,
+        'raw_items': raw_items,
+        'parsed_items': len(found),
+        'unique_ids': len({str(item[1]) for item in found}),
+        'unparsed_items_by_reason': {},
+        'pre_unique_rejections_by_reason': {},
+        'rejected_items_by_reason': {},
+        'route_states': route_states,
+        'truncation_signals': signals,
+        'full_snapshot_proof': full,
+        'snapshot_proof': 'all_target_routes_exhausted' if full else None,
+    }
+    if extra:
+        meta.update(extra)
+    SOURCE_RUNTIME_META[source] = meta
+    return meta
+
+
+def _add_runtime_signal(source, signal):
+    meta = SOURCE_RUNTIME_META[source]
+    signals = list(meta.get('truncation_signals') or [])
+    if signal not in signals:
+        signals.append(signal)
+    meta['truncation_signals'] = signals
+    meta['full_snapshot_proof'] = False
+    meta['snapshot_proof'] = None
+
+
+def _merge_rejection_reasons(source, reasons):
+    meta = SOURCE_RUNTIME_META[source]
+    merged = dict(meta.get('rejected_items_by_reason') or {})
+    for reason, count in reasons.items():
+        if count:
+            merged[reason] = int(merged.get(reason, 0)) + int(count)
+    meta['rejected_items_by_reason'] = merged
+
+
+def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
+                        page_url, parse_items, item_key):
+    found = []
+    all_unique_global = set()
+    safety_rejected = set()
+    route_states = {}
+    signals = []
+    pages_attempted = 0
+    pages_succeeded = 0
+    raw_items = 0
+    pre_unique_rejections = {'missing_id': 0, 'duplicate_raw': 0}
+    cap_reached = False
+
+    for city, base in routes.items():
+        route_ids = set()
+        state = {'status': 'partial', 'terminal': None, 'items': 0}
+        if cap_reached:
+            state['terminal'] = f'safety_item_cap_reached:{max_items}'
+            route_states[city] = state
+            continue
+        for page in range(1, max_pages + 1):
+            url = page_url(base, page)
+            pages_attempted += 1
             try:
-                text,_=fetch('https://www.immo974.com/resultat-de-recherche',method='POST',data={'searchcategory':'2'})
+                text, _ = fetch(url)
             except Exception:
+                signals.append('fetch_failure')
+                state['terminal'] = f'fetch_failure:page:{page}'
                 break
-        else:
-            try:
-                text,_=fetch(f'https://www.immo974.com/resultat-de-recherche?offset={offset}&results={page_size}')
-            except Exception:
+            pages_succeeded += 1
+            page_items = list(parse_items(text))
+            raw_items += len(page_items)
+            if _blocked_or_challenge_page(text):
+                signals.append('blocked_or_challenge_page')
+                state['terminal'] = f'blocked_or_challenge_page:page:{page}'
                 break
-        time.sleep(delay)
-        page_arts=re.findall(r'<article>(.*?)</article>',text,re.I|re.S)
-        if not page_arts:
-            break
-        arts.extend(page_arts)
-    out=[]
-    for a in arts:
-        if '/annonce/locations/' not in a: continue
-        url=re.search(r'href=["\']([^"\']*/annonce/locations/[^"\']+)["\']',a,re.I)
-        if not url: continue
-        url=html.unescape(url.group(1)); sid=re.search(r'-(\d+)\.html',url); sid=sid.group(1) if sid else hashlib.md5(url.encode()).hexdigest()
-        title=re.search(r'<h2 class=["\']ville-type["\']>\s*<a[^>]*title=["\']([^"\']+)["\']',a,re.I|re.S)
-        city=re.search(r'<h2 class=["\']localisation["\'][^>]*>.*?</i>\s*(.*?)\s*</h2>',a,re.I|re.S)
-        price=re.search(r'<div class=["\']price-result["\'][^>]*>\s*<b>\s*([^<]+)',a,re.I|re.S)
-        date=re.search(r'<div class=["\']date_publication["\'][^>]*>\s*([^<]+)',a,re.I|re.S)
-        desc=re.search(r'<p class=["\']description["\'][^>]*>(.*?)</p>',a,re.I|re.S)
-        img=re.search(r'<a[^>]+class=["\']img-list["\'][^>]*>\s*<img[^>]+src=["\']([^"\']+)',a,re.I|re.S)
-        image_url=normalize_image_url(img.group(1), 'https://www.immo974.com/') if img else extract_image_url(a, 'https://www.immo974.com/')
-        t=clean(title.group(1)) if title else None
-        d={'url':url,'title':t,'city':clean(city.group(1)) if city else None,'price':clean(price.group(1)) if price else None,'date':clean(date.group(1)) if date else None,'desc':clean(desc.group(1)) if desc else None}
-        out.append(Listing('immo974',sid,url,url,t,d['city'],None,'apartment' if 'appartement' in url else ('house' if 'maison' in url or 'villa' in url else None),parse_rooms((t or '')+' '+(d.get('desc') or '')),None,parse_surface((t or '')+' '+(d.get('desc') or '')),to_int_price(d['price']),None,None,d['date'],image_url,d['desc'],save_raw('immo974',sid,d),hash_listing(d)))
+            new_route = []
+            for item in page_items:
+                key = str(item_key(item) or '')
+                if not key:
+                    pre_unique_rejections['missing_id'] += 1
+                    continue
+                if key in route_ids:
+                    pre_unique_rejections['duplicate_raw'] += 1
+                    continue
+                route_ids.add(key)
+                new_route.append((key, item))
+                if key not in all_unique_global:
+                    all_unique_global.add(key)
+                    if len(found) < max_items:
+                        found.append((city, key, item))
+                    else:
+                        safety_rejected.add(key)
+                else:
+                    pre_unique_rejections['duplicate_raw'] += 1
+            state['items'] = len(route_ids)
+            total = _reported_total(text)
+            if total is not None:
+                state['reported_total'] = total
+            if total is not None and len(route_ids) >= total:
+                state.update(status='complete', terminal='reported_total')
+                break
+            if not page_items:
+                state.update(status='complete', terminal='empty_page')
+                break
+            if not _has_next_page(text, page + 1):
+                state.update(status='complete', terminal='no_next')
+                break
+            if not new_route:
+                signals.append('pagination_stalled')
+                state['terminal'] = f'pagination_stalled:page:{page}'
+                break
+            if safety_rejected or len(found) >= max_items:
+                signals.append(f'safety_item_cap_reached:{max_items}')
+                state['terminal'] = f'safety_item_cap_reached:{max_items}'
+                cap_reached = True
+                break
+            if page == max_pages:
+                signals.append(f'safety_page_cap_reached:{max_pages}')
+                state['terminal'] = f'safety_page_cap_reached:{max_pages}'
+                break
+            time.sleep(delay)
+        route_states[city] = state
+
+    _set_snapshot_meta(
+        source, found=[(None, key, None) for key in all_unique_global],
+        route_states=route_states,
+        pages_attempted=pages_attempted, pages_succeeded=pages_succeeded,
+        raw_items=raw_items, signals=signals,
+        extra={
+            'parsed_items': raw_items - pre_unique_rejections['missing_id'],
+            'unique_ids': len(all_unique_global),
+            'unparsed_items_by_reason': (
+                {'missing_id': pre_unique_rejections['missing_id']}
+                if pre_unique_rejections['missing_id'] else {}
+            ),
+            'pre_unique_rejections_by_reason': (
+                {'duplicate_raw': pre_unique_rejections['duplicate_raw']}
+                if pre_unique_rejections['duplicate_raw'] else {}
+            ),
+            'rejected_items_by_reason': (
+                {'safety_item_cap': len(safety_rejected)} if safety_rejected else {}
+            ),
+        },
+    )
+    return found
+def _zimo_articles(text):
+    return re.findall(r'<article\b[^>]*>(.*?)</article>', text or '', re.I | re.S)
+
+
+def _zimo_article_id(article):
+    match = re.search(r'<a href=["\'](/annonce/[^"\']+)', article, re.I | re.S)
+    return match.group(1).rstrip('/').split('/')[-1] if match else None
+
+
+def scrape_zimo(max_pages=50, max_items=5000, delay=2.0):
+    found = _walk_target_routes(
+        source='zimo', routes=ZIMO_CITY_ROUTES, max_pages=max_pages,
+        max_items=max_items, delay=delay,
+        page_url=lambda base, page: base if page == 1 else f'{base}?page={page}',
+        parse_items=_zimo_articles, item_key=_zimo_article_id,
+    )
+    out = []
+    rejected_out_of_scope = set()
+    rejected_commercial = set()
+    rejected_mapping = set()
+    for route_city, sid, article in found:
+        match = re.search(r'<a href=["\'](/annonce/[^"\']+)["\'][^>]*title=["\']([^"\']+)', article, re.I | re.S)
+        if not match:
+            rejected_mapping.add(sid)
+            continue
+        url = 'https://www.zimo.fr' + html.unescape(match.group(1))
+        price = re.search(r'<span class=["\']badge ink base["\']>\s*([^<]*€)', article, re.I | re.S)
+        info = re.search(r'<div class=["\'][^"\']*font-medium[^"\']*["\']>\s*(.*?)\s*</div>', article, re.I | re.S)
+        source = re.search(r'<span>([^<]+)</span>\s*<i class=["\']fas fa-caret-right', article, re.I | re.S)
+        tim = re.search(r'<time>(.*?)</time>', article, re.I | re.S)
+        title = clean(match.group(2))
+        inf = clean(info.group(1)) if info else title
+        city_match = re.search(r'Location\s+(?:T\d\s+)?([^()]+?)\s*\(974\)', inf or '', re.I)
+        observed_city = clean(city_match.group(1)) if city_match else None
+        observed_target = _target_city(observed_city)
+        if observed_city and observed_target != route_city:
+            rejected_out_of_scope.add(sid)
+            continue
+        city = observed_target or route_city
+        data = {
+            'url': url, 'title': title, 'info': inf,
+            'price': clean(price.group(1)) if price else None,
+            'source': clean(source.group(1)) if source else None,
+            'time': clean(tim.group(1)) if tim else None,
+            'image': extract_image_url(article, 'https://www.zimo.fr/'),
+        }
+        low = (inf or '').lower()
+        ptype = 'commercial' if any(x in low for x in ['bureau', 'bureaux', 'local commercial', 'commerce']) else ('box' if any(x in low for x in ['box', 'garde meuble']) else ('house' if 'maison' in low else ('flat' if any(x in low for x in ['appartement', 'studio', 'duplex', 't1', 't2', 't3', 't4']) else None)))
+        if ptype in ('commercial', 'box'):
+            rejected_commercial.add(sid)
+            continue
+        out.append(Listing('zimo', sid, url, url, title, city, None, ptype,
+                           parse_rooms(inf), None, parse_surface(inf),
+                           to_int_price(data['price']), None, data['source'],
+                           data['time'], data['image'], inf,
+                           save_raw('zimo', sid, data), hash_listing(data)))
+    rejection_reasons = {
+        reason: len(ids) for reason, ids in {
+            'out_of_scope': rejected_out_of_scope,
+            'commercial': rejected_commercial,
+            'mapping_missing_fields': rejected_mapping,
+        }.items() if ids
+    }
+    SOURCE_RUNTIME_META['zimo'].update(
+        rejected_out_of_scope=len(rejected_out_of_scope),
+    )
+    _merge_rejection_reasons('zimo', rejection_reasons)
     return out
 
-# Trouve le 27/07 (soir) : ne lisait que la page 1 (96 annonces, toute l'ile,
-# pas de filtre commune cote zimo -- pas de page par commune comme citya).
-# La pagination existe (?page=N, verifie jusqu'a la page 20 pleine, 0 vide a
-# la page 25, aucun chevauchement d'ID entre pages) mais le volume total est
-# tres grand (potentiellement 1900+ annonces toute l'ile). Prudence anti-
-# bannissement : on ne prend que quelques pages de plus par run (delay entre
-# pages), pas tout d'un coup -- la couverture Nord+Est se construira sur
-# plusieurs jours, comme pour detail_enrich.py.
-def scrape_zimo(max_pages=6, delay=2.0):
-    arts=[]
-    for page in range(1, max_pages+1):
-        url='https://www.zimo.fr/annonces/location/la-reunion-974'
-        if page>1:
-            url+=f'?page={page}'
-        try:
-            text,_=fetch(url)
-        except Exception:
-            break
-        page_arts=re.findall(r'<article\b[^>]*>(.*?)</article>',text,re.I|re.S)
-        if not page_arts:
-            break
-        arts.extend(page_arts)
-        time.sleep(delay)
-    out=[]
-    for a in arts:
-        m=re.search(r'<a href=["\'](/annonce/[^"\']+)["\'][^>]*title=["\']([^"\']+)',a,re.I|re.S)
-        if not m: continue
-        url='https://www.zimo.fr'+html.unescape(m.group(1)); sid=url.rstrip('/').split('/')[-1]
-        price=re.search(r'<span class=["\']badge ink base["\']>\s*([^<]*€)',a,re.I|re.S)
-        info=re.search(r'<div class=["\'][^"\']*font-medium[^"\']*["\']>\s*(.*?)\s*</div>',a,re.I|re.S)
-        source=re.search(r'<span>([^<]+)</span>\s*<i class=["\']fas fa-caret-right',a,re.I|re.S)
-        tim=re.search(r'<time>(.*?)</time>',a,re.I|re.S)
-        title=clean(m.group(2)); inf=clean(info.group(1)) if info else title
-        city=None; cm=re.search(r'Location\s+(?:T\d\s+)?([^()]+?)\s*\(974\)',inf or '',re.I)
-        if cm:
-            city=clean(cm.group(1))
-            # Zimo often prefixes the location with the property subtype:
-            # "Studio Saint-Denis", "Duplex Le Tampon", "Maison individuelle Saint-Paul".
-            city=re.sub(r'^(studio|duplex|appartement|maison individuelle|maison|villa|box|bureaux?|local commercial)\s+', '', city or '', flags=re.I).strip() or city
-        d={'url':url,'title':title,'info':inf,'price':clean(price.group(1)) if price else None,'source':clean(source.group(1)) if source else None,'time':clean(tim.group(1)) if tim else None, 'image': extract_image_url(a, 'https://www.zimo.fr/')}
-        ptype='commercial' if any(x in (inf or '').lower() for x in ['bureau','bureaux','local commercial','commerce']) else ('box' if any(x in (inf or '').lower() for x in ['box','garde meuble']) else ('house' if 'maison' in (inf or '').lower() else ('flat' if any(x in (inf or '').lower() for x in ['appartement','studio','duplex','t1','t2','t3','t4']) else None)))
-        out.append(Listing('zimo',sid,url,url,title,city,None,ptype,parse_rooms(inf),None,parse_surface(inf),to_int_price(d['price']),None,d['source'],d['time'],d['image'],inf,save_raw('zimo',sid,d),hash_listing(d)))
+
+def _superimmo_articles(text):
+    return re.findall(
+        r'<article\b[^>]*data-public-id=["\']([^"\']+)["\'][^>]*>(.*?)</article>',
+        text or '', re.I | re.S,
+    )
+
+
+def scrape_superimmo(max_pages=50, max_items=2000, delay=1.5):
+    found = _walk_target_routes(
+        source='superimmo', routes=SUPERIMMO_CITY_ROUTES,
+        max_pages=max_pages, max_items=max_items, delay=delay,
+        page_url=lambda base, page: base if page == 1 else f'{base}/p/{page}',
+        parse_items=_superimmo_articles, item_key=lambda item: item[0],
+    )
+    out = []
+    rejected_out_of_scope = set()
+    rejected_commercial = set()
+    for route_city, sid, (_, article) in found:
+        url_match = re.search(r'data-url-with-next-prev=["\']([^"\']+)', article, re.I) or re.search(r'data-js-url=["\']([^"\']*/annonces/[^"\']+)', article, re.I)
+        url = urljoin('https://www.superimmo.com', html.unescape(url_match.group(1))) if url_match else f'https://www.superimmo.com/annonces/{sid}'
+        observed_city = city_from_url(url)
+        observed_target = _target_city(observed_city)
+        if observed_city and observed_target != route_city:
+            rejected_out_of_scope.add(sid)
+            continue
+        txt = clean(article) or ''
+        if any(token in url.lower() for token in ('bureau', 'commerce', 'local-commercial', 'parking', 'terrain')):
+            rejected_commercial.add(sid)
+            continue
+        price_match = re.search(r'([0-9]{2,4})\s*€\s*CC', txt)
+        price = to_int_price(price_match.group(1)) if price_match else None
+        title = clean(re.sub(r'-x[0-9a-z]+.*', '', url.split('/annonces/')[-1]).replace('-', ' ')) if '/annonces/' in url else txt[:120]
+        data = {'url': url, 'title': title, 'text': txt[:500], 'price': price,
+                'image': extract_image_url(article, 'https://www.superimmo.com/')}
+        out.append(Listing('superimmo', sid, url, url, title,
+                           observed_target or route_city, None,
+                           'flat' if 'appartement' in url else ('house' if 'maison' in url else None),
+                           parse_rooms(txt), None, parse_surface(txt), price, None,
+                           None, None, data['image'], txt[:500],
+                           save_raw('superimmo', sid, data), hash_listing(data)))
+    rejection_reasons = {
+        reason: len(ids) for reason, ids in {
+            'out_of_scope': rejected_out_of_scope,
+            'commercial': rejected_commercial,
+        }.items() if ids
+    }
+    SOURCE_RUNTIME_META['superimmo'].update(
+        rejected_out_of_scope=len(rejected_out_of_scope),
+    )
+    _merge_rejection_reasons('superimmo', rejection_reasons)
     return out
 
-def scrape_superimmo():
-    text,_=fetch('https://www.superimmo.com/location/dom-tom/la-reunion')
-    arts=re.findall(r'<article\b[^>]*data-public-id=["\']([^"\']+)["\'][^>]*>(.*?)</article>',text,re.I|re.S)
-    out=[]
-    for sid,a in arts:
-        u=re.search(r'data-url-with-next-prev=["\']([^"\']+)',a,re.I) or re.search(r'data-js-url=["\']([^"\']*/annonces/[^"\']+)',a,re.I)
-        url=urljoin('https://www.superimmo.com',html.unescape(u.group(1))) if u else f'https://www.superimmo.com/annonces/{sid}'
-        txt=clean(a) or ''
-        # Superimmo can glue date+price; use CC marker when possible
-        pm=re.search(r'([0-9]{2,4})\s*€\s*CC',txt)
-        price=to_int_price(pm.group(1)) if pm else None
-        # title from URL fallback
-        title=clean(re.sub(r'-x[0-9a-z]+.*','',url.split('/annonces/')[-1]).replace('-',' ')) if '/annonces/' in url else txt[:120]
-        cm=re.search(r'(saint[- ]denis|sainte[- ]clotilde|le[- ]tampon|saint[- ]pierre|saint[- ]paul|la[- ]possession|les[- ]avvirons|sainte[- ]marie|saint[- ]leu)',url,re.I)
-        city=clean(cm.group(1).replace('-',' ')) if cm else None
-        d={'url':url,'title':title,'text':txt[:500],'price':price,'image': extract_image_url(a, 'https://www.superimmo.com/')}
-        out.append(Listing('superimmo',sid,url,url,title,city,None,'flat' if 'appartement' in url else ('house' if 'maison' in url else None),parse_rooms(txt),None,parse_surface(txt),price,None,None,None,d['image'],txt[:500],save_raw('superimmo',sid,d),hash_listing(d)))
-    return out
-
-# Trouve le 27/07 (soir) : ne lisait que la page 1 (meme defaut que citya/
-# zimo/fnaim). Le site annonce "131 appartements" toute l'ile des la
-# meta-description ; pagination confirmee via ?page=N (verifie jusqu'a la
-# page 3, aucune page par commune -- filtre reste client-side sur 'city').
-def scrape_locamoi(max_pages=7, delay=1.5):
-    items=[]
-    seen_urls=set()
-    for page in range(1, max_pages+1):
-        url='https://locamoi.fr/location/appartement/la-reunion'
-        if page>1:
-            url+=f'?page={page}'
-        try:
-            text,_=fetch(url)
-        except Exception:
-            break
-        time.sleep(delay)
-        m=re.search(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',text,re.I|re.S)
-        if not m:
-            break
-        try:
-            obj=json.loads(m.group(1))
-        except Exception:
-            break
-        page_items=obj.get('mainEntity',{}).get('itemListElement',[])
-        new=[it for it in page_items
-             if (it.get('item',{}).get('url') or it.get('item',{}).get('offers',{}).get('url')) not in seen_urls]
-        if not new:
-            break
-        for it in new:
-            u=it.get('item',{}).get('url') or it.get('item',{}).get('offers',{}).get('url')
-            if u:
-                seen_urls.add(u)
-            items.append(it)
-    out=[]
-    for it in items:
-        item=it.get('item',{}); offers=item.get('offers',{}); offered=offers.get('itemOffered',{})
-        url=item.get('url') or offers.get('url'); sid=url.rstrip('/').split('-')[-1] if url else str(it.get('position'))
-        addr=offered.get('address',{}) if isinstance(offered.get('address'),dict) else {}
-        title=clean(item.get('name')); price=offers.get('price')
-        surf=offered.get('floorSize',{}).get('value') if isinstance(offered.get('floorSize'),dict) else None
-        rooms=offered.get('numberOfBedrooms',{}).get('value') if isinstance(offered.get('numberOfBedrooms'),dict) else None
-        d={'url':url,'title':title,'price':price,'city':addr.get('addressLocality'),'surface':surf,'rooms':rooms,'image':item.get('image')}
-        out.append(Listing('locamoi',sid,url,url,title,addr.get('addressLocality'),None,'flat',int(rooms) if isinstance(rooms,(int,float)) else None,None,float(surf) if isinstance(surf,(int,float)) else None,int(price) if isinstance(price,(int,float)) else to_int_price(price),None,'locamoi/aggregated',offers.get('validFrom'),item.get('image'),title,save_raw('locamoi',sid,d),hash_listing(d)))
-    return out
-
-# Trouve le 28/07 : `[^"\']+` s'arrete a la PREMIERE apostrophe rencontree
-# dans le contenu, meme quand l'attribut est delimite par des guillemets
-# doubles -- coupe "Immobilier La Reunion L'..." et "à louer à l'..." net a
-# l'apostrophe. Preuve : 97immo et ofim en sont pleins (texte francais =
-# apostrophes partout). Corrige en capturant jusqu'a la MEME quote que
-# celle qui a ouvert l'attribut (backreference), pas n'importe laquelle.
 def meta_content(text, name):
     esc=re.escape(name)
     m=re.search(r'<meta[^>]+(?:property|name)=(["\'])'+esc+r'\1[^>]+content=(["\'])(.*?)\2',text,re.I)
@@ -482,149 +673,61 @@ def unique_links(text, pattern, base, limit=25):
         if len(seen)>=limit: break
     return seen
 
-# Trouve le 27/07 (soir) : ne lisait que /locations/1 (meme defaut que
-# citya/zimo). Le site paginate reellement sur /locations/N (verifie
-# jusqu'a la page 12 pleine), pas de filtre commune a la source -- la
-# ville est deja encodee dans le slug d'URL (ex. "...-st-denis-3-pieces-
-# ..."), exploitable par city_from_url() deja existant dans detail_listing.
-def scrape_fnaim(max_items=90, max_pages=12, delay=1.5):
-    links=[]
-    seen=set()
-    for page in range(1, max_pages+1):
-        try:
-            text,_=fetch(f'https://www.fnaim.re/locations/{page}')
-        except Exception:
-            break
-        time.sleep(delay)
-        page_links=unique_links(text,r'href=["\']([^"\']*id-location-[^"\']+)["\']','https://www.fnaim.re/',max_items)
-        new=[u for u in page_links if u not in seen]
-        if not new:
-            break
-        for u in new:
-            seen.add(u)
-            links.append(u)
-        if len(links) >= max_items:
-            break
-    out=[]
-    for u in links[:max_items]:
-        sid=re.search(r'id-location-[^/]+-(\d+)/?',u)
-        try: out.append(detail_listing('fnaim',u,'house' if 'maison' in u else 'flat',sid.group(1) if sid else None))
-        except Exception: pass
-        time.sleep(delay)
-    return out
-
-# Trouve le 27/07 (soir) : ne lisait que la page toute-l'ile (meme defaut
-# que citya) et ratait structurellement Sainte-Marie/Sainte-Suzanne/
-# Saint-Andre. Le site a un vrai moteur de recherche par commune
-# (immo_liste_location.php?id_localisations[]=<ID>) qui paginate (&page=N,
-# verifie : 0 chevauchement entre page 1 et 2). IDs communes verifies :
-# Saint-Denis=195, Sainte-Marie=82, Sainte-Suzanne=131, Saint-Andre=220.
-IMMO97_COMMUNES = {
-    'Saint-Denis': '195', 'Sainte-Marie': '82', 'Sainte-Suzanne': '131', 'Saint-André': '220',
-}
+def _fnaim_links(text):
+    return unique_links(
+        text, r'href=["\']([^"\']*id-location-[^"\']+)["\']',
+        'https://www.fnaim.re/', 5000,
+    )
 
 
-def scrape_97immo(max_items=90, max_pages=4, delay=1.5):
-    found=[]  # (url, commune)
-    seen=set()
-    for commune, cid in IMMO97_COMMUNES.items():
-        for page in range(1, max_pages+1):
-            url=(f'https://www.97immo.com/immo_liste_location.php?id_typeoffres=location'
-                 f'&id_destinations=19&id_localisations%5B%5D={cid}&typelien=moteur_search')
-            if page>1:
-                url+=f'&page={page}'
-            try:
-                text,_=fetch(url)
-            except Exception:
-                break
-            time.sleep(delay)
-            # Trouve le 27/07 (soir) : le motif 'maison-villa' ratait les
-            # vraies URLs '/location/maison/...' (verifie sur Sainte-Suzanne :
-            # les 2 seules annonces residentielles reelles utilisent ce
-            # segment sans '-villa', 100% ratees avant ce correctif).
-            links=unique_links(text,r'href=["\']([^"\']*/immobilier-annonce/location/(?:appartement|maison(?:-villa)?)[^"\']+)["\']','https://www.97immo.com/',50)
-            new=[u for u in links if u not in seen]
-            if not new:
-                break
-            for u in new:
-                seen.add(u)
-                found.append((u, commune))
-            if len(found) >= max_items:
-                break
-        if len(found) >= max_items:
-            break
-    out=[]
-    for u, commune in found[:max_items]:
-        sid=u.rstrip('/').split('/')[-2] + '_' + u.rstrip('/').split('/')[-1]
-        try:
-            l=detail_listing('97immo',u,'house' if '/maison' in u else 'flat',sid)
-            out.append(replace(l, city=commune))
-        except Exception: pass
-        time.sleep(delay)
-    return out
-
-# Trouve le 27/07 (soir) : la source "ofim" (via ofim_rental_scraper.py,
-# hors depot) et "ofim_rss" (ci-dessous) scrapaient TOUTES LES DEUX le meme
-# flux RSS identique (rss.php == rss.xml, verifie octet pres), plafonne a
-# 50 par ofim.fr lui-meme -- double travail pour zero gain. Le vrai
-# catalogue (113 biens) vit sur des pages de categorie HTML STATIQUES
-# (liste-location-appartements.html, liste-location-villas.html...),
-# PAS besoin de navigateur (verifie : cartes avec data-annonce-id et lien
-# reel deja dans le HTML brut d'une requete urllib simple). Pagination
-# reelle via recherche.html?rc1=<N>&start=<offset>, rc1 decouvert sur la
-# page 1 de chaque categorie plutot que devine. Limite aux 2 categories
-# residentielles (appartements/villas = 65/113 biens) : le reste (terrains,
-# bureaux, locaux, entrepots) est hors perimetre du projet (veille locative
-# residentielle Nord+Est), pas verifie faute d'interet.
-OFIM_CATEGORIES = {'appartements': 'flat', 'villas': 'house'}
-
-
-def scrape_ofim(max_items=90, max_pages=6, delay=1.5):
-    found=[]  # (url, ptype)
-    seen=set()
-    for slug, ptype in OFIM_CATEGORIES.items():
-        try:
-            text,_=fetch(f'https://www.ofim.fr/liste-location-{slug}.html')
-        except Exception:
+def scrape_fnaim(max_items=2000, max_pages=50, delay=1.5):
+    found = _walk_target_routes(
+        source='fnaim', routes=FNAIM_CITY_ROUTES, max_pages=max_pages,
+        max_items=max_items, delay=delay,
+        page_url=lambda base, page: f'{base}/{page}',
+        parse_items=_fnaim_links, item_key=lambda url: url,
+    )
+    out = []
+    detail_failures = set()
+    rejected_out_of_scope = set()
+    rejected_commercial = set()
+    for route_city, _, url in found:
+        if any(token in url.lower() for token in ('bureau', 'commerce', 'local-', 'parking', 'terrain')):
+            rejected_commercial.add(url)
             continue
+        sid_match = re.search(r'id-location-[^/]+-(\d+)/?', url)
+        sid = sid_match.group(1) if sid_match else None
+        try:
+            listing = detail_listing(
+                'fnaim', url, 'house' if 'maison' in url else 'flat', sid,
+            )
+        except Exception:
+            detail_failures.add(url)
+            continue
+        observed = listing.city
+        observed_target = _target_city(observed)
+        if observed and observed_target != route_city:
+            rejected_out_of_scope.add(url)
+            continue
+        out.append(replace(listing, city=observed_target or route_city))
         time.sleep(delay)
-        rc1_m=re.search(r'rc1=(\d+)',text)
-        links=unique_links(text,r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']','https://www.ofim.fr/',50)
-        for u in links:
-            if u not in seen:
-                seen.add(u); found.append((u,ptype))
-        if rc1_m:
-            rc1=rc1_m.group(1)
-            for page in range(1,max_pages):
-                start=page*10
-                try:
-                    text,_=fetch(f'https://www.ofim.fr/recherche.html?rp=1&rt=1&rc1={rc1}&start={start}')
-                except Exception:
-                    break
-                time.sleep(delay)
-                links=unique_links(text,r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']','https://www.ofim.fr/',50)
-                # OFIM can reorder/overlap list windows between the category
-                # seed page and search.html?start=N. A page with only already
-                # seen URLs is not catalogue end; only a truly empty page is.
-                # Otherwise the scrape becomes order-dependent and listings
-                # disappear/reappear on the next pass despite stable OFIM IDs.
-                if not links:
-                    break
-                for u in links:
-                    if u not in seen:
-                        seen.add(u); found.append((u,ptype))
-                if len(found)>=max_items:
-                    break
-        if len(found)>=max_items:
-            break
-    out=[]
-    for u,ptype in found[:max_items]:
-        sid_m=re.search(r'ofim\.fr/(\d+)/',u)
-        sid=sid_m.group(1) if sid_m else hashlib.md5(u.encode()).hexdigest()[:16]
-        try: out.append(detail_listing('ofim',u,ptype,sid))
-        except Exception: pass
-        time.sleep(delay)
+    rejection_reasons = {
+        reason: len(ids) for reason, ids in {
+            'detail_fetch_failure': detail_failures,
+            'out_of_scope': rejected_out_of_scope,
+            'commercial': rejected_commercial,
+        }.items() if ids
+    }
+    SOURCE_RUNTIME_META['fnaim'].update(
+        detail_fetch_failures=len(detail_failures),
+        rejected_out_of_scope=len(rejected_out_of_scope),
+    )
+    _merge_rejection_reasons('fnaim', rejection_reasons)
+    if detail_failures:
+        _add_runtime_signal('fnaim', 'detail_fetch_failure')
     return out
+
+OFIM_CATEGORIES = {'appartements': 'flat', 'villas': 'house'}
 
 
 def scrape_ofim_rss(max_items=50):
@@ -653,81 +756,226 @@ def scrape_ofim_rss(max_items=50):
         out.append(Listing('ofim_rss',sid,url,url,title,guess_city_from_text(joined),None,'house' if 'maison' in joined.lower() else 'flat',parse_rooms(joined),None,parse_surface(joined),parse_rent_eur(joined),None,'OFIM',None,image,desc,save_raw('ofim_rss',sid,d),hash_listing(d)))
     return out
 
-def scrape_alter(max_items=25):
-    text,_=fetch('https://alter-immobilier.re/nos-biens-a-louer/')
-    # Alter renders listings from escaped JSON; hrefs are not plain anchors.
-    raw=re.findall(r'https:\\/\\/alter-immobilier\.re\\/post_type_annonces\\/[^"\\]+', text)
-    raw += ['https://alter-immobilier.re'+u.replace('\\/','/') for u in re.findall(r'\\/post_type_annonces\\/[^"\\]+', text)]
-    links=[]
-    for u in raw:
-        u=u.replace('\\/','/')
-        if '/a-louer-' not in u.lower():
-            continue
-        if u not in links:
-            links.append(u)
-        if len(links)>=max_items: break
-    out=[]
-    for u in links:
-        sid=u.rstrip('/').split('/')[-1]
-        try: out.append(detail_listing('alter',u,'house' if any(x in u.lower() for x in ['villa','maison']) else 'flat',sid))
-        except Exception: pass
-    return out
-
-# Trouve le 27/07 (soir) : l'ancienne version ne lisait que la page toute-l'ile
-# (la-reunion-974), qui est surtout un ANNUAIRE de liens vers les pages par
-# commune -- la plupart des 50 liens captes (plafond max_items*2) n'etaient
-# meme pas des annonces. Preuve : Saint-Denis seul a 34 appartements reels
-# chez citya (2 pages), alors que toute la base ne comptait que 2 annonces
-# citya actives, toutes communes confondues. Les pages par commune existent
-# deja cote citya (memes slugs que nos 4 communes cibles) et paginent
-# (?page=2). Les cartes sont bien dans le HTML statique (data-itemId="GES..."
-# sur un <div>, pas un <a href> -- l'URL se reconstruit : recherche +
-# "/" + itemId, verifie sur un cas reel) : pas besoin de navigateur.
 CITYA_COMMUNES = {
     'Saint-Denis': 'saint-denis-97411',
     'Sainte-Marie': 'sainte-marie-97438',
-    'Sainte-Suzanne': 'sainte-suzanne-97441',
-    'Saint-André': 'saint-andre-97440',
 }
 
 
-def scrape_citya(max_items=90, max_pages=4, delay=1.5):
-    found=[]  # (item_id, ptype, url, commune)
-    seen_ids=set()
-    for commune, slug in CITYA_COMMUNES.items():
-        for ptype in ('appartement', 'maison'):
-            for page in range(1, max_pages+1):
-                url = f'https://www.citya.com/annonces/location/{ptype}/{slug}'
-                if page > 1:
-                    url += f'?page={page}'
+class _CityaCardHTMLParser(HTMLParser):
+    _VOID = {'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
+             'link', 'meta', 'param', 'source', 'track', 'wbr'}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.card = None
+        self.cards = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs_map = {str(key).lower(): value for key, value in attrs}
+        if self.card is None:
+            item_id = attrs_map.get('data-itemid')
+            classes = str(attrs_map.get('class') or '').lower()
+            if tag in ('article', 'div') and item_id and 'property-card' in classes:
+                self.card = {
+                    'id': item_id, 'depth': 1, 'href': None,
+                    'ptype': None, 'text': [],
+                }
+            return
+        if tag not in self._VOID:
+            self.card['depth'] += 1
+        if tag == 'a' and attrs_map.get('href'):
+            href = html.unescape(attrs_map['href'])
+            match = re.search(
+                r'/annonces/location/(appartement|maison)/[^?#]+/'
+                + re.escape(self.card['id']) + r'(?:[/?#]|$)',
+                href, re.I,
+            )
+            if match:
+                self.card['href'] = href
+                self.card['ptype'] = match.group(1).lower()
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if self.card is not None and tag not in self._VOID:
+            self.card['depth'] -= 1
+
+    def handle_data(self, data):
+        if self.card is not None and data.strip():
+            self.card['text'].append(data.strip())
+
+    def handle_endtag(self, tag):
+        if self.card is None or tag in self._VOID:
+            return
+        self.card['depth'] -= 1
+        if self.card['depth'] == 0:
+            if self.card['href'] and self.card['ptype']:
+                self.cards.append((
+                    self.card['id'], self.card['href'], self.card['ptype'],
+                    ' '.join(self.card['text']),
+                ))
+            self.card = None
+
+
+def _citya_strict_cards(text):
+    parser = _CityaCardHTMLParser()
+    parser.feed(text or '')
+    parser.close()
+    return parser.cards
+
+
+def scrape_citya(max_items=2000, max_pages=50, delay=1.5):
+    found = []
+    seen_global = set()
+    route_states = {}
+    signals = []
+    pages_attempted = 0
+    pages_succeeded = 0
+    raw_items = 0
+    raw_unique_ids = set()
+    rejected_out_of_scope = set()
+    missing_id = 0
+    rejected_non_card = set()
+
+    for route_city, slug in CITYA_COMMUNES.items():
+        for route_ptype in ('appartement', 'maison'):
+            route_key = f'{route_city}:{route_ptype}'
+            route_ids = set()
+            state = {'status': 'partial', 'terminal': None, 'items': 0}
+            base = f'https://www.citya.com/annonces/location/{route_ptype}/{slug}'
+            for page in range(1, max_pages + 1):
+                url = base if page == 1 else f'{base}?page={page}'
+                pages_attempted += 1
                 try:
-                    text,_=fetch(url)
+                    text, _ = fetch(url)
                 except Exception:
+                    signals.append('fetch_failure')
+                    state['terminal'] = f'fetch_failure:page:{page}'
+                    break
+                pages_succeeded += 1
+                raw_matches = re.findall(
+                    r'data-itemId=["\']([A-Z0-9-]+)["\']', text or '', re.I,
+                )
+                raw_ids = set(raw_matches)
+                property_card_nodes = len(re.findall(
+                    r'class=["\'][^"\']*\bproperty-card\b', text or '', re.I,
+                ))
+                missing_id += max(0, property_card_nodes - len(raw_matches))
+                if _blocked_or_challenge_page(text):
+                    signals.append('blocked_or_challenge_page')
+                    state['terminal'] = f'blocked_or_challenge_page:page:{page}'
+                    break
+                raw_items += len(raw_matches)
+                raw_unique_ids.update(raw_ids)
+                cards = _citya_strict_cards(text)
+                strict_ids = {card[0] for card in cards}
+                rejected_non_card.update(raw_ids - strict_ids)
+                if raw_ids and not cards:
+                    signals.append('selector_mismatch')
+                    state['terminal'] = f'selector_mismatch:page:{page}'
+                    break
+                page_new = 0
+                for item_id, href, card_ptype, body in cards:
+                    if item_id in route_ids:
+                        continue
+                    route_ids.add(item_id)
+                    card_url = urljoin('https://www.citya.com', href)
+                    observed = city_from_url(card_url) or guess_city_from_text(clean(body))
+                    card_city = _target_city(observed)
+                    if card_ptype != route_ptype or card_city != route_city:
+                        rejected_out_of_scope.add(item_id)
+                        continue
+                    page_new += 1
+                    if item_id not in seen_global:
+                        seen_global.add(item_id)
+                        found.append((route_city, item_id, card_ptype, card_url))
+                state['items'] = len(route_ids)
+                total = _reported_total(text)
+                if total is not None:
+                    state['reported_total'] = total
+                if total is not None and len(route_ids) >= total:
+                    state.update(status='complete', terminal='reported_total')
+                    break
+                if not raw_ids:
+                    state.update(status='complete', terminal='empty_page')
+                    break
+                if not _has_next_page(text, page + 1):
+                    state.update(status='complete', terminal='no_next')
+                    break
+                if not page_new and cards:
+                    signals.append('pagination_stalled')
+                    state['terminal'] = f'pagination_stalled:page:{page}'
+                    break
+                if len(found) >= max_items:
+                    signals.append(f'safety_item_cap_reached:{max_items}')
+                    state['terminal'] = f'safety_item_cap_reached:{max_items}'
+                    break
+                if page == max_pages:
+                    signals.append(f'safety_page_cap_reached:{max_pages}')
+                    state['terminal'] = f'safety_page_cap_reached:{max_pages}'
                     break
                 time.sleep(delay)
-                ids=[m for m in re.findall(r'data-itemId=["\']([A-Z0-9-]+)["\']', text) if m not in seen_ids]
-                if not ids:
-                    break
-                for item_id in ids:
-                    seen_ids.add(item_id)
-                    found.append((item_id, ptype, f'https://www.citya.com/annonces/location/{ptype}/{slug}/{item_id}', commune))
-                if len(found) >= max_items:
-                    break
-            if len(found) >= max_items:
-                break
-        if len(found) >= max_items:
-            break
-    out=[]
-    for item_id, ptype, u, commune in found[:max_items]:
+            route_states[route_key] = state
+
+    accepted_ids = {item_id for _, item_id, _, _ in found}
+    rejected_out_of_scope.difference_update(accepted_ids)
+    rejected_non_card.difference_update(accepted_ids | rejected_out_of_scope)
+    duplicate_raw = max(0, raw_items - len(raw_unique_ids))
+    _set_snapshot_meta(
+        'citya', found=[(None, sid, None) for sid in raw_unique_ids],
+        route_states=route_states, pages_attempted=pages_attempted,
+        pages_succeeded=pages_succeeded, raw_items=raw_items, signals=signals,
+        extra={
+            'rejected_out_of_scope': len(rejected_out_of_scope),
+            'rejected_non_card': len(rejected_non_card),
+            'pre_unique_rejections_by_reason': (
+                {
+                    reason: count for reason, count in {
+                        'duplicate_raw': duplicate_raw,
+                        'missing_id': missing_id,
+                    }.items() if count
+                }
+            ),
+        },
+    )
+    out = []
+    detail_failures = set()
+    detail_scope_rejections = set()
+    for card_city, item_id, ptype, url in found[:max_items]:
         try:
-            l=detail_listing('citya',u,'house' if ptype=='maison' else 'flat',item_id)
-            # La commune interrogee est le signal SUR, contrairement au
-            # devinage depuis le texte de detail_listing() (trouve fautif :
-            # "Le Tampon"/"Saint-Pierre"/etc. sur des pages citya-Saint-Denis,
-            # probablement le texte d'agence qui mentionne d'autres secteurs).
-            out.append(replace(l, city=commune))
-        except Exception: pass
+            listing = detail_listing(
+                'citya', url, 'house' if ptype == 'maison' else 'flat', item_id,
+            )
+        except Exception:
+            detail_failures.add(item_id)
+            continue
+        observed = listing.city
+        observed_target = _target_city(observed)
+        if observed and observed_target != card_city:
+            detail_scope_rejections.add(item_id)
+            continue
+        # The city comes from the listing-card URL, not from the queried route.
+        out.append(replace(listing, city=observed_target or card_city))
         time.sleep(delay)
+    unprocessed_cap = accepted_ids - {item.source_id for item in out}
+    unprocessed_cap.difference_update(detail_failures | detail_scope_rejections)
+    if len(found) <= max_items:
+        unprocessed_cap.clear()
+    rejection_reasons = {
+        reason: len(ids) for reason, ids in {
+            'out_of_scope': rejected_out_of_scope | detail_scope_rejections,
+            'missing_card_evidence': rejected_non_card,
+            'detail_fetch_failure': detail_failures,
+            'safety_item_cap': unprocessed_cap,
+        }.items() if ids
+    }
+    SOURCE_RUNTIME_META['citya'].update(
+        detail_fetch_failures=len(detail_failures),
+        rejected_out_of_scope=len(rejected_out_of_scope | detail_scope_rejections),
+    )
+    _merge_rejection_reasons('citya', rejection_reasons)
+    if detail_failures:
+        _add_runtime_signal('citya', 'detail_fetch_failure')
     return out
 
 # Trouve le 27/07 (soir) : `offset` est ignore par l'API Keldom (teste :
@@ -746,59 +994,6 @@ def is_domimmo_residential(title, description):
     return any(token in hay for token in DOMIMMO_RESIDENTIAL)
 
 
-def scrape_domimmo(max_items=150):
-    """Domimmo now serves its usable data through Keldom's JSON API.
-
-    The legacy domimmo.com list page has become empty/fragile. Keldom's API is
-    public and returns Domimmo-partner offers across DOM territories, so we fetch
-    a broad slice then keep only Réunion rental-shaped offers. This keeps the
-    source fresh without changing downstream filtering semantics.
-    """
-    params={'limit':'500'}
-    text,_=fetch('https://www.keldom.com/api/domimmo/offers?'+urlencode(params))
-    payload=json.loads(text)
-    items=payload if isinstance(payload,list) else (payload.get('items') or payload.get('data') or [])
-    out=[]
-    for item in items:
-        if not isinstance(item,dict):
-            continue
-        title=clean(item.get('title'))
-        desc=clean(item.get('description'))
-        hay=((title or '')+' '+(desc or '')).lower()
-        price=to_int_price(item.get('price'))
-        if item.get('location') != 'REU':
-            continue
-        if not is_domimmo_residential(title, desc):
-            continue
-        if price is None or price < 250 or price > 6000:
-            continue
-        if not any(tok in hay for tok in ['location','louer','loyer','à louer','a louer']):
-            continue
-        sid=str(item.get('id') or item.get('reference') or hashlib.md5(json.dumps(item,sort_keys=True,default=str).encode()).hexdigest())
-        url=f'https://www.domimmo.com/reunion/immobilier/{sid}/'
-        city=clean(item.get('city'))
-        pieces=item.get('pieces')
-        rooms=int(pieces) if isinstance(pieces,(int,float)) else parse_rooms((title or '')+' '+(desc or ''))
-        chambres=item.get('chambres')
-        bedrooms=int(chambres) if isinstance(chambres,(int,float)) else None
-        surf=item.get('surface_habitable') or item.get('surface_terrain')
-        try:
-            surface=float(surf) if surf not in (None,'') else parse_surface((title or '')+' '+(desc or ''))
-        except Exception:
-            surface=parse_surface((title or '')+' '+(desc or ''))
-        image=item.get('imageSrc')
-        photos=item.get('photos') if isinstance(item.get('photos'),list) else []
-        if not image and photos:
-            first=photos[0]
-            image=first.get('src') if isinstance(first,dict) else str(first)
-        ptype='house' if any(x in hay for x in ['maison','villa']) else ('flat' if any(x in hay for x in ['appartement','studio','t1','t2','t3','t4','t5']) else None)
-        d={'api':'keldom_domimmo_offers','url':url,'title':title,'city':city,'price':price,'surface_habitable':item.get('surface_habitable'),'pieces':pieces,'chambres':chambres,'publicationDate':item.get('publicationDate'),'image':image,'photo_count':len(photos),'description':desc,'raw':item}
-        out.append(Listing('domimmo',sid,url,url,title,city,None,ptype,rooms,bedrooms,surface,price,to_int_price(item.get('charges')),item.get('company'),item.get('publicationDate'),image,desc,save_raw('domimmo',sid,d),hash_listing(d)))
-        if len(out)>=max_items:
-            break
-    return out
-
-
 # --- Leboncoin via Apify actor piotrv1001/leboncoin-listings-scraper ---------
 # Leboncoin blocks plain scraping, so we go through the Apify actor. The actor's
 # default dataset (native leboncoin ad objects) is what we map here. Two modes:
@@ -809,11 +1004,15 @@ def scrape_domimmo(max_items=150):
 # in a URL nor in FETCH_LOG -- so it cannot leak into logs/summary output.
 APIFY_BASE = 'https://api.apify.com/v2'
 DEFAULT_LEBONCOIN_ACTOR = 'scrapifier~leboncoin-universal-scraper'
-# 4 communes cibles (Nord+Est), memes que citya/97immo. (commune, code postal).
+# Scope vivant arbitre par Moufadal: Saint-Denis + Sainte-Marie seulement.
 LEBONCOIN_COMMUNES = [
     ('Saint-Denis', '97400'), ('Sainte-Marie', '97438'),
-    ('Sainte-Suzanne', '97441'), ('Saint-André', '97440'),
 ]
+LEBONCOIN_SNAPSHOT_MAX_PAGES = 10
+LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE = 35
+LEBONCOIN_DATASET_CAPACITY = (
+    len(LEBONCOIN_COMMUNES) * LEBONCOIN_SNAPSHOT_MAX_PAGES * LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE
+)
 # Leboncoin real_estate_type: 1=Maison, 2=Appartement (residentiel);
 # 3=Terrain, 4=Parking, 5=Autre (hors perimetre veille locative residentielle).
 LEBONCOIN_RESIDENTIAL_TYPE_VALUES = {'1', '2'}
@@ -1048,22 +1247,67 @@ def _write_apify_usage(*, mode, result_count, dataset_id=None, run=None, actor=N
 
 
 def _leboncoin_actor_input(max_items):
+    """Bounded full-snapshot input: 700 slots for the two live communes."""
     return {
         'urls_list': [
             ('https://www.leboncoin.fr/recherche?category=10'
              f'&locations={c}_{z}&real_estate_type=1,2')
             for c, z in LEBONCOIN_COMMUNES
         ],
-        # One page per commune keeps pay-per-result cost bounded.
-        'max_pages': 1,
-        'limit_per_page': max(1, min(100, (max_items + 3) // 4)),
+        'max_pages': LEBONCOIN_SNAPSHOT_MAX_PAGES,
+        'limit_per_page': LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE,
         'delay_between_pages': 1,
-        'max_age_days': 30,
+        'max_age_days': 0,
         'proxyConfiguration': {
             'useApifyProxy': True,
             'apifyProxyGroups': ['RESIDENTIAL'],
             'apifyProxyCountry': 'FR',
         },
+    }
+
+
+def _leboncoin_runtime_meta(items, *, dataset_id, mode, max_items):
+    """Prove a full actor snapshot without inventing per-page telemetry."""
+    raw_ids = {
+        str(item.get('listId') or item.get('list_id') or item.get('id') or item.get('ad_id'))
+        for item in items if isinstance(item, dict)
+        and (item.get('listId') or item.get('list_id') or item.get('id') or item.get('ad_id')) not in (None, '')
+    }
+    by_city = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        location = item.get('location') if isinstance(item.get('location'), dict) else {}
+        city = clean(location.get('city') or item.get('city')) or 'unknown'
+        by_city[city] = by_city.get(city, 0) + 1
+    signals = []
+    if mode != 'actor_run':
+        signals.append('dataset_reuse_unverified')
+    if max_items < LEBONCOIN_DATASET_CAPACITY:
+        signals.append(f'dataset_capacity_too_small:{max_items}')
+    if len(items) >= max_items:
+        signals.append(f'dataset_limit_reached:{max_items}')
+    per_commune_cap = LEBONCOIN_SNAPSHOT_MAX_PAGES * LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE
+    if any(count >= per_commune_cap for count in by_city.values()):
+        signals.append('per_commune_page_cap_reached')
+    expected_cities = {city for city, _ in LEBONCOIN_COMMUNES}
+    missing_cities = sorted(expected_cities - set(by_city))
+    if missing_cities:
+        signals.append('expected_city_missing:' + ','.join(missing_cities))
+    full_snapshot_proof = mode == 'actor_run' and not signals
+    return {
+        'raw_items': len(items), 'unique_ids': len(raw_ids), 'dataset_id': dataset_id,
+        # Apify actor status is the observed unit.  Do not claim 20 page successes
+        # when the actor API did not expose per-page stats.
+        'pages_attempted': 1 if mode == 'actor_run' else 0,
+        'pages_succeeded': 1 if mode == 'actor_run' else 0,
+        'max_pages_requested': LEBONCOIN_SNAPSHOT_MAX_PAGES,
+        'limit_per_page_requested': LEBONCOIN_SNAPSHOT_LIMIT_PER_PAGE,
+        'dataset_limit': max_items,
+        'observed_cities': sorted(by_city),
+        'truncation_signals': signals,
+        'full_snapshot_proof': full_snapshot_proof,
+        'snapshot_proof': 'apify_actor_succeeded_non_saturated_all_expected_cities' if full_snapshot_proof else None,
     }
 
 
@@ -1081,9 +1325,9 @@ def scrape_leboncoin_apify_dataset():
     token = os.environ.get('APIFY_TOKEN', '').strip()
     dataset_id = os.environ.get('APIFY_LEBONCOIN_DATASET_ID', '').strip()
     try:
-        max_items = int(os.environ.get('APIFY_LEBONCOIN_MAX_ITEMS', '') or 40)
+        max_items = int(os.environ.get('APIFY_LEBONCOIN_MAX_ITEMS', '') or LEBONCOIN_DATASET_CAPACITY)
     except ValueError:
-        max_items = 40
+        max_items = LEBONCOIN_DATASET_CAPACITY
     if not token:
         raise RuntimeError('APIFY_TOKEN missing: cannot query Apify (leboncoin)')
     if dataset_id:
@@ -1120,6 +1364,9 @@ def scrape_leboncoin_apify_dataset():
                        run=run, result_count=len(items))
     if not items:
         raise RuntimeError('Apify dataset empty: leboncoin source produced no listings')
+    SOURCE_RUNTIME_META['leboncoin'] = _leboncoin_runtime_meta(
+        items, dataset_id=dataset_id, mode=mode, max_items=max_items,
+    )
     return _leboncoin_listings(items)
 
 
@@ -1130,10 +1377,6 @@ def scrape_leboncoin_apify_dataset():
 # commune interrogee est le signal SUR (comme citya/97immo), on l'impose sur le
 # resultat plutot que de la deviner depuis le texte de detail.
 ADREZIO_BASE = 'https://adrezio.fr'
-ADREZIO_COMMUNES = {
-    'Saint-Denis': 'saint-denis', 'Sainte-Marie': 'sainte-marie',
-    'Sainte-Suzanne': 'sainte-suzanne', 'Saint-André': 'saint-andre',
-}
 ADREZIO_TYPES = {'appartement': 'flat', 'maison': 'house'}
 
 
@@ -1195,44 +1438,766 @@ def _adrezio_card_listings(text, ptype, commune, seen):
     return out
 
 
-def scrape_adrezio(max_items=200, max_pages=4, delay=0.5):
+# --- Authoritative two-city snapshot adapters ---------------------------------
+# These definitions deliberately supersede the historical whole-island adapters
+# above. Each adapter publishes machine-checkable exhaustion and rejection proof.
+IMMO974_CITY_ROUTES = {
+    city: 'https://www.immo974.com/resultat-de-recherche?' + urlencode({
+        'a': 'dosearch', 'regions[0][city]': f'{city.replace("-", " ")} ({postal})',
+        'searchcategory': '2',
+    })
+    for city, postal in (('Saint-Denis', '97400'), ('Sainte-Marie', '97438'))
+}
+LOCAMOI_CITY_TYPE_ROUTES = {
+    f'{city}:{ptype}': f'https://locamoi.fr/location/{slug}/la-reunion-{city_slug}'
+    for city, city_slug in (
+        ('Saint-Denis', 'saint-denis'), ('Sainte-Marie', 'sainte-marie'),
+    )
+    for ptype, slug in (('flat', 'appartement'), ('house', 'maison'))
+}
+IMMO97_COMMUNES = {'Saint-Denis': '195', 'Sainte-Marie': '82'}
+
+
+def _article_blocks(text):
+    return re.findall(r'<article\b[^>]*>(.*?)</article>', text or '', re.I | re.S)
+
+
+def _immo974_item_id(article):
+    match = re.search(r'href=["\']([^"\']*/annonce/locations/[^"\']+)["\']', article, re.I)
+    if not match:
+        return None
+    url = html.unescape(match.group(1))
+    match = re.search(r'-([A-Za-z0-9]+)\.html(?:[?#]|$)', url)
+    return match.group(1) if match else hashlib.md5(url.encode()).hexdigest()[:16]
+
+
+def _page_query(base, page, *, parameter='page'):
+    if page == 1:
+        return base
+    return base + ('&' if '?' in base else '?') + urlencode({parameter: page})
+
+
+def _complete_adapter_rejections(source, reasons):
+    _merge_rejection_reasons(source, {
+        reason: len(ids) for reason, ids in reasons.items() if ids
+    })
+
+
+def scrape_immo974(max_pages=50, page_size=20, max_items=5000, delay=1.5):
+    found = _walk_target_routes(
+        source='immo974', routes=IMMO974_CITY_ROUTES,
+        max_pages=max_pages, max_items=max_items, delay=delay,
+        page_url=lambda base, page: (
+            base if page == 1 else base + '&' + urlencode({
+                'offset': (page - 1) * page_size, 'results': page_size,
+            })
+        ),
+        parse_items=_article_blocks, item_key=_immo974_item_id,
+    )
     out = []
-    seen = set()
-    for commune, slug in ADREZIO_COMMUNES.items():
-        for tslug, ptype in ADREZIO_TYPES.items():
-            for page in range(1, max_pages + 1):
-                url = f'{ADREZIO_BASE}/reunion/location/{tslug}/{slug}'
-                if page > 1:
-                    url += f'?page={page}'
-                try:
-                    text, _ = fetch(url)
-                except Exception:
-                    break
-                new = _adrezio_card_listings(text, ptype, commune, seen)
-                out.extend(new)
-                time.sleep(delay)
-                if not new or len(out) >= max_items:
-                    break
-            if len(out) >= max_items:
+    rejected = {'mapping_failure': set(), 'non_residential': set(), 'out_of_scope': set()}
+    for route_city, sid, article in found:
+        url_match = re.search(r'href=["\']([^"\']*/annonce/locations/[^"\']+)["\']', article, re.I)
+        if not url_match:
+            rejected['mapping_failure'].add(sid)
+            continue
+        url = urljoin('https://www.immo974.com/', html.unescape(url_match.group(1)))
+        low_url = url.lower()
+        ptype = 'flat' if 'appartement' in low_url else (
+            'house' if any(value in low_url for value in ('maison', 'villa')) else None
+        )
+        if not ptype:
+            rejected['non_residential'].add(sid)
+            continue
+        title_match = re.search(r'<h2 class=["\']ville-type["\']>\s*<a[^>]*title=["\']([^"\']+)', article, re.I | re.S)
+        city_match = re.search(r'<h2 class=["\']localisation["\'][^>]*>.*?</i>\s*(.*?)\s*</h2>', article, re.I | re.S)
+        price_match = re.search(r'<div class=["\']price-result["\'][^>]*>\s*<b>\s*([^<]+)', article, re.I | re.S)
+        date_match = re.search(r'<div class=["\']date_publication["\'][^>]*>\s*([^<]+)', article, re.I | re.S)
+        desc_match = re.search(r'<p class=["\']description["\'][^>]*>(.*?)</p>', article, re.I | re.S)
+        title = clean(title_match.group(1)) if title_match else None
+        observed_city = clean(city_match.group(1)) if city_match else None
+        city = _target_city(observed_city)
+        if city != route_city:
+            rejected['out_of_scope'].add(sid)
+            continue
+        description = clean(desc_match.group(1)) if desc_match else None
+        image = extract_image_url(article, 'https://www.immo974.com/')
+        data = {
+            'url': url, 'title': title, 'city': observed_city,
+            'price': clean(price_match.group(1)) if price_match else None,
+            'date': clean(date_match.group(1)) if date_match else None,
+            'description': description, 'image': image,
+        }
+        joined = ' '.join(value for value in (title, description) if value)
+        out.append(Listing(
+            'immo974', sid, url, url, title, city, None, ptype,
+            parse_rooms(joined), None, parse_surface(joined),
+            to_int_price(data['price']), None, None, data['date'], image,
+            description, save_raw('immo974', sid, data), hash_listing(data),
+        ))
+    _complete_adapter_rejections('immo974', rejected)
+    return out
+
+
+def _locamoi_items(text):
+    items = []
+    for raw in re.findall(r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', text or '', re.I | re.S):
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            continue
+        candidates = payload if isinstance(payload, list) else [payload]
+        for obj in candidates:
+            if not isinstance(obj, dict):
+                continue
+            main = obj.get('mainEntity') or obj
+            elements = main.get('itemListElement', []) if isinstance(main, dict) else []
+            if isinstance(elements, list):
+                items.extend(item for item in elements if isinstance(item, dict))
+    return items
+
+
+def _locamoi_item_id(element):
+    item = element.get('item') if isinstance(element.get('item'), dict) else {}
+    offers = item.get('offers') if isinstance(item.get('offers'), dict) else {}
+    return item.get('url') or offers.get('url')
+
+
+def scrape_locamoi(max_pages=50, max_items=5000, delay=1.5):
+    found = _walk_target_routes(
+        source='locamoi', routes=LOCAMOI_CITY_TYPE_ROUTES,
+        max_pages=max_pages, max_items=max_items, delay=delay,
+        page_url=_page_query, parse_items=_locamoi_items,
+        item_key=_locamoi_item_id,
+    )
+    out = []
+    rejected = {'mapping_failure': set(), 'out_of_scope': set()}
+    for route_key, key, element in found:
+        route_city, ptype = route_key.split(':', 1)
+        item = element.get('item') if isinstance(element.get('item'), dict) else {}
+        offers = item.get('offers') if isinstance(item.get('offers'), dict) else {}
+        offered = offers.get('itemOffered') if isinstance(offers.get('itemOffered'), dict) else {}
+        address = offered.get('address') if isinstance(offered.get('address'), dict) else {}
+        url = item.get('url') or offers.get('url')
+        if not url:
+            rejected['mapping_failure'].add(key)
+            continue
+        city = _target_city(address.get('addressLocality'))
+        if city != route_city:
+            rejected['out_of_scope'].add(key)
+            continue
+        sid = url.rstrip('/').split('/')[-1]
+        title = clean(item.get('name'))
+        floor = offered.get('floorSize')
+        surface = floor.get('value') if isinstance(floor, dict) else floor
+        beds = offered.get('numberOfBedrooms')
+        bedrooms = beds.get('value') if isinstance(beds, dict) else beds
+        room_data = offered.get('numberOfRooms')
+        rooms = room_data.get('value') if isinstance(room_data, dict) else room_data
+        if rooms in (None, ''):
+            room_match = re.search(r'\b[TF]\s*([1-9])\b', title or '', re.I)
+            rooms = int(room_match.group(1)) if room_match else parse_rooms(title)
+        image = item.get('image')
+        data = {
+            'url': url, 'title': title, 'price': offers.get('price'),
+            'city': address.get('addressLocality'), 'surface': surface,
+            'rooms': rooms, 'bedrooms': bedrooms, 'image': image,
+        }
+        out.append(Listing(
+            'locamoi', sid, url, url, title, city, None, ptype,
+            int(rooms) if isinstance(rooms, (int, float)) else parse_rooms(title),
+            int(bedrooms) if isinstance(bedrooms, (int, float)) else None, float(surface) if isinstance(surface, (int, float)) else parse_surface(title),
+            int(offers['price']) if isinstance(offers.get('price'), (int, float)) else to_int_price(offers.get('price')),
+            None, 'locamoi/aggregated', offers.get('validFrom'), image, title,
+            save_raw('locamoi', sid, data), hash_listing(data),
+        ))
+    _complete_adapter_rejections('locamoi', rejected)
+    return out
+
+
+def _immo97_links(text):
+    return unique_links(
+        text,
+        r'href=["\']([^"\']*/immobilier-annonce/location/[^"\']+)["\']',
+        'https://www.97immo.com/', 5000,
+    )
+
+
+def scrape_97immo(max_items=5000, max_pages=50, delay=1.5):
+    routes = {
+        city: (
+            'https://www.97immo.com/immo_liste_location.php?'
+            + urlencode({
+                'id_typeoffres': 'location', 'id_destinations': '19',
+                'id_localisations[]': cid, 'typelien': 'moteur_search',
+            })
+        )
+        for city, cid in IMMO97_COMMUNES.items()
+    }
+    found = _walk_target_routes(
+        source='97immo', routes=routes, max_pages=max_pages,
+        max_items=max_items, delay=delay, page_url=_page_query,
+        parse_items=_immo97_links, item_key=lambda url: url,
+    )
+    out = []
+    rejected = {
+        'non_residential': set(), 'out_of_scope': set(),
+        'detail_fetch_failure': set(),
+    }
+    for route_city, url, _ in found:
+        match = re.search(r'/immobilier-annonce/location/(appartement|maison(?:-villa)?)/', url, re.I)
+        if not match:
+            rejected['non_residential'].add(url)
+            continue
+        ptype = 'house' if match.group(1).lower().startswith('maison') else 'flat'
+        parts = url.rstrip('/').split('/')
+        sid = '_'.join(parts[-2:])
+        try:
+            listing = detail_listing('97immo', url, ptype, sid)
+        except Exception:
+            rejected['detail_fetch_failure'].add(url)
+            continue
+        city = _target_city(listing.city)
+        if listing.city and city != route_city:
+            rejected['out_of_scope'].add(url)
+            continue
+        out.append(replace(listing, city=city or route_city))
+        time.sleep(delay)
+    _complete_adapter_rejections('97immo', rejected)
+    if rejected['detail_fetch_failure']:
+        _add_runtime_signal('97immo', 'detail_fetch_failure')
+    return out
+
+
+def _ofim_catalogue_links(text):
+    return unique_links(
+        text,
+        r'href=["\'](https://www\.ofim\.fr/\d+/Location-[^"\']+)["\']',
+        'https://www.ofim.fr/', 5000,
+    )
+
+
+def scrape_ofim(max_items=5000, max_pages=50, delay=1.5):
+    found = []
+    all_unique = set()
+    raw_items = 0
+    duplicate_raw = 0
+    safety_rejected = set()
+    route_states = {}
+    signals = []
+    pages_attempted = 0
+    pages_succeeded = 0
+    cap_reached = False
+    for slug, ptype in OFIM_CATEGORIES.items():
+        state = {'status': 'partial', 'terminal': None, 'items': 0}
+        route_ids = set()
+        if cap_reached:
+            state['terminal'] = f'safety_item_cap_reached:{max_items}'
+            route_states[slug] = state
+            continue
+        seed_url = f'https://www.ofim.fr/liste-location-{slug}.html'
+        pages_attempted += 1
+        try:
+            text, _ = fetch(seed_url)
+        except Exception:
+            signals.append('fetch_failure')
+            state['terminal'] = 'fetch_failure:seed'
+            route_states[slug] = state
+            continue
+        pages_succeeded += 1
+        if _blocked_or_challenge_page(text):
+            signals.append('blocked_or_challenge_page')
+            state['terminal'] = 'blocked_or_challenge_page:seed'
+            route_states[slug] = state
+            continue
+        rc1_match = re.search(r'rc1=(\d+)', text)
+        page_number = 0
+        while True:
+            links = _ofim_catalogue_links(text)
+            raw_items += len(links)
+            for url in links:
+                if url in route_ids:
+                    duplicate_raw += 1
+                    continue
+                route_ids.add(url)
+                if url in all_unique:
+                    duplicate_raw += 1
+                    continue
+                all_unique.add(url)
+                if len(found) < max_items:
+                    found.append((url, ptype))
+                else:
+                    safety_rejected.add(url)
+                    cap_reached = True
+            state['items'] = len(route_ids)
+            total = _reported_total(text)
+            if total is not None:
+                state['reported_total'] = total
+            if total is not None and len(route_ids) >= total:
+                state.update(status='complete', terminal='reported_total')
                 break
-        if len(out) >= max_items:
-            break
-    return out[:max_items]
+            if cap_reached:
+                signal = f'safety_item_cap_reached:{max_items}'
+                signals.append(signal)
+                state['terminal'] = signal
+                break
+            if page_number == 0 and not rc1_match:
+                if _has_next_page(text, 2):
+                    signals.append('pagination_cursor_missing')
+                    state['terminal'] = 'pagination_cursor_missing'
+                else:
+                    state.update(status='complete', terminal='no_next')
+                break
+            if page_number > 0 and not links:
+                state.update(status='complete', terminal='empty_page')
+                break
+            if page_number + 1 >= max_pages:
+                signal = f'safety_page_cap_reached:{max_pages}'
+                signals.append(signal)
+                state['terminal'] = signal
+                break
+            page_number += 1
+            pages_attempted += 1
+            next_url = (
+                'https://www.ofim.fr/recherche.html?'
+                + urlencode({'rp': 1, 'rt': 1, 'rc1': rc1_match.group(1), 'start': page_number * 10})
+            )
+            try:
+                text, _ = fetch(next_url)
+            except Exception:
+                signals.append('fetch_failure')
+                state['terminal'] = f'fetch_failure:page:{page_number + 1}'
+                break
+            pages_succeeded += 1
+            if _blocked_or_challenge_page(text):
+                signals.append('blocked_or_challenge_page')
+                state['terminal'] = f'blocked_or_challenge_page:page:{page_number + 1}'
+                break
+            time.sleep(delay)
+        route_states[slug] = state
+    _set_snapshot_meta(
+        'ofim', found=[(None, key, None) for key in all_unique],
+        route_states=route_states, pages_attempted=pages_attempted,
+        pages_succeeded=pages_succeeded, raw_items=raw_items, signals=signals,
+        extra={
+            'parsed_items': raw_items,
+            'unique_ids': len(all_unique),
+            'pre_unique_rejections_by_reason': (
+                {'duplicate_raw': duplicate_raw} if duplicate_raw else {}
+            ),
+            'rejected_items_by_reason': (
+                {'safety_item_cap': len(safety_rejected)} if safety_rejected else {}
+            ),
+        },
+    )
+    out = []
+    rejected = {'out_of_scope': set(), 'detail_fetch_failure': set()}
+    for url, ptype in found:
+        match = re.search(r'ofim\.fr/(\d+)/', url)
+        sid = match.group(1) if match else hashlib.md5(url.encode()).hexdigest()[:16]
+        try:
+            listing = detail_listing('ofim', url, ptype, sid)
+        except Exception:
+            rejected['detail_fetch_failure'].add(url)
+            continue
+        city = _target_city(listing.city)
+        if not city:
+            rejected['out_of_scope'].add(url)
+            continue
+        out.append(replace(listing, city=city))
+        time.sleep(delay)
+    _complete_adapter_rejections('ofim', rejected)
+    if rejected['detail_fetch_failure']:
+        _add_runtime_signal('ofim', 'detail_fetch_failure')
+    return out
 
 
+def _alter_catalogue_links(text):
+    raw = re.findall(
+        r'https:\\/\\/alter-immobilier\.re\\/post_type_annonces\\/[^"\\]+',
+        text or '', re.I,
+    )
+    if not raw:
+        raw = [
+            'https://alter-immobilier.re' + value.replace('\\/', '/')
+            for value in re.findall(r'\\/post_type_annonces\\/[^"\\]+', text or '', re.I)
+        ]
+    links = []
+    for value in raw:
+        url = value.replace('\\/', '/')
+        if '/a-louer-' in url.lower() and url not in links:
+            links.append(url)
+    return links
+
+
+def scrape_alter(max_items=5000):
+    source = 'alter'
+    url = 'https://alter-immobilier.re/nos-biens-a-louer/'
+    try:
+        text, _ = fetch(url)
+    except Exception:
+        _set_snapshot_meta(
+            source, found=[], route_states={'catalogue': {
+                'status': 'failed', 'terminal': 'fetch_failure', 'items': 0,
+            }}, pages_attempted=1, pages_succeeded=0, raw_items=0,
+            signals=['fetch_failure'], extra={'rejected_items_by_reason': {}},
+        )
+        raise
+    links = _alter_catalogue_links(text)
+    selected = links[:max_items]
+    safety_rejected = set(links[max_items:])
+    signals = []
+    if safety_rejected:
+        signals.append(f'safety_item_cap_reached:{max_items}')
+    if _has_next_page(text, 2):
+        signals.append('advertised_pagination_not_exhausted')
+    if not links:
+        signals.append('empty_catalogue_unproven')
+    terminal = 'no_next' if not signals else signals[0]
+    route_state = {
+        'status': 'complete' if not signals else 'partial',
+        'terminal': terminal, 'items': len(links),
+    }
+    _set_snapshot_meta(
+        source, found=[(None, key, None) for key in links],
+        route_states={'catalogue': route_state}, pages_attempted=1,
+        pages_succeeded=1, raw_items=len(links), signals=signals,
+        extra={'rejected_items_by_reason': (
+            {'safety_item_cap': len(safety_rejected)} if safety_rejected else {}
+        )},
+    )
+    out = []
+    rejected = {'out_of_scope': set(), 'detail_fetch_failure': set()}
+    for listing_url in selected:
+        sid = listing_url.rstrip('/').split('/')[-1]
+        ptype = 'house' if any(value in listing_url.lower() for value in ('villa', 'maison')) else 'flat'
+        try:
+            listing = detail_listing(source, listing_url, ptype, sid)
+        except Exception:
+            rejected['detail_fetch_failure'].add(listing_url)
+            continue
+        city = _target_city(listing.city or guess_city_from_text(listing_url))
+        if not city:
+            rejected['out_of_scope'].add(listing_url)
+            continue
+        out.append(replace(listing, city=city))
+    _complete_adapter_rejections(source, rejected)
+    if rejected['detail_fetch_failure']:
+        _add_runtime_signal(source, 'detail_fetch_failure')
+    return out
+
+
+ADREZIO_COMMUNES = {'Saint-Denis': 'saint-denis', 'Sainte-Marie': 'sainte-marie'}
+
+
+def _adrezio_cards(text):
+    return [
+        match.group(0) for match in re.finditer(
+            r'<a\b[^>]*href=["\'](/annonces/[a-z0-9]+)["\'][\s\S]*?</a>',
+            text or '', re.I,
+        )
+    ]
+
+
+def _adrezio_card_id(card):
+    match = re.search(r'href=["\']/annonces/([a-z0-9]+)', card or '', re.I)
+    return match.group(1) if match else None
+
+
+def scrape_adrezio(max_items=5000, max_pages=50, delay=0.5):
+    routes = {
+        f'{city}:{ptype}': f'{ADREZIO_BASE}/reunion/location/{slug}/{city_slug}'
+        for city, city_slug in ADREZIO_COMMUNES.items()
+        for slug, ptype in ADREZIO_TYPES.items()
+    }
+    found = _walk_target_routes(
+        source='adrezio', routes=routes, max_pages=max_pages,
+        max_items=max_items, delay=delay, page_url=_page_query,
+        parse_items=_adrezio_cards, item_key=_adrezio_card_id,
+    )
+    out = []
+    rejected = {'mapping_failure': set(), 'out_of_scope': set()}
+    for route_key, sid, card in found:
+        route_city, ptype = route_key.split(':', 1)
+        listings = _adrezio_card_listings(card, ptype, route_city, set())
+        if not listings:
+            rejected['mapping_failure'].add(sid)
+            continue
+        listing = listings[0]
+        city = _target_city(listing.city)
+        if city != route_city:
+            rejected['out_of_scope'].add(sid)
+            continue
+        out.append(replace(listing, city=city))
+    _complete_adapter_rejections('adrezio', rejected)
+    return out
+
+
+def _domimmo_item_id(item):
+    value = item.get('id') or item.get('reference')
+    if value not in (None, ''):
+        return str(value)
+    return hashlib.md5(json.dumps(item, sort_keys=True, default=str).encode()).hexdigest()
+
+
+def scrape_domimmo(max_items=500):
+    source = 'domimmo'
+    requested_limit = min(max(1, int(max_items)), 500)
+    url = 'https://www.keldom.com/api/domimmo/offers?' + urlencode({'limit': requested_limit})
+    try:
+        text, _ = fetch(url)
+    except Exception:
+        _set_snapshot_meta(
+            source, found=[], route_states={'api': {
+                'status': 'failed', 'terminal': 'fetch_failure', 'items': 0,
+            }}, pages_attempted=1, pages_succeeded=0, raw_items=0,
+            signals=['fetch_failure'], extra={'rejected_items_by_reason': {}},
+        )
+        raise
+    try:
+        payload = json.loads(text)
+        items = payload if isinstance(payload, list) else (
+            payload.get('items') or payload.get('data') or []
+        )
+        if not isinstance(items, list):
+            raise ValueError('Domimmo payload has no item list')
+    except Exception:
+        _set_snapshot_meta(
+            source, found=[], route_states={'api': {
+                'status': 'failed', 'terminal': 'invalid_payload', 'items': 0,
+            }}, pages_attempted=1, pages_succeeded=1, raw_items=0,
+            signals=['invalid_payload'], extra={'rejected_items_by_reason': {}},
+        )
+        raise
+    unique = {}
+    duplicate_raw = 0
+    non_object_items = 0
+    for item in items:
+        if not isinstance(item, dict):
+            non_object_items += 1
+            continue
+        sid = _domimmo_item_id(item)
+        if sid in unique:
+            duplicate_raw += 1
+        else:
+            unique[sid] = item
+    saturated = len(items) >= requested_limit
+    signals = ['api_limit_reached'] if saturated else []
+    terminal = 'api_limit_reached' if saturated else 'api_response_below_limit'
+    _set_snapshot_meta(
+        source, found=[(None, sid, None) for sid in unique],
+        route_states={'api': {
+            'status': 'partial' if saturated else 'complete',
+            'terminal': terminal, 'items': len(unique),
+        }}, pages_attempted=1, pages_succeeded=1, raw_items=len(items),
+        signals=signals, extra={
+            'parsed_items': len(items) - non_object_items,
+            'unique_ids': len(unique),
+            'unparsed_items_by_reason': (
+                {'non_object_item': non_object_items} if non_object_items else {}
+            ),
+            'snapshot_proof': None if saturated else 'api_response_below_limit',
+            'pre_unique_rejections_by_reason': (
+                {'duplicate_raw': duplicate_raw} if duplicate_raw else {}
+            ),
+            'rejected_items_by_reason': {},
+            'api_limit': requested_limit,
+        },
+    )
+    out = []
+    rejected = {
+        'not_rental': set(), 'out_of_scope': set(),
+        'non_residential': set(), 'invalid_price': set(),
+    }
+    for sid, item in unique.items():
+        transaction = item.get('id_di_ad_cat')
+        title = clean(item.get('title'))
+        description = clean(item.get('description'))
+        hay = f'{title or ""} {description or ""}'.lower()
+        if str(transaction) != '2' and not (
+            transaction in (None, '')
+            and any(token in hay for token in ('location', 'à louer', 'a louer', 'loyer'))
+        ):
+            rejected['not_rental'].add(sid)
+            continue
+        city = _target_city(item.get('city'))
+        if item.get('location') != 'REU' or not city:
+            rejected['out_of_scope'].add(sid)
+            continue
+        if not is_domimmo_residential(title, description):
+            rejected['non_residential'].add(sid)
+            continue
+        price = to_int_price(item.get('price'))
+        if price is None or price < 250 or price > 6000:
+            rejected['invalid_price'].add(sid)
+            continue
+        pieces = item.get('pieces')
+        rooms = int(pieces) if isinstance(pieces, (int, float)) else parse_rooms(hay)
+        bedrooms_raw = item.get('chambres')
+        bedrooms = int(bedrooms_raw) if isinstance(bedrooms_raw, (int, float)) else None
+        surface_raw = item.get('surface_habitable') or item.get('surface_terrain')
+        try:
+            surface = float(surface_raw) if surface_raw not in (None, '') else parse_surface(hay)
+        except (TypeError, ValueError):
+            surface = parse_surface(hay)
+        photos = item.get('photos') if isinstance(item.get('photos'), list) else []
+        image = item.get('imageSrc')
+        if not image and photos:
+            first = photos[0]
+            image = first.get('src') if isinstance(first, dict) else str(first)
+        type_id = str(item.get('id_di_ad_type') or '')
+        ptype = 'house' if type_id == '2' or any(value in hay for value in ('maison', 'villa')) else 'flat'
+        listing_url = f'https://www.domimmo.com/reunion/immobilier/{sid}/'
+        data = {
+            'api': 'keldom_domimmo_offers', 'url': listing_url,
+            'title': title, 'city': item.get('city'), 'price': price,
+            'surface_habitable': item.get('surface_habitable'),
+            'pieces': pieces, 'chambres': bedrooms_raw,
+            'publicationDate': item.get('publicationDate'), 'image': image,
+            'photo_count': len(photos), 'description': description, 'raw': item,
+        }
+        out.append(Listing(
+            source, sid, listing_url, listing_url, title, city, None, ptype,
+            rooms, bedrooms, surface, price, to_int_price(item.get('charges')),
+            item.get('company'), item.get('publicationDate'), image, description,
+            save_raw(source, sid, data), hash_listing(data),
+        ))
+    _complete_adapter_rejections(source, rejected)
+    return out
 def init_db(conn):
     conn.execute('''CREATE TABLE IF NOT EXISTS rental_listings (
         source_site TEXT NOT NULL, source_id TEXT NOT NULL, url TEXT NOT NULL, canonical_url TEXT, title TEXT, city TEXT, district TEXT, property_type TEXT, rooms INTEGER, bedrooms INTEGER, surface_m2 REAL, rent_eur INTEGER, charges_eur INTEGER, agency_or_owner TEXT, published_at TEXT, seen_first_at TEXT NOT NULL, seen_last_at TEXT NOT NULL, image_url TEXT, description TEXT, raw_json_path TEXT, content_hash TEXT, is_active INTEGER DEFAULT 1, PRIMARY KEY(source_site, source_id))''')
 
 def upsert(conn,l):
     now=datetime.now(timezone.utc).isoformat(); d=asdict(l)
-    old=conn.execute('select content_hash from rental_listings where source_site=? and source_id=?',(l.source_site,l.source_id)).fetchone()
+    old=conn.execute('select content_hash,is_active from rental_listings where source_site=? and source_id=?',(l.source_site,l.source_id)).fetchone()
     if not old:
         conn.execute('INSERT INTO rental_listings (source_site,source_id,url,canonical_url,title,city,district,property_type,rooms,bedrooms,surface_m2,rent_eur,charges_eur,agency_or_owner,published_at,seen_first_at,seen_last_at,image_url,description,raw_json_path,content_hash,is_active) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1)',(d['source_site'],d['source_id'],d['url'],d['canonical_url'],d['title'],d['city'],d['district'],d['property_type'],d['rooms'],d['bedrooms'],d['surface_m2'],d['rent_eur'],d['charges_eur'],d['agency_or_owner'],d['published_at'],now,now,d['image_url'],d['description'],d['raw_json_path'],d['content_hash']))
         return 'new'
-    status='changed' if old[0]!=l.content_hash else 'seen'
+    status='reappeared' if not old[1] else ('changed' if old[0]!=l.content_hash else 'seen')
     conn.execute('UPDATE rental_listings SET url=?,canonical_url=?,title=?,city=?,district=?,property_type=?,rooms=?,bedrooms=?,surface_m2=?,rent_eur=?,charges_eur=?,agency_or_owner=?,published_at=COALESCE(?,published_at),seen_last_at=?,image_url=?,description=?,raw_json_path=?,content_hash=?,is_active=1 WHERE source_site=? AND source_id=?',(d['url'],d['canonical_url'],d['title'],d['city'],d['district'],d['property_type'],d['rooms'],d['bedrooms'],d['surface_m2'],d['rent_eur'],d['charges_eur'],d['agency_or_owner'],d['published_at'],now,d['image_url'],d['description'],d['raw_json_path'],d['content_hash'],d['source_site'],d['source_id']))
     return status
+
+
+def build_source_manifest(*, source, run_id, listings, event_statuses,
+                          source_status, fetch_log, runtime_meta=None):
+    """Return exact counters and a conservative completeness classification."""
+    runtime_meta = dict(runtime_meta or {})
+    pages_attempted = int(runtime_meta.get('pages_attempted', len(fetch_log)) or 0)
+    pages_succeeded = int(runtime_meta.get(
+        'pages_succeeded', sum(1 for row in fetch_log if row.get('ok'))
+    ) or 0)
+    normalized = len(listings)
+    fetched_items = int(runtime_meta.get('raw_items', normalized) or 0)
+    parsed_items = int(runtime_meta.get('parsed_items', fetched_items) or 0)
+    seen_ids = sorted({
+        str(getattr(item, 'source_id', '')) for item in listings
+        if getattr(item, 'source_id', None)
+    })
+    listing_unique = len(seen_ids)
+    unique_ids = int(runtime_meta.get('unique_ids', listing_unique) or 0)
+
+    def _reason_counts(value):
+        valid = isinstance(value, dict)
+        counts = {}
+        if not valid:
+            return counts, False
+        for raw_reason, raw_count in value.items():
+            reason = str(raw_reason).strip()
+            try:
+                count = int(raw_count)
+            except (TypeError, ValueError):
+                valid = False
+                continue
+            if not reason or count <= 0:
+                valid = False
+                continue
+            counts[reason] = count
+        return counts, valid
+
+    unparsed_reasons, unparsed_valid = _reason_counts(
+        runtime_meta.get('unparsed_items_by_reason') or {}
+    )
+    pre_unique_reasons, pre_unique_valid = _reason_counts(
+        runtime_meta.get('pre_unique_rejections_by_reason') or {}
+    )
+    rejection_reasons, rejection_accounting_valid = _reason_counts(
+        runtime_meta.get('rejected_items_by_reason') or {}
+    )
+    rejected_items = unique_ids - normalized
+    rejection_accounting_valid = (
+        rejection_accounting_valid
+        and sum(rejection_reasons.values()) == rejected_items
+    )
+    stage_accounting_valid = (
+        unparsed_valid and pre_unique_valid and rejection_accounting_valid
+        and fetched_items >= parsed_items >= unique_ids >= normalized >= 0
+        and sum(unparsed_reasons.values()) == fetched_items - parsed_items
+        and sum(pre_unique_reasons.values()) == parsed_items - unique_ids
+        and listing_unique == normalized
+    )
+    signals = [str(x) for x in runtime_meta.get('truncation_signals', []) if x]
+    if source in BOUNDED_PARTIAL_SOURCES:
+        signals.append('bounded_pagination')
+    cap = SOURCE_RESULT_CAPS.get(source)
+    if cap is not None and normalized >= cap:
+        signals.append(f'result_cap_reached:{cap}')
+    if any(not row.get('ok') for row in fetch_log):
+        signals.append('fetch_failure')
+    if pages_attempted == 0:
+        signals.append('no_page_evidence')
+    if not runtime_meta.get('full_snapshot_proof'):
+        signals.append('full_snapshot_unproven')
+    unparsed_count = sum(unparsed_reasons.values())
+    if unparsed_count > 0:
+        signals.append(f'unparsed_items_present:{unparsed_count}')
+    signals = list(dict.fromkeys(signals))
+    if not rejection_accounting_valid:
+        signals.append('rejection_accounting_mismatch')
+    if not stage_accounting_valid:
+        signals.append('stage_accounting_mismatch')
+
+    error = source_status.get('error')
+    full_snapshot_proof = bool(runtime_meta.get('full_snapshot_proof'))
+    ok = (
+        not error and (bool(source_status.get('ok')) or full_snapshot_proof)
+        and (normalized > 0 or full_snapshot_proof)
+    )
+    if not ok:
+        status = 'failed'
+        error = str(error or f'{source} produced no usable listing')
+    elif signals:
+        status = 'partial'
+        error = str(error) if error else None
+    else:
+        status = 'complete'
+        error = None
+
+    inserted = sum(value == 'new' for value in event_statuses)
+    reappeared = sum(value == 'reappeared' for value in event_statuses)
+    updated = sum(value in ('changed', 'reappeared') for value in event_statuses)
+    unchanged = normalized - inserted - updated
+    return {
+        'run_id': str(run_id), 'source': str(source), 'status': status,
+        'attempted': True,
+        'pages_attempted': pages_attempted, 'pages_succeeded': pages_succeeded,
+        'fetched_items': fetched_items, 'parsed_items': parsed_items,
+        'unique_ids': unique_ids, 'normalized_items': normalized,
+        'rejected_items': rejected_items,
+        'rejected_items_by_reason': rejection_reasons,
+        'unparsed_items_by_reason': unparsed_reasons,
+        'pre_unique_rejections_by_reason': pre_unique_reasons,
+        'inserted': inserted, 'updated': updated, 'unchanged': unchanged,
+        'withdrawn': 0, 'reappeared': reappeared,
+        'expected_count': runtime_meta.get('expected_count'),
+        'previous_count': runtime_meta.get('previous_count'),
+        'dataset_id': runtime_meta.get('dataset_id'),
+        'retries': int(runtime_meta.get('retries', 0) or 0),
+        'snapshot_proof': runtime_meta.get('snapshot_proof'),
+        'seen_ids': seen_ids,
+        'truncation_signals': signals, 'error': error,
+    }
+
 
 def main():
     global SCRAPLING_MODE, SCRAPLING_ENGINE
@@ -1273,16 +2238,25 @@ def main():
     if not args.dry_run:
         Path(args.db).parent.mkdir(parents=True,exist_ok=True); conn=sqlite3.connect(args.db); init_db(conn)
     source_status={}
+    source_manifests={}
+    run_id=os.environ.get('IMMO_RUN_ID') or datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
     try:
         for f in funcs:
             fname=f.__name__.replace('scrape_','')
             if fname == 'leboncoin_apify_dataset':
                 fname = 'leboncoin'
+            fetch_start=len(FETCH_LOG)
+            SOURCE_RUNTIME_META.pop(fname, None)
             try:
                 listings=f()
-                source_status[fname]={'ok': bool(listings), 'count': len(listings)}
+                empty_snapshot_proved = bool(
+                    (SOURCE_RUNTIME_META.get(fname) or {}).get('full_snapshot_proof')
+                )
+                source_status[fname]={'ok': bool(listings) or empty_snapshot_proved, 'count': len(listings)}
+                event_statuses=[]
                 for l in listings:
                     status='dry' if args.dry_run else upsert(conn,l)
+                    event_statuses.append(status)
                     event = {'status': status, **asdict(l)}
                     # Compatibility aliases for downstream/report consumers that
                     # use the public product vocabulary. Keep canonical DB fields
@@ -1303,9 +2277,19 @@ def main():
                 # real progress instead of rolling back the whole batch.
                 if conn:
                     conn.commit()
+                source_manifests[fname]=build_source_manifest(
+                    source=fname, run_id=run_id, listings=listings,
+                    event_statuses=event_statuses, source_status=source_status[fname],
+                    fetch_log=FETCH_LOG[fetch_start:], runtime_meta=SOURCE_RUNTIME_META.get(fname),
+                )
             except Exception as e:
                 source_status[fname]={'ok': False, 'count': 0, 'error': repr(e)}
                 errors.append({'source':f.__name__,'error':repr(e)})
+                source_manifests[fname]=build_source_manifest(
+                    source=fname, run_id=run_id, listings=[], event_statuses=[],
+                    source_status=source_status[fname], fetch_log=FETCH_LOG[fetch_start:],
+                    runtime_meta=SOURCE_RUNTIME_META.get(fname),
+                )
                 if conn:
                     conn.commit()
     finally:
@@ -1322,7 +2306,7 @@ def main():
         ec=row.get('error_class') or 'none'
         if ec!='none':
             scrapling_meta['errors_by_class'][ec]=scrapling_meta['errors_by_class'].get(ec,0)+1
-    summary={'events':len(events),'new':sum(e['status']=='new' for e in events),'changed':sum(e['status']=='changed' for e in events),'seen':sum(e['status']=='seen' for e in events),'by_source':{},'by_source_with_image':{},'source_status':source_status,'errors':errors,'scrapling':scrapling_meta,'fetch_instrumentation':FETCH_LOG[:40],'sample':events[:20]}
+    summary={'events':len(events),'new':sum(e['status']=='new' for e in events),'changed':sum(e['status']=='changed' for e in events),'seen':sum(e['status']=='seen' for e in events),'by_source':{},'by_source_with_image':{},'source_status':source_status,'source_manifests':source_manifests,'errors':errors,'scrapling':scrapling_meta,'fetch_instrumentation':FETCH_LOG[:40],'sample':events[:20]}
     for e in events:
         src=e['source_site']
         summary['by_source'][src]=summary['by_source'].get(src,0)+1

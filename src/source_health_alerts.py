@@ -13,6 +13,8 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_HEALTH = ROOT / "artifacts" / "app" / "source_health.json"
 DEFAULT_STATE = Path("/opt/data/artifacts/immo-alerts/source_health_seen.json")
 DB_PROOF_PATH = "/opt/data/data/reunion_watch.db"
-ATTENTION_STATUSES = {"aging", "stale", "unknown", "empty"}
+ATTENTION_STATUSES = {"aging", "stale", "unknown", "empty", "coverage-low"}
 ATTENTION_SEVERITIES = {"high", "medium", "warning"}
 MAX_RECENT_HOURS = 36.0
 
@@ -246,6 +248,49 @@ def build_alert(payload: dict[str, Any], state: dict[str, Any], mode: str = "cha
     return "", state
 
 
+def valid_health_payload(payload: Any) -> bool:
+    """Distinguish a valid unhealthy payload from an unreadable contract."""
+    return (
+        isinstance(payload, dict)
+        and isinstance(payload.get("ok"), bool)
+        and isinstance(payload.get("sources"), list)
+    )
+
+
+def deliver_alert(message: str, sink: list[str] | None) -> int:
+    if not message:
+        return 0
+    if not sink:
+        print(message, end="")
+        return 0
+    try:
+        result = subprocess.run(
+            sink,
+            input=message,
+            encoding="utf-8",
+            check=False,
+        )
+    except OSError as exc:
+        print(f"source health alert delivery failed: {exc}", file=sys.stderr)
+        return 75
+    if result.returncode != 0:
+        print(
+            f"source health alert delivery failed (sink_exit={result.returncode})",
+            file=sys.stderr,
+        )
+        return 75
+    return 0
+
+
+def write_state(path: Path, state: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(path.name + ".tmp")
+    temporary.write_text(
+        json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    temporary.replace(path)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--source-health", default=str(DEFAULT_SOURCE_HEALTH))
@@ -254,12 +299,13 @@ def main() -> int:
     ap.add_argument("--limit", type=int, default=8)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--sink", nargs="+", metavar="COMMAND")
     args = ap.parse_args()
 
     source_path = Path(args.source_health)
     state_path = Path(args.state)
     payload = load_json(source_path, {})
-    if not payload.get("ok"):
+    if not valid_health_payload(payload):
         print(f"⚠️ IMMO · source_health.json illisible\nDepuis : maintenant · mesure : {source_path}\nPourquoi : l'état des sources ne peut plus être évalué\nQui agit : Hermès · réparer l'export source_health\nPreuve : python3 /opt/data/projects/reunion-immo-search/src/source_health.py")
         return 2
     state = load_json(state_path, {"version": 2, "sources": {}})
@@ -268,11 +314,13 @@ def main() -> int:
         bad = [s for s in payload.get("sources", []) or [] if source_needs_attention(s)]
         print(json.dumps({"ok": True, "dry_run": True, "mode": args.mode, "attention_count": len(bad), "would_emit": bool(message), "message": message}, ensure_ascii=False, indent=2))
         return 0
-    state_path.parent.mkdir(parents=True, exist_ok=True)
-    state_path.write_text(json.dumps(new_state, ensure_ascii=False, indent=2), encoding="utf-8")
-    if message:
-        print(message, end="")
-    elif args.verbose:
+    delivery_exit = deliver_alert(message, args.sink)
+    if delivery_exit:
+        return delivery_exit
+    # Commit the deduplication state only after the output transport ACKs.
+    # A crash between delivery and this replace can duplicate, but never lose, an alert.
+    write_state(state_path, new_state)
+    if not message and args.verbose:
         print(json.dumps({"ok": True, "mode": args.mode, "emitted": 0}, ensure_ascii=False, indent=2))
     return 0
 

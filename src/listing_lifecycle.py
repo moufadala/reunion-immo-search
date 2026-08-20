@@ -19,18 +19,27 @@ class LifecycleState(str, Enum):
     REAPPEARED = "reappeared"
 
 
+class SourceRunOutcome(str, Enum):
+    COMPLETE = "complete"
+    PARTIAL = "partial"
+    FAILED = "failed"
+    UNKNOWN = "unknown"
+
+
 class Observation(str, Enum):
     SOURCE_SEEN = "source_seen"
     SOURCE_MISSING = "source_missing"
     FILTER_HIDDEN = "filter_hidden"
     PHOTO_FAILURE = "photo_failure"
     EXPORT_OMITTED = "export_omitted"
+    DEDUP_HIDDEN = "dedup_hidden"
 
 
 NON_AUTHORITATIVE_OBSERVATIONS = {
     Observation.FILTER_HIDDEN,
     Observation.PHOTO_FAILURE,
     Observation.EXPORT_OMITTED,
+    Observation.DEDUP_HIDDEN,
 }
 
 
@@ -94,7 +103,8 @@ def apply_observation(
     *,
     run_id: str,
     observation: Observation,
-    source_run_succeeded: bool,
+    source_run_succeeded: bool | None = None,
+    source_run_outcome: SourceRunOutcome | str | None = None,
     withdrawal_after: int = 2,
 ) -> TransitionResult:
     """Apply one observation, returning new state plus an optional durable event.
@@ -112,11 +122,20 @@ def apply_observation(
     if observation in NON_AUTHORITATIVE_OBSERVATIONS:
         return TransitionResult(lifecycle)
 
-    # A failed/partial source run has no authority to say whether a listing is
-    # present or absent. It must not consume the run id either: a successful retry
-    # with the same id can still be applied later.
-    if not source_run_succeeded:
-        return TransitionResult(lifecycle)
+    if source_run_outcome is None:
+        outcome = (
+            SourceRunOutcome.COMPLETE
+            if source_run_succeeded is True
+            else SourceRunOutcome.FAILED
+            if source_run_succeeded is False
+            else SourceRunOutcome.UNKNOWN
+        )
+    else:
+        try:
+            outcome = SourceRunOutcome(source_run_outcome)
+        except ValueError as exc:
+            raise ValueError(f"unsupported source run outcome: {source_run_outcome!r}") from exc
+
 
     if observation is Observation.SOURCE_SEEN:
         if lifecycle.state is LifecycleState.WITHDRAWN:
@@ -154,6 +173,10 @@ def apply_observation(
             processed_run_ids=(*lifecycle.processed_run_ids, run_id),
         )
         return TransitionResult(updated, (event,) if event else ())
+
+    # Absence is authoritative only when the source run proved completeness.
+    if outcome is not SourceRunOutcome.COMPLETE:
+        return TransitionResult(lifecycle)
 
     if observation is not Observation.SOURCE_MISSING:
         raise ValueError(f"unsupported observation: {observation!r}")

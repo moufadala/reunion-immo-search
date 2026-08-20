@@ -16,13 +16,23 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.realestate_watch import mark_stale_not_seen
+from src.pipeline_reconciliation import SourceRunManifest
+
 DEFAULT_DB = Path(os.environ.get("IMMO_DB_PATH", "/opt/data/data/reunion_watch.db"))
 DEFAULT_ARTIFACT = Path("/opt/data/artifacts/realestate/seloger_multipage_results.json")
+DEFAULT_COLLECTION_MANIFEST = Path("/opt/data/artifacts/realestate/seloger_collection_manifest.provisional.json")
+DEFAULT_SOURCE_MANIFEST = Path("/opt/data/artifacts/realestate/seloger_source_run_manifest.json")
 SQLITE_PARAM_SAFE_BATCH = 900
 
 SCHEMA = """
@@ -237,22 +247,113 @@ def mark_seloger_inactive_not_seen(
         con.execute("DELETE FROM tmp_seloger_seen_ids")
 
 
-def import_artifact(db: Path, artifact: Path, *, mark_inactive: bool = True, min_total: int = 10, min_prices: int = 10, max_age_hours: float | None = None) -> dict[str, Any]:
+
+def _load_complete_collection_manifest(
+    path: Path,
+    artifact: Path,
+    unique_ids: set[str],
+) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    parsed = SourceRunManifest.from_dict(payload)
+    if parsed.source != "seloger":
+        raise RuntimeError(f"Wrong source in SeLoger collection manifest: {parsed.source}")
+    if parsed.status != "complete":
+        raise RuntimeError(f"SeLoger collection manifest is not complete: {parsed.status}")
+    expected_hash = str(payload.get("artifact_sha256") or "").strip()
+    actual_hash = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    if not expected_hash or expected_hash != actual_hash:
+        raise RuntimeError(
+            f"SeLoger artifact hash mismatch: manifest={expected_hash or 'missing'} actual={actual_hash}"
+        )
+    if parsed.unique_ids != len(unique_ids):
+        raise RuntimeError(
+            f"SeLoger unique id mismatch: manifest={parsed.unique_ids} artifact={len(unique_ids)}"
+        )
+    if parsed.normalized_items != len(unique_ids):
+        raise RuntimeError("SeLoger provisional normalized count does not match artifact ids")
+    return payload
+
+
+def _write_final_source_manifest(
+    provisional: dict[str, Any],
+    output: Path,
+    *,
+    inserted: int,
+    updated: int,
+    unchanged: int,
+    withdrawn: int,
+    reappeared: int,
+    db: Path,
+) -> dict[str, Any]:
+    payload = dict(provisional)
+    payload.update(
+        {
+            "inserted": inserted,
+            "updated": updated,
+            "unchanged": unchanged,
+            "withdrawn": withdrawn,
+            "reappeared": reappeared,
+            "event_counts_stage": "post_import",
+            "db_path": str(db),
+        }
+    )
+    SourceRunManifest.from_dict(payload)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output.with_name(f".{output.name}.tmp-{os.getpid()}")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    os.replace(temporary, output)
+    return payload
+
+def import_artifact(
+    db: Path,
+    artifact: Path,
+    *,
+    mark_inactive: bool = True,
+    min_total: int = 10,
+    min_prices: int = 10,
+    max_age_hours: float | None = None,
+    collection_manifest: Path | None = None,
+    source_manifest_out: Path | None = None,
+) -> dict[str, Any]:
     if max_age_hours is not None:
         age_hours = (time.time() - artifact.stat().st_mtime) / 3600
         if age_hours > max_age_hours:
             raise RuntimeError(f"Stale SeLoger artifact: age_hours={age_hours:.2f} max_age_hours={max_age_hours}")
     data = json.loads(artifact.read_text(encoding="utf-8"))
     annonces = data.get("annonces") or []
+    raw_ids = [str(item.get("id") or "").strip() for item in annonces if isinstance(item, dict)]
+    if len(raw_ids) != len(annonces) or any(not source_id for source_id in raw_ids):
+        raise RuntimeError("SeLoger artifact contains malformed or missing ids")
+    unique_ids = set(raw_ids)
+    if len(unique_ids) != len(raw_ids):
+        raise RuntimeError(
+            f"SeLoger artifact contains duplicate ids: total={len(raw_ids)} unique={len(unique_ids)}"
+        )
+    provisional = (
+        _load_complete_collection_manifest(collection_manifest, artifact, unique_ids)
+        if collection_manifest is not None
+        else None
+    )
+    if provisional is not None and source_manifest_out is None:
+        raise RuntimeError("source_manifest_out is required with collection_manifest")
     with_price = sum(1 for a in annonces if a.get("prix"))
-    if len(annonces) < min_total or with_price < min_prices:
+    proven_empty = bool(
+        provisional is not None
+        and len(annonces) == 0
+        and provisional.get("expected_count") == 0
+    )
+    if not proven_empty and (len(annonces) < min_total or with_price < min_prices):
         raise RuntimeError(f"Unhealthy SeLoger artifact: total={len(annonces)} with_price={with_price}")
     now = datetime.now(timezone.utc).isoformat()
     db.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(str(db))
     con.row_factory = sqlite3.Row
     init_db(con)
-    inserted = updated = changed = 0
+    inserted = db_rows_updated = changed = updated_events = reappeared = 0
+    unchanged = 0
     seen_ids: set[str] = set()
     try:
         for raw in annonces:
@@ -268,6 +369,7 @@ def import_artifact(db: Path, artifact: Path, *, mark_inactive: bool = True, min
                 )
                 inserted += 1
             else:
+                was_active = int(old["is_active"] if old["is_active"] is not None else 1) == 1
                 if old["content_hash"] != item["content_hash"]:
                     changed += 1
                 con.execute(
@@ -281,13 +383,46 @@ def import_artifact(db: Path, artifact: Path, *, mark_inactive: bool = True, min
                         str(artifact), item["content_hash"], sid,
                     ),
                 )
-                updated += 1
-        inactive_marked = 0
-        if mark_inactive:
-            inactive_marked = mark_seloger_inactive_not_seen(con, seen_ids)
+                db_rows_updated += 1
+                if not was_active:
+                    reappeared += 1
+                    updated_events += 1
+                elif old["content_hash"] != item["content_hash"]:
+                    updated_events += 1
+                else:
+                    unchanged += 1
         con.commit()
     finally:
         con.close()
+
+    run_id = str(provisional.get("run_id")) if provisional is not None else now
+    inactive_marked = 0
+    if mark_inactive:
+        inactive_marked = int(
+            mark_stale_not_seen(
+                db,
+                now,
+                ["seloger"],
+                {"seloger": len(seen_ids)},
+                run_id=run_id,
+            ).get("seloger", 0)
+        )
+
+    final_manifest_path: str | None = None
+    if provisional is not None:
+        if source_manifest_out is None:
+            raise RuntimeError("source_manifest_out is required with collection_manifest")
+        _write_final_source_manifest(
+            provisional,
+            source_manifest_out,
+            inserted=inserted,
+            updated=updated_events,
+            unchanged=unchanged,
+            withdrawn=inactive_marked,
+            reappeared=reappeared,
+            db=db,
+        )
+        final_manifest_path = str(source_manifest_out)
     return {
         "ok": True,
         "db": str(db),
@@ -295,10 +430,14 @@ def import_artifact(db: Path, artifact: Path, *, mark_inactive: bool = True, min
         "artifact_total": len(annonces),
         "artifact_with_price": with_price,
         "inserted": inserted,
-        "updated": updated,
+        "updated": updated_events,
+        "unchanged": unchanged,
+        "reappeared": reappeared,
+        "db_rows_updated": db_rows_updated,
         "changed": changed,
         "inactive_marked": inactive_marked,
         "seen_ids": len(seen_ids),
+        "source_manifest": final_manifest_path,
     }
 
 
@@ -306,10 +445,19 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", type=Path, default=DEFAULT_DB)
     ap.add_argument("--artifact", type=Path, default=DEFAULT_ARTIFACT)
+    ap.add_argument("--collection-manifest", type=Path, default=DEFAULT_COLLECTION_MANIFEST)
+    ap.add_argument("--source-manifest-out", type=Path, default=DEFAULT_SOURCE_MANIFEST)
     ap.add_argument("--no-mark-inactive", action="store_true")
     ap.add_argument("--max-age-hours", type=float, default=None, help="Reject artifact if its mtime is older than this many hours.")
     args = ap.parse_args()
-    result = import_artifact(args.db, args.artifact, mark_inactive=not args.no_mark_inactive, max_age_hours=args.max_age_hours)
+    result = import_artifact(
+        args.db,
+        args.artifact,
+        mark_inactive=not args.no_mark_inactive,
+        max_age_hours=args.max_age_hours,
+        collection_manifest=args.collection_manifest,
+        source_manifest_out=args.source_manifest_out,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0
 

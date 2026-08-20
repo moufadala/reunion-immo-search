@@ -8,6 +8,7 @@ def test_active_duplicate_wins_over_richer_inactive_record() -> None:
         "commune": "Saint-Denis", "type": "Appartement", "rooms": 3,
         "rent": 1100, "surface": 70, "address": "4 rue des Flamboyants",
         "images": ["unique.jpg"],
+        "title": "Appartement - référence agence GES12345678-123",
     }
     inactive = {**common, "id": "a:old", "source": "a", "url": "https://a/old",
                 "active": False, "description": "Très détaillée " * 100}
@@ -24,5 +25,5 @@ def test_export_filters_active_before_deduplicating_cards() -> None:
         encoding="utf-8"
     )
     assert source.index("listings = active_public_listings(listings)") < source.index(
-        "listings, dedup_report = deduplicate_public_feed(listings)"
+        "listings, dedup_report = deduplicate_public_feed("
     )

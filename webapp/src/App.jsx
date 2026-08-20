@@ -12,6 +12,32 @@ const ONGLETS = [
   { id: "mouvements", nom: "Mouvements" },
   { id: "sources", nom: "Sources" },
 ];
+const PORTAILS_ATTENDUS = [
+  ["97immo", "97 Immo"],
+  ["adrezio", "Adrezio"],
+  ["alter", "Alter Immobilier"],
+  ["bienici", "Bien'ici"],
+  ["citya", "Citya"],
+  ["domimmo", "Domimmo"],
+  ["fnaim", "FNAIM"],
+  ["immo974", "Immo 974"],
+  ["leboncoin", "Leboncoin"],
+  ["locamoi", "LocaMoi"],
+  ["ofim", "OFIM"],
+  ["seloger", "SeLoger"],
+  ["superimmo", "Superimmo"],
+  ["zimo", "Zimo"],
+];
+
+const ETATS_SOURCE = {
+  fresh: ["à jour", "p5"],
+  aging: ["à surveiller", "warn"],
+  stale: ["en retard", "danger"],
+  "coverage-low": ["collecte partielle", "danger"],
+  empty: ["aucune annonce", "warn"],
+  unknown: ["état inconnu", "neutral"],
+};
+
 
 function ThemeToggle() {
   // Moufadal préfère le clair : c'est le défaut, pas "auto".
@@ -42,7 +68,7 @@ function Header({ meta, onglet, setOnglet }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-baseline gap-2.5">
             <span className="text-[15px] font-extrabold tracking-tight text-ink">Veille locative</span>
-            <span className="hidden text-[12.5px] font-semibold text-accent sm:inline">Nord &amp; Est</span>
+            <span className="hidden text-[12.5px] font-semibold text-accent sm:inline">Saint-Denis + Sainte-Marie</span>
           </div>
           <div className="flex items-center gap-2">
             <span className={cx("text-[11.5px]", alerte ? "font-bold text-danger" : "text-faint")}>
@@ -71,8 +97,25 @@ function Header({ meta, onglet, setOnglet }) {
   );
 }
 
-function Sources({ sources, meta }) {
-  const BLOQUES = { seloger: "DataDome", zimo: "anti-bot", superimmo: "503" };
+function Sources({ sources, meta, health, healthError }) {
+  const feedBySource = new Map((sources || []).map((s) => [norm(s.nom), s]));
+  const healthSources = Array.isArray(health?.sources) ? health.sources : [];
+  const healthBySource = new Map(healthSources.map((s) => [norm(s.source), s]));
+  const rows = PORTAILS_ATTENDUS.map(([id, label]) => ({
+    id,
+    label,
+    feed: feedBySource.get(norm(id)) || {},
+    health: healthBySource.get(norm(id)) || null,
+  }));
+  const auxiliaries = healthSources.filter((s) => norm(s.source) === "ofim rss");
+  const freshCount = rows.filter((r) => r.health?.status === "fresh").length;
+  const attentionCount = rows.filter((r) => r.health && r.health.status !== "fresh").length;
+  const missingCount = rows.filter((r) => !r.health).length;
+  const statusLabel = (source) => ETATS_SOURCE[source?.status] || ETATS_SOURCE.unknown;
+  const coverage = (source) => source?.active_coverage_ratio == null
+    ? "non mesurée"
+    : `${Math.round(source.active_coverage_ratio * 100)} %`;
+
   return (
     <div data-testid="sources-panel" className="flex flex-col gap-4">
       <Reveal className="rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
@@ -94,11 +137,42 @@ function Sources({ sources, meta }) {
         </div>
       </Reveal>
 
+      <Reveal data-testid="source-health-summary"
+        className="rounded-2xl border border-line bg-surface p-5 shadow-[var(--shadow-card)]">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-[15px] font-extrabold text-ink">État réel des collectes</h3>
+            <p className="mt-0.5 text-[12.5px] text-muted">
+              Les statuts viennent du dernier contrôle source_health, pas d'une liste codée dans la page.
+            </p>
+          </div>
+          <Badge tone={health?.ok ? "p5" : "danger"}>
+            {health ? (health.ok ? "contrôle global OK" : "attention requise") : "contrôle indisponible"}
+          </Badge>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Stat value={PORTAILS_ATTENDUS.length} label="Portails attendus" />
+          <Stat value={freshCount} label="À jour" tone="accent" />
+          <Stat value={attentionCount} label="À contrôler" />
+          <Stat value={missingCount} label="Sans mesure" />
+        </div>
+        {health?.generated_at && (
+          <p className="mt-3 text-[11.5px] text-faint">
+            Contrôle généré {ilYA(health.generated_at)} · {dateFR(health.generated_at)}
+          </p>
+        )}
+        {healthError && (
+          <div data-testid="source-health-error" className="mt-3 rounded-xl border border-warn/30 bg-warn/10 p-3 text-[12.5px] text-ink">
+            Le contrôle des sources n'a pas pu être chargé ({healthError}). Les annonces restent consultables, mais leur collecte n'est pas vérifiable ici.
+          </div>
+        )}
+      </Reveal>
       <Reveal className="overflow-hidden rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)]">
         <div className="border-b border-line p-4">
           <h3 className="text-[15px] font-extrabold text-ink">Portails suivis</h3>
           <p className="mt-0.5 text-[12.5px] text-muted">
-            « Détail lu » = la page de chaque annonce a pu être ouverte et lue entièrement.
+            « Description vérifiée » = le texte publié vient d'un bloc descriptif complet
+            identifié sur la page de l'annonce, pas seulement d'un HTTP 200 ou d'une balise SEO.
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -106,25 +180,41 @@ function Sources({ sources, meta }) {
             <thead>
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wider text-faint">
                 <th className="px-4 py-2 font-bold">Portail</th>
-                <th className="px-4 py-2 text-right font-bold">Suivies</th>
-                <th className="px-4 py-2 text-right font-bold">En ligne</th>
-                <th className="px-4 py-2 text-right font-bold">Détail lu</th>
+                <th className="px-4 py-2 text-right font-bold">Actives DB</th>
+                <th className="px-4 py-2 text-right font-bold">Vues récemment</th>
+                <th className="px-4 py-2 text-right font-bold">Couverture</th>
+                <th className="px-4 py-2 font-bold">Dernière collecte</th>
+                <th className="px-4 py-2 text-right font-bold">Description vérifiée</th>
+                <th className="px-4 py-2 font-bold">Critique</th>
                 <th className="px-4 py-2 font-bold">État</th>
               </tr>
             </thead>
             <tbody>
-              {sources.map((s) => {
-                const pct = s.total ? Math.round((s.detail_lu / s.total) * 100) : 0;
+              {rows.map(({ id, label, feed, health: source }) => {
+                const [stateText, stateTone] = statusLabel(source);
+                const detailPct = feed.total ? Math.round(((feed.detail_lu || 0) / feed.total) * 100) : null;
+                const lastCollection = source?.last_fetched_at || source?.last_seen_at;
                 return (
-                  <tr key={s.nom} className="border-b border-line/60 last:border-0">
-                    <td className="px-4 py-2.5 font-bold text-ink">{s.nom}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted">{s.total}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums text-muted">{s.actives}</td>
-                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-ink">{pct}%</td>
+                  <tr key={id} data-testid="source-portal-row" data-source={id}
+                    className="border-b border-line/60 last:border-0">
+                    <td className="px-4 py-2.5 font-bold text-ink">{label}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted">{source?.active_rows ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted">{source?.active_recent_rows ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-right tabular-nums font-semibold text-ink">{coverage(source)}</td>
+                    <td className="px-4 py-2.5 text-muted" title={lastCollection || undefined}>
+                      {ilYA(lastCollection) || "date absente"}
+                    </td>
+                    <td className="px-4 py-2.5 text-right tabular-nums text-muted"
+                      title={feed.total ? `${feed.detail_lu || 0}/${feed.total} annonces du feed` : "absent du feed publié"}>
+                      {detailPct == null ? "—" : `${detailPct} %`}
+                    </td>
                     <td className="px-4 py-2.5">
-                      {BLOQUES[s.nom]
-                        ? <Badge tone="warn">bloque la lecture · {BLOQUES[s.nom]}</Badge>
-                        : <Badge tone="p5">lisible</Badge>}
+                      {source ? <Badge tone={source.is_critical ? "danger" : "neutral"}>
+                        {source.is_critical ? "oui" : "non"}
+                      </Badge> : "—"}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <Badge tone={stateTone} title={source?.reason || "aucune mesure source_health"}>{stateText}</Badge>
                     </td>
                   </tr>
                 );
@@ -133,6 +223,28 @@ function Sources({ sources, meta }) {
           </table>
         </div>
       </Reveal>
+      {auxiliaries.length > 0 && (
+        <Reveal className="rounded-2xl border border-line bg-surface p-4 shadow-[var(--shadow-card)]">
+          <h3 className="text-[14px] font-extrabold text-ink">Canaux auxiliaires</h3>
+          <p className="mt-0.5 text-[12px] text-muted">
+            OFIM RSS complète le portail OFIM. Il ne compte pas comme un quinzième portail.
+          </p>
+          <div className="mt-3 flex flex-col gap-2">
+            {auxiliaries.map((source) => {
+              const [stateText, stateTone] = statusLabel(source);
+              const lastCollection = source.last_fetched_at || source.last_seen_at;
+              return (
+                <div key={source.source} data-testid="source-auxiliary-row"
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-sunken px-3 py-2">
+                  <span className="text-[12.5px] font-bold text-ink">OFIM RSS · canal auxiliaire</span>
+                  <span className="text-[12px] text-muted">{source.active_rows ?? 0} actives · {ilYA(lastCollection) || "date absente"}</span>
+                  <Badge tone={stateTone} title={source.reason}>{stateText}</Badge>
+                </div>
+              );
+            })}
+          </div>
+        </Reveal>
+      )}
     </div>
   );
 }
@@ -140,6 +252,8 @@ function Sources({ sources, meta }) {
 export default function App() {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [healthError, setHealthError] = useState(null);
   const [onglet, setOnglet] = useState("annonces");
   const [f, setF] = useState(FILTRES_VIDES);
   const [ouvert, setOuvert] = useState(null);
@@ -159,6 +273,13 @@ export default function App() {
       .then(setData)
       .catch((e) => setErr(e.message));
   }, []);
+  useEffect(() => {
+    fetch("source_health.json", { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(setHealth)
+      .catch((e) => setHealthError(e.message));
+  }, []);
+
 
   const listings = data?.listings || [];
   const feedPerime = feedEstPerime(data?.meta?.genere_le);
@@ -210,8 +331,8 @@ export default function App() {
                 sub={`sur ${data.meta.total} suivies`} />
               <Stat value={feedPerime ? "—" : data.meta.fraiches} label="Fraîches"
                 sub={feedPerime ? "masquées : feed périmé" : "apparues ≤ 3 jours"} />
-              <Stat value={data.meta.detail_lu} label="Pages lues"
-                sub="annonce ouverte en entier" />
+              <Stat value={data.meta.detail_lu} label="Descriptions vérifiées"
+                sub="texte complet identifié sur la page source" />
               <Stat value={data.meta.avec_trajet} label="Temps de trajet"
                 sub="calculé en voiture" />
             </Reveal>
@@ -295,7 +416,8 @@ export default function App() {
         )}
 
         {onglet === "mouvements" && <Mouvements listings={listings} movements={data?.movements} />}
-        {onglet === "sources" && <Sources sources={data.sources} meta={data.meta} />}
+        {onglet === "sources" && <Sources sources={data.sources} meta={data.meta}
+          health={health} healthError={healthError} />}
 
         <footer className="mt-4 border-t border-line pt-4 text-[11.5px] leading-relaxed text-faint">
           Périmètre : {data.meta.perimetre.join(" · ")}. Historique conservé 1 mois.

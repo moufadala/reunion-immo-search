@@ -11,6 +11,14 @@ def test_v2_app_exposes_stable_accessible_browser_contract():
     assert 'data-testid="listing-count"' in app
     assert 'data-testid="listings-grid"' in app
     assert 'data-testid="sources-panel"' in app
+    assert 'fetch("source_health.json"' in app
+    assert 'data-testid="source-health-summary"' in app
+    assert 'data-testid="source-health-error"' in app
+    assert 'data-testid="source-portal-row"' in app
+    assert 'data-testid="source-auxiliary-row"' in app
+    assert "PORTAILS_ATTENDUS" in app
+    assert "const BLOQUES" not in app
+    assert "DataDome" not in app
     assert 'aria-label="Navigation principale"' in app
     assert 'aria-current={onglet === o.id ? "page" : undefined}' in app
     assert 'aria-label="Trier les annonces"' in app
@@ -31,6 +39,13 @@ def test_v2_app_exposes_stable_accessible_browser_contract():
         assert f'eventType="{event_type}"' in movements
 
 
+def test_header_names_the_exact_two_commune_scope():
+    app = (ROOT / "webapp/src/App.jsx").read_text(encoding="utf-8")
+
+    assert "Saint-Denis + Sainte-Marie" in app
+    assert "Nord &amp; Est" not in app
+
+
 def test_browser_audits_target_v2_root_and_avoid_legacy_dom():
     user = (ROOT / "tests/audit_user_search_cases.py").read_text(encoding="utf-8")
     changes = (ROOT / "tests/audit_changes_page_filters.py").read_text(encoding="utf-8")
@@ -41,6 +56,12 @@ def test_browser_audits_target_v2_root_and_avoid_legacy_dom():
         assert selector not in changes
     assert 'get_by_test_id("listing-count")' in user
     assert 'page.route("**/feed.json"' in user
+    assert 'page.route("**/source_health.json"' in user
+    assert 'SOURCE_HEALTH_FIXTURE' in user
+    assert 'get_by_test_id("source-health-summary")' in user
+    assert 'get_by_test_id("source-health-error")' in user
+    assert 'get_by_test_id("source-portal-row")' in user
+    assert 'get_by_test_id("source-auxiliary-row")' in user
     assert 'expected_sorted_ids' in user
     assert 'get_by_test_id("movement-online")' in changes
     assert 'IMMO_PUBLIC_URL="http://127.0.0.1:$LOCAL_AUDIT_PORT/"' in pipeline

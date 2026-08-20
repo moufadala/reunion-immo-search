@@ -21,10 +21,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if not (PROJECT_ROOT / 'src' / 'pipeline_reconciliation.py').exists():
+    PROJECT_ROOT = Path('/opt/data/projects/reunion-immo-search')
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.pipeline_reconciliation import (
+    ManifestValidationError, SourceRunManifest, evaluate_source_manifests,
+)
+
 ROOT = Path('/opt/data')
 DB_DEFAULT = ROOT / 'data/reunion_watch.db'
 ARTIFACT_ROOT = ROOT / 'artifacts/realestate/watch_runs'
 PARTIAL_SOURCE_NO_STALE = {'zimo', 'immo974'}
+SOURCE_COVERAGE_FLOORS = {'zimo': 0.50, 'immo974': 0.50}
 # A scope change retires legacy rows even when the new count is much smaller.
 COMPLETE_SCOPE_SOURCES = {'domimmo'}
 PARTIAL_SOURCE_STALE_GRACE_DAYS = 7
@@ -46,7 +57,7 @@ SOURCE_JOBS = [
     {'source': 'leboncoin', 'script': MULTI_SCRAPER, 'timeout': 300, 'args': ['--only', 'leboncoin']},
     {'source': 'adrezio', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'adrezio']},
 ]
-NON_BLOCKING_REFRESH_SOURCES = {'superimmo'}
+NON_BLOCKING_REFRESH_SOURCES: set[str] = set()
 CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS} - NON_BLOCKING_REFRESH_SOURCES
 SOURCE_STATUS_ALIASES = {'leboncoin_apify_dataset': 'leboncoin'}
 DEFAULT_SOURCE_SCRAPE_BUDGET_SEC = 1500
@@ -64,6 +75,7 @@ class RunnerResult:
     duration_sec: float | None = None
     timeout_sec: int | None = None
     status_path: str | None = None
+    source_manifest: dict[str, Any] | None = None
 
 
 def now_tag() -> str:
@@ -113,9 +125,16 @@ def parse_scraper_stdout(path: Path) -> dict[str, Any]:
             out['new'] = data.get('new', 0)
             out['changed'] = data.get('changed', 0)
             out['seen'] = data.get('seen', 0)
-        for k in ['errors', 'fetched_items', 'rental_listings', 'new_or_changed', 'source_status']:
+        for k in ['errors', 'fetched_items', 'rental_listings', 'new_or_changed', 'source_status', 'source_manifests']:
             if k in data:
                 out[k] = data[k]
+        # Dedicated collectors (currently Bien'ici) print their single strict
+        # manifest directly. Normalize it to the same mapping emitted by the
+        # multi-source collector so the watcher never downgrades it to legacy.
+        if all(key in data for key in (
+            'source', 'status', 'run_id', 'normalized_items', 'seen_ids'
+        )):
+            out['source_manifests'] = {str(data['source']): data}
     return out
 
 
@@ -136,6 +155,15 @@ def _normalized_source_status(parsed: dict[str, Any]) -> dict[str, Any]:
 def _source_result_ok(parsed: dict[str, Any], source: str, exit_code: int) -> bool:
     if exit_code != 0 or parsed.get('json_ok') is not True:
         return False
+    source_manifests = parsed.get('source_manifests')
+    if isinstance(source_manifests, dict) and isinstance(source_manifests.get(source), dict):
+        try:
+            manifest = SourceRunManifest.from_dict(source_manifests[source])
+        except (ManifestValidationError, TypeError):
+            return False
+        return manifest.source == source and manifest.status == 'complete'
+
+
     statuses = _normalized_source_status(parsed)
     if source in statuses:
         st = statuses[source]
@@ -166,6 +194,120 @@ def _annotate_source_status(parsed: dict[str, Any], source: str, *, ok: bool, du
     parsed['source_status'] = statuses
 
 
+def db_active_counts(db: Path) -> dict[str, int]:
+    if not db.exists():
+        return {}
+    conn = sqlite3.connect(db)
+    try:
+        return {
+            str(source): int(count)
+            for source, count in conn.execute(
+                'SELECT source_site, COUNT(*) FROM rental_listings '
+                'WHERE COALESCE(is_active,1)=1 GROUP BY source_site'
+            )
+        }
+    finally:
+        conn.close()
+
+
+def _legacy_manifest(result: RunnerResult, run_id: str, previous_count: int | None) -> dict[str, Any]:
+    source = str(result.source or result.script)
+    parsed = result.parsed_summary or {}
+    by_source = parsed.get('by_source') if isinstance(parsed.get('by_source'), dict) else {}
+    statuses = _normalized_source_status(parsed)
+    status_count = statuses.get(source, {}).get('count', 0) if isinstance(statuses.get(source), dict) else 0
+    count = int(by_source.get(source) or status_count or 0)
+    inserted = min(count, int(parsed.get('new') or 0))
+    updated = min(count - inserted, int(parsed.get('changed') or 0))
+    if result.ok and count > 0:
+        status = 'partial'
+        signals = ['legacy_manifest_missing']
+        error = None
+        normalized = count
+    else:
+        status = 'failed'
+        signals = []
+        error = _runner_failure_motif(result)
+        normalized = 0
+        inserted = updated = 0
+    return {
+        'run_id': run_id, 'source': source, 'status': status, 'attempted': True,
+        'pages_attempted': 0, 'pages_succeeded': 0,
+        'fetched_items': normalized, 'parsed_items': normalized,
+        'unique_ids': normalized, 'normalized_items': normalized, 'rejected_items': 0,
+        'inserted': inserted, 'updated': updated,
+        'unchanged': normalized - inserted - updated,
+        'withdrawn': 0, 'reappeared': 0,
+        'expected_count': previous_count if status == 'partial' else None,
+        'previous_count': previous_count, 'dataset_id': None, 'retries': 0,
+        'truncation_signals': signals, 'error': error,
+    }
+
+
+def source_manifests_for_results(results: list[RunnerResult], *, run_id: str,
+                                 active_before: dict[str, int] | None = None) -> list[dict[str, Any]]:
+    """Normalize adapter evidence; missing evidence becomes explicit partial."""
+    active_before = active_before or {}
+    out: list[dict[str, Any]] = []
+    for result in results:
+        source = str(result.source or result.script)
+        parsed_manifests = (result.parsed_summary or {}).get('source_manifests')
+        raw = result.source_manifest
+        if raw is None and isinstance(parsed_manifests, dict):
+            raw = parsed_manifests.get(source)
+        previous = active_before.get(source)
+        if isinstance(raw, dict):
+            item = dict(raw)
+            child_run_id = str(item.get('run_id') or '').strip()
+            if not child_run_id:
+                item['run_id'] = run_id
+                child_run_id = run_id
+            item['source'] = source
+            item.setdefault('previous_count', previous)
+            item.setdefault('expected_count', None)
+            item.setdefault('withdrawn', 0)
+            item.setdefault('reappeared', 0)
+            item.setdefault('dataset_id', None)
+            item.setdefault('retries', 0)
+            item.setdefault('truncation_signals', [])
+            item.setdefault('error', None)
+            if child_run_id != run_id:
+                item['status'] = 'failed'
+                item['withdrawn'] = 0
+                item['error'] = (
+                    f'run_id mismatch: child={child_run_id} expected={run_id}'
+                )
+                item['truncation_signals'] = [*item['truncation_signals'], 'run_id_mismatch']
+            # Exhaustive pagination is the current-run authority. A large market
+            # shrink remains visible as a warning, while the durable two-run
+            # absence ledger prevents one anomalous snapshot from withdrawing
+            # rows. Downgrading this proof to partial would deadlock forever:
+            # old rows stay active, so every later exhaustive run stays below the
+            # same historical denominator and can never advance the ledger.
+            current = int(item.get('unique_ids') or 0)
+            floor = SOURCE_COVERAGE_FLOORS.get(source, 0.90)
+            if item.get('status') == 'complete' and previous and previous >= 10 and current / previous < floor:
+                item['coverage_warning'] = f'below_previous_floor:{current}/{previous}'
+            elif item.get('status') == 'partial' and item.get('expected_count') is None:
+                item['expected_count'] = previous
+        else:
+            item = _legacy_manifest(result, run_id, previous)
+        out.append(item)
+    return out
+
+
+def authoritative_withdrawal_sources(manifests: list[dict[str, Any]]) -> list[str]:
+    sources = []
+    for raw in manifests:
+        try:
+            item = SourceRunManifest.from_dict(raw)
+        except (ManifestValidationError, TypeError):
+            continue
+        if item.authoritative_for_withdrawals:
+            sources.append(item.source)
+    return sorted(set(sources))
+
+
 def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> None:
     aggregate: dict[str, Any] = {
         'json_ok': True,
@@ -177,6 +319,7 @@ def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> Non
         'source_status': {},
         'errors': [],
         'durations_sec': {},
+        'source_manifests': {},
     }
     for r in results:
         p = r.parsed_summary or {}
@@ -192,6 +335,8 @@ def _aggregate_runner_results(results: list[RunnerResult], run_dir: Path) -> Non
             aggregate['errors'].extend(p['errors'])
         if r.source:
             aggregate['durations_sec'][r.source] = r.duration_sec
+        if r.source and r.source_manifest:
+            aggregate['source_manifests'][r.source] = r.source_manifest
     (run_dir / 'realestate_scraper_aggregate.json').write_text(json.dumps(aggregate, ensure_ascii=False, indent=2), encoding='utf-8')
 
 
@@ -256,7 +401,7 @@ def _runner_failure_motif(result: RunnerResult) -> str:
     return f'source {source} returned no successful exploitable status (exit={result.exit_code})'
 
 
-def evaluate_source_gate(results: list[RunnerResult]) -> dict[str, Any]:
+def evaluate_source_gate(results: list[RunnerResult], source_manifests: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     total = len(results)
     ok_results = [r for r in results if r.ok]
     failed_results = [r for r in results if not r.ok]
@@ -272,14 +417,31 @@ def evaluate_source_gate(results: list[RunnerResult]) -> dict[str, Any]:
         }
         for r in sorted(failed_results, key=lambda item: item.source or item.script)
     ]
+    failed_critical_sources = sorted({
+        str(r.source or r.script)
+        for r in failed_results
+        if str(r.source or r.script) in CRITICAL_REFRESH_SOURCES
+    })
+    manifest_gate = None
+    if source_manifests is not None:
+        manifest_gate = evaluate_source_manifests(
+            source_manifests, critical_sources=CRITICAL_REFRESH_SOURCES,
+            coverage_floors=SOURCE_COVERAGE_FLOORS,
+        )
     return {
-        'ok': True if not total else ok_ratio >= threshold,
+        'ok': (
+            (True if not total else ok_ratio >= threshold)
+            and not failed_critical_sources
+            and (manifest_gate is None or manifest_gate['ok'])
+        ),
         'ok_count': len(ok_results),
         'total': total,
         'ok_ratio': round(ok_ratio, 4),
         'threshold': threshold,
         'failed_sources': [d['source'] for d in failed_details],
         'failed_source_details': failed_details,
+        'failed_critical_sources': failed_critical_sources,
+        'manifest_gate': manifest_gate,
     }
 
 
@@ -359,6 +521,7 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
         env = os.environ.copy()
         env['IMMO_RAW_DIR'] = str(raw_dir)
         env['IMMO_REFRESH_SOURCE'] = source
+        env['IMMO_RUN_ID'] = os.environ.get('IMMO_RUN_ID') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name)
         try:
             with stdout_path.open('w', encoding='utf-8') as out, stderr_path.open('w', encoding='utf-8') as err:
                 proc = subprocess.run(cmd, stdout=out, stderr=err, timeout=source_timeout, cwd=str(ROOT), env=env)
@@ -367,7 +530,11 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
             ok = _source_result_ok(parsed, source, proc.returncode)
             error = None if ok else f'source {source} returned no successful exploitable status (exit={proc.returncode})'
             _annotate_source_status(parsed, source, ok=ok, duration_sec=duration, timeout_sec=source_timeout, error=error)
-            rr = RunnerResult(name, ok, proc.returncode, str(stdout_path), str(stderr_path), parsed, source, round(duration, 3), source_timeout, str(status_path))
+            raw_manifests = parsed.get('source_manifests')
+            source_manifest = raw_manifests.get(source) if isinstance(raw_manifests, dict) else None
+            rr = RunnerResult(name, ok, proc.returncode, str(stdout_path), str(stderr_path), parsed,
+                              source, round(duration, 3), source_timeout, str(status_path),
+                              source_manifest)
         except subprocess.TimeoutExpired as e:
             duration = time.monotonic() - t0
             error = f'TIMEOUT after {source_timeout}s: source={source} cmd={cmd}'
@@ -396,51 +563,76 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
     return results
 
 
-def mark_stale_not_seen(db: Path, refresh_started_at: str, sources: list[str], seen_counts: dict[str, int] | None = None) -> dict[str, int]:
-    """Mark old rows inactive after a successful refresh.
+def mark_stale_not_seen(db: Path, refresh_started_at: str, sources: list[str],
+                        seen_counts: dict[str, int] | None = None, *,
+                        run_id: str | None = None, withdrawal_after: int = 2,
+                        observed_ids: dict[str, set[str]] | None = None) -> dict[str, int]:
+    """Persist complete-snapshot absences; deactivate at two distinct runs.
 
-    Complete scrape: the source is not in PARTIAL_SOURCE_NO_STALE and the run saw
-    a coherent volume (seen_now >= max(5, 50% of active_before)). Missing rows are
-    marked inactive immediately.
-
-    Partial scrape: either a known partial source (zimo/domimmo/immo974) or a run
-    whose count is below the coherence threshold. Missing rows are preserved, but
-    only for PARTIAL_SOURCE_STALE_GRACE_DAYS after their last successful sighting;
-    older rows become inactive as a false-positive safety net.
+    Callers pass only sources whose manifest is ``complete``. Replaying one run
+    is idempotent. Partial/failed sources are absent from ``sources`` and cannot
+    advance the ledger. Listings positively observed in any run still clear an
+    older absence, even when that run was partial and therefore non-authoritative
+    for all listings it did not return.
     """
-    if not db.exists() or not sources:
+    observed_ids = observed_ids or {}
+    if not db.exists() or (not sources and not observed_ids):
         return {}
+    if withdrawal_after < 2:
+        raise ValueError('withdrawal_after must be at least 2')
+    run_id = str(run_id or refresh_started_at)
     conn = sqlite3.connect(db)
     try:
         ensure_schema(conn)
-        out: dict[str, int] = {}
-        seen_counts = seen_counts or {}
-        for src in sources:
-            active_before = conn.execute(
-                'SELECT COUNT(*) FROM rental_listings WHERE source_site=? AND COALESCE(is_active,1)=1',
-                (src,),
-            ).fetchone()[0]
-            seen_now = int(seen_counts.get(src) or 0)
-            coherence_floor = max(5, int(active_before * 0.5)) if active_before >= 10 else 0
-            is_known_partial = src in PARTIAL_SOURCE_NO_STALE
-            is_count_partial = active_before >= 10 and seen_now > 0 and seen_now < coherence_floor
-            if is_known_partial or (is_count_partial and src not in COMPLETE_SCOPE_SOURCES):
-                cur = conn.execute(
-                    """
-                    UPDATE rental_listings
-                    SET is_active=0
-                    WHERE source_site=?
-                      AND COALESCE(is_active,1)=1
-                      AND datetime(seen_last_at) < datetime(?, ?)
-                    """,
-                    (src, refresh_started_at, f'-{PARTIAL_SOURCE_STALE_GRACE_DAYS} days'),
-                )
-                out[src] = cur.rowcount if cur.rowcount is not None else 0
-                continue
-            cur = conn.execute(
-                'UPDATE rental_listings SET is_active=0 WHERE source_site=? AND datetime(seen_last_at) < datetime(?)',
-                (src, refresh_started_at),
+        conn.execute('''CREATE TABLE IF NOT EXISTS source_absence_state (
+            source_site TEXT NOT NULL,
+            source_id TEXT NOT NULL,
+            successful_missing_runs INTEGER NOT NULL DEFAULT 0,
+            last_complete_run_id TEXT,
+            PRIMARY KEY(source_site, source_id)
+        )''')
+        for observed_source, source_ids in observed_ids.items():
+            conn.executemany(
+                '''DELETE FROM source_absence_state
+                   WHERE source_site=? AND source_id=?''',
+                ((str(observed_source), str(source_id)) for source_id in source_ids),
             )
+        out: dict[str, int] = {}
+        for src in sources:
+            observed_for_source = {str(source_id) for source_id in observed_ids.get(src, set())}
+            conn.execute('''DELETE FROM source_absence_state
+                WHERE source_site=? AND source_id IN (
+                    SELECT source_id FROM rental_listings
+                    WHERE source_site=? AND datetime(seen_last_at) >= datetime(?)
+                )''', (src, src, refresh_started_at))
+            missing_ids = [str(row[0]) for row in conn.execute(
+                '''SELECT source_id FROM rental_listings
+                   WHERE source_site=? AND COALESCE(is_active,1)=1
+                     AND datetime(seen_last_at) < datetime(?)''',
+                (src, refresh_started_at),
+            ) if str(row[0]) not in observed_for_source]
+            for source_id in missing_ids:
+                prior = conn.execute(
+                    '''SELECT successful_missing_runs,last_complete_run_id
+                       FROM source_absence_state WHERE source_site=? AND source_id=?''',
+                    (src, source_id),
+                ).fetchone()
+                if prior is None:
+                    conn.execute('INSERT INTO source_absence_state VALUES (?,?,1,?)',
+                                 (src, source_id, run_id))
+                elif prior[1] != run_id:
+                    conn.execute('''UPDATE source_absence_state
+                        SET successful_missing_runs=?,last_complete_run_id=?
+                        WHERE source_site=? AND source_id=?''',
+                        (int(prior[0]) + 1, run_id, src, source_id))
+            cur = conn.execute('''UPDATE rental_listings SET is_active=0
+                WHERE source_site=? AND COALESCE(is_active,1)=1
+                  AND EXISTS (
+                    SELECT 1 FROM source_absence_state s
+                    WHERE s.source_site=rental_listings.source_site
+                      AND s.source_id=rental_listings.source_id
+                      AND s.successful_missing_runs>=?
+                  )''', (src, withdrawal_after))
             out[src] = cur.rowcount if cur.rowcount is not None else 0
         conn.commit()
         return out
@@ -554,8 +746,8 @@ def db_summary(db: Path) -> dict[str, Any]:
     return {'exists': True, 'db': str(db), 'by_source': by_source, 'quality': quality, 'newest': newest}
 
 
-def write_reports(run_dir: Path, db: Path, runner_results: list[RunnerResult], listings: list[dict[str, Any]], backup_path: str | None, stale_counts: dict[str, int], args: argparse.Namespace) -> dict[str, str]:
-    source_gate = evaluate_source_gate(runner_results)
+def write_reports(run_dir: Path, db: Path, runner_results: list[RunnerResult], listings: list[dict[str, Any]], backup_path: str | None, stale_counts: dict[str, int], args: argparse.Namespace, source_manifests: list[dict[str, Any]] | None = None) -> dict[str, str]:
+    source_gate = evaluate_source_gate(runner_results, source_manifests=source_manifests)
     summary = {
         'generated_at': datetime.now(timezone.utc).isoformat(),
         'db_backup': backup_path,
@@ -565,6 +757,7 @@ def write_reports(run_dir: Path, db: Path, runner_results: list[RunnerResult], l
         'failed_source_details': source_gate['failed_source_details'],
         'db_summary': db_summary(db),
         'runner_results': [asdict(r) for r in runner_results],
+        'source_manifests': source_manifests or [],
         'filters': {'max_price': args.max_price, 'min_price': args.min_price, 'min_rooms': args.min_rooms, 'city': args.city, 'limit': args.limit, 'residential_only': not args.include_commercial},
         'selected_count': len(listings),
         'selected': listings,
@@ -633,37 +826,66 @@ def main() -> None:
 
     backup = backup_db(db, run_dir) if args.refresh and not args.dry_run_scrapers else None
     results: list[RunnerResult] = []
+    source_manifests: list[dict[str, Any]] = []
+    active_before = db_active_counts(db)
     stale_counts: dict[str, int] = {}
     refresh_started_at = datetime.now(timezone.utc).isoformat()
     if args.refresh or args.dry_run_scrapers:
         results = run_scrapers(db, run_dir, dry_run=args.dry_run_scrapers)
+        logical_run_id = run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name
+        source_manifests = source_manifests_for_results(
+            results, run_id=logical_run_id, active_before=active_before,
+        )
         if args.refresh and not args.dry_run_scrapers:
             # Non destructif par source: une annonce devient inactive seulement si
-            # SA source a été vue avec succès pendant ce run. Un 403/timeout sur une
-            # source ne doit jamais créer de fausse disparition.
-            touched_sources = set()
+            # SA source a prouve un snapshot complet. Un succes partiel, 403 ou
+            # timeout ne doit jamais creer de fausse disparition.
+            authoritative = set(authoritative_withdrawal_sources(source_manifests))
+            # A proven exhaustive snapshot containing zero listings is still
+            # authoritative. Requiring a positive count here would make a
+            # genuinely emptied portal unable to withdraw stale rows forever.
+            touched_sources = set(authoritative)
             seen_counts: dict[str, int] = {}
+            observed_ids: dict[str, set[str]] = {}
+            for item in source_manifests:
+                source = _normalize_source_name(str(item.get('source') or ''))
+                if not source:
+                    continue
+                observed_ids.setdefault(source, set()).update(
+                    str(source_id) for source_id in (item.get('seen_ids') or []) if str(source_id)
+                )
             for r in results:
-                if r.ok:
+                if r.ok and r.source in authoritative:
                     for src, count in (r.parsed_summary.get('by_source') or {}).items():
                         mapped = _normalize_source_name(str(src))
                         touched_sources.add(mapped)
                         seen_counts[mapped] = seen_counts.get(mapped, 0) + int(count or 0)
                 for src, st in _normalized_source_status(r.parsed_summary).items():
-                    if isinstance(st, dict) and st.get('ok') and st.get('count', 0) > 0:
+                    if src in authoritative and isinstance(st, dict) and st.get('ok') and st.get('count', 0) > 0:
                         # Only successful, non-empty sources can mark older rows stale.
                         mapped = _normalize_source_name(str(src))
                         touched_sources.add(mapped)
                         seen_counts[mapped] = max(seen_counts.get(mapped, 0), int(st.get('count') or 0))
-            stale_counts = mark_stale_not_seen(db, refresh_started_at, sorted(touched_sources), seen_counts)
+            stale_counts = mark_stale_not_seen(
+                db, refresh_started_at, sorted(touched_sources), seen_counts,
+                run_id=logical_run_id, observed_ids=observed_ids,
+            )
+            for item in source_manifests:
+                if item.get('status') == 'complete':
+                    item['withdrawn'] = int(stale_counts.get(str(item.get('source'))) or 0)
+        (run_dir / 'source_run_manifests.json').write_text(json.dumps({
+            'run_id': logical_run_id,
+            'generated_at': datetime.now(timezone.utc).isoformat(),
+            'sources': source_manifests,
+        }, ensure_ascii=False, indent=2), encoding='utf-8')
     if db.exists():
         listings = query_listings(db, max_price=args.max_price, min_price=args.min_price, min_rooms=args.min_rooms, city_like=args.city, limit=args.limit, residential_only=not args.include_commercial)
     else:
         listings = []
-    paths = write_reports(run_dir, db, results, listings, backup, stale_counts, args)
-    source_gate = evaluate_source_gate(results)
+    paths = write_reports(run_dir, db, results, listings, backup, stale_counts, args, source_manifests=source_manifests)
+    source_gate = evaluate_source_gate(results, source_manifests=source_manifests if results else None)
     ok = source_gate['ok']
-    print(json.dumps({'ok': ok, 'source_gate': source_gate, 'failed_sources': source_gate['failed_sources'], 'failed_source_details': source_gate['failed_source_details'], 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
+    print(json.dumps({'ok': ok, 'source_gate': source_gate, 'source_manifests': source_manifests, 'failed_sources': source_gate['failed_sources'], 'failed_source_details': source_gate['failed_source_details'], 'run_dir': str(run_dir), 'reports': paths, 'db_summary': db_summary(db), 'selected_count': len(listings)}, ensure_ascii=False, indent=2))
     if results and not ok:
         sys.exit(1)
 

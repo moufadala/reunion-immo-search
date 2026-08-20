@@ -4,6 +4,7 @@ from src.listing_lifecycle import (
     LifecycleState,
     ListingLifecycle,
     Observation,
+    SourceRunOutcome,
     apply_observation,
 )
 
@@ -40,12 +41,69 @@ def test_failed_source_run_never_counts_as_an_absence():
     assert result.events == ()
 
 
+@pytest.mark.parametrize("outcome", [SourceRunOutcome.PARTIAL, SourceRunOutcome.FAILED])
+def test_non_complete_source_run_never_counts_missing(outcome):
+    pending = ListingLifecycle(
+        source="portal",
+        listing_id="42",
+        state=LifecycleState.MISSING_PENDING,
+        successful_missing_runs=1,
+    )
+
+    missing = apply_observation(
+        pending,
+        run_id="run-2",
+        observation=Observation.SOURCE_MISSING,
+        source_run_outcome=outcome,
+    )
+
+    assert missing.lifecycle == pending
+    assert missing.events == ()
+
+
+@pytest.mark.parametrize("outcome", [SourceRunOutcome.PARTIAL, SourceRunOutcome.FAILED])
+def test_direct_presence_is_authoritative_even_when_run_is_not_complete(outcome):
+    pending = ListingLifecycle(
+        source="portal",
+        listing_id="pending",
+        state=LifecycleState.MISSING_PENDING,
+        successful_missing_runs=1,
+    )
+    withdrawn = ListingLifecycle(
+        source="portal",
+        listing_id="withdrawn",
+        state=LifecycleState.WITHDRAWN,
+        successful_missing_runs=2,
+    )
+
+    active = apply_observation(
+        pending, run_id="run-2", observation=Observation.SOURCE_SEEN,
+        source_run_outcome=outcome,
+    )
+    reappeared = apply_observation(
+        withdrawn, run_id="run-2", observation=Observation.SOURCE_SEEN,
+        source_run_outcome=outcome,
+    )
+    replay = apply_observation(
+        reappeared.lifecycle, run_id="run-2", observation=Observation.SOURCE_SEEN,
+        source_run_outcome=outcome,
+    )
+
+    assert active.lifecycle.state is LifecycleState.ACTIVE
+    assert active.lifecycle.successful_missing_runs == 0
+    assert reappeared.lifecycle.state is LifecycleState.REAPPEARED
+    assert reappeared.events[0].reason == "seen_after_withdrawal"
+    assert replay.lifecycle == reappeared.lifecycle
+    assert replay.events == ()
+
+
 @pytest.mark.parametrize(
     "observation",
     [
         Observation.FILTER_HIDDEN,
         Observation.PHOTO_FAILURE,
         Observation.EXPORT_OMITTED,
+        Observation.DEDUP_HIDDEN,
     ],
 )
 def test_downstream_failures_and_filters_never_change_lifecycle(observation):

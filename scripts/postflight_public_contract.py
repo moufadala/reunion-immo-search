@@ -18,6 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.public_feed_dedup import deduplicate_public_feed
+from src.photo_gallery import audit_public_galleries
 
 # Final publication contract. This is intentionally stricter than
 # immo_public_monitor.py: monitor freshness is a 36h watchdog, postflight is a
@@ -227,6 +228,37 @@ def validate_group_summaries(listings: list[dict[str, object]], published: dict[
         errors.append("group_count_mismatch")
     return errors
 
+def visible_content_violations(
+    listings: list[dict[str, object]],
+) -> dict[str, list[str]]:
+    violations = {"missing_description": [], "missing_photo": []}
+    for item in listings:
+        identity = str(item.get("id") or "").strip() or "<missing-id>"
+        if not str(item.get("description") or "").strip():
+            violations["missing_description"].append(identity)
+        quality = item.get("description_quality")
+        quality = quality if isinstance(quality, dict) else {}
+        raw_markers = quality.get("markers")
+        markers = raw_markers if isinstance(raw_markers, (list, tuple, set)) else [raw_markers]
+        proven_incomplete = {"expand_prompt", "truncated_ellipsis", "synthetic_fallback", "empty"}
+        evidence = {
+            str(value or "").strip().lower()
+            for value in (*markers, quality.get("status"), item.get("description_status"))
+        }
+        if evidence & proven_incomplete:
+            violations.setdefault("invalid_description", []).append(identity)
+
+        raw_images = item.get("images")
+        gallery = raw_images if isinstance(raw_images, list) else []
+        has_photo = bool(str(item.get("image") or "").strip()) or any(
+            bool(str(value or "").strip()) for value in gallery
+        )
+        if not has_photo:
+            violations["missing_photo"].append(identity)
+    return violations
+
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--app", required=True, help="Chemin artifacts/app final")
@@ -324,7 +356,33 @@ def main() -> int:
             "aucune annonce active Saint-Denis Providence/Saint-François" if not quartier_violations else f"{len(quartier_violations)} annonce(s) violent le contrat quartier Saint-Denis",
             {"excluded": EXCLUDED_SAINT_DENIS_QUARTIERS, "violations": quartier_violations[:20]},
         )
-        remaining_visible, remaining_dedup = deduplicate_public_feed(active_listings)
+        content_violations = visible_content_violations(active_listings)
+        content_ok = not any(content_violations.values())
+        add_check(
+            checks,
+            "publication_visible_content_contract",
+            content_ok,
+            "toutes les annonces visibles ont une description et une photo"
+            if content_ok
+            else "annonce(s) visible(s) sans description ou photo",
+            {
+                key: values[:20]
+                for key, values in content_violations.items()
+            },
+        )
+        photo_integrity = audit_public_galleries(active_listings, app_root=app)
+        add_check(
+            checks,
+            "publication_photo_gallery_integrity",
+            photo_integrity["ok"],
+            "galeries sans doublon et aucune photo placeholder réutilisée massivement"
+            if photo_integrity["ok"]
+            else f"{len(photo_integrity['violations'])} violation(s) d'intégrité photo publique",
+            photo_integrity,
+        )
+        remaining_visible, remaining_dedup = deduplicate_public_feed(
+            active_listings, photo_root=app
+        )
         duplicate_rows = remaining_dedup.get("hidden_duplicates", 0)
         add_check(
             checks,

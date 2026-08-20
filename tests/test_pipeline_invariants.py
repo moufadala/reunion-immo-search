@@ -50,16 +50,15 @@ def main() -> int:
         print(f"ECHEC: script execute introuvable : {EXECUTE}")
         return 1
 
-    # --- 1. promote_app_candidate AVANT build_product_v2 -----------------------
-    # promote_app_candidate.py:70 fait shutil.rmtree(artifacts/app). Si
-    # build_product_v2 tourne AVANT, la v2 (feed.json, /v2/, photos_manifest)
-    # est detruite chaque soir a 16:30 et l'interface disparait.
+    # --- 1. produit COMPLET dans CLEAN_STAGE avant promotion ------------------
+    # La promotion installe maintenant un candidat complet et deja valide. Il
+    # ne doit plus exister de fenetre publique sans feed/v2/photos_manifest.
     i_promote = src.find("run_step promote_app_candidate")
-    i_build = src.find("run_step build_product_v2")
-    verifie("ordre_promote_avant_build",
-            i_promote != -1 and i_build != -1 and i_promote < i_build,
-            f"promote_app_candidate (pos {i_promote}) doit preceder build_product_v2 (pos {i_build}) "
-            "-- promote fait un rmtree de artifacts/app")
+    i_build = src.find("run_step build_product_v2_candidate")
+    verifie("ordre_build_candidate_avant_promote",
+            i_promote != -1 and i_build != -1 and i_build < i_promote,
+            f"build_product_v2_candidate (pos {i_build}) doit preceder promote_app_candidate "
+            f"(pos {i_promote}) -- le swap doit installer un candidat complet")
 
     # --- 2. IMMO_V2_AS_ROOT=1 garanti ----------------------------------------
     # build_product_v2.sh:20 lit V2_RACINE="${IMMO_V2_AS_ROOT:-0}". Sans definition,

@@ -28,7 +28,7 @@ def _app(path: Path, marker: str) -> Path:
 
 
 def test_apply_normalizes_public_read_permissions(tmp_path):
-    backup = _app(tmp_path / "app.pre-promote", "old")
+    backup = _app(tmp_path / "app.pre-promote-test", "old")
     target = _app(tmp_path / "app", "new")
     for child in backup.rglob("*"):
         child.chmod(0o700 if child.is_dir() else 0o600)
@@ -62,17 +62,15 @@ def test_failed_post_swap_validation_restores_original_target(tmp_path):
     assert not snapshot.exists()
 
 
-def test_final_retention_protects_backup_needed_by_failure_trap():
+def test_retention_finishes_before_global_transaction_backups_exist():
     source = DAILY.read_text(encoding="utf-8")
-    final_retention = source[
-        source.index("run_step artifact_retention"):
-        source.index("run_step immo_health_state_save")
-    ]
-    assert '--protect "$BACKUP_APP"' in final_retention
+    retention = source.index("run_step pre_promote_artifact_retention")
+    global_begin = source.index("run_step global_publication_begin")
+    assert retention < global_begin
 
 
 def test_backup_with_symlink_is_rejected(tmp_path):
-    backup = _app(tmp_path / "app.pre-promote", "old")
+    backup = _app(tmp_path / "app.pre-promote-test", "old")
     external = tmp_path / "private.txt"
     external.write_text("private", encoding="utf-8")
     link = backup / "exposed.txt"

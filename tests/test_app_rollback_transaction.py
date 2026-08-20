@@ -22,7 +22,7 @@ def _app(path: Path, marker: str) -> Path:
 
 
 def test_apply_rollback_preserves_target_inode_and_hardlinks_backup_media(tmp_path):
-    backup = _app(tmp_path / "app.pre-promote", "old")
+    backup = _app(tmp_path / "app.pre-promote-test", "old")
     target = _app(tmp_path / "app", "new")
     target_inode = target.stat().st_ino
     former_media_inode = (target / "thumbs" / "photo.jpg").stat().st_ino

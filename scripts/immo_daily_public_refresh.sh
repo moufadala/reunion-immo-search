@@ -27,6 +27,7 @@ CLEAN_PROJECT="/opt/data/projects/reunion-immo-clean-app"
 ROOT="/opt/data"
 export IMMO_DATA_ROOT="/opt/data"
 STAMP="${IMMO_REFRESH_STAMP:-$(date -u +%Y%m%dT%H%M%SZ)}"
+export IMMO_RUN_ID="$STAMP"
 RUN_DIR="${IMMO_REFRESH_RUN_DIR:-/opt/data/artifacts/immo-public-refresh/${STAMP}}"
 export IMMO_REFRESH_RUN_DIR="$RUN_DIR"
 PROD_DB="${IMMO_DB_PATH:-/opt/data/data/reunion_watch.db}"
@@ -36,19 +37,13 @@ DB="$PROD_DB"
 HISTORY_DB="${IMMO_EVENTS_DB:-/opt/data/artifacts/immo-alerts/history.sqlite}"
 HISTORY_STAGE="$RUN_DIR/history.stage.sqlite"
 export IMMO_EVENTS_DB="$HISTORY_STAGE"
+PUBLIC_APP="$PROJECT/artifacts/app"
+GLOBAL_TXN_JOURNAL="$PROJECT/artifacts/.daily-public-transaction.json"
 export IMMO_DB_PATH="$DB"
 SELOGER_ARTIFACT="/opt/data/artifacts/realestate/seloger_multipage_results.json"
+SELOGER_MANIFEST="/opt/data/artifacts/realestate/seloger_source_run_manifest.json"
+SOURCE_MANIFEST_BUNDLE="$RUN_DIR/source_run_manifests.json"
 mkdir -p "$RUN_DIR"
-"$PY" - "$HISTORY_DB" "$HISTORY_STAGE" <<'PYCODE'
-import pathlib, sqlite3, sys
-source, target = map(pathlib.Path, sys.argv[1:])
-target.parent.mkdir(parents=True, exist_ok=True)
-target.unlink(missing_ok=True)
-if source.exists():
-    with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
-        src.backup(dst)
-PYCODE
-
 "$PY" - "$RUN_DIR/scrapling_probe.json" <<'PYCODE'
 import json, os, pathlib, sys
 sys.path.insert(0, '/opt/data/scripts')
@@ -108,6 +103,20 @@ report_step() {
     tail -n 40 "$stderr" >&2 || true
     tail -n 40 "$stdout" >&2 || true
   fi
+# Recover a prior run before copying any canonical state into this run.
+run_step global_publication_recover "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" recover \
+  --journal "$GLOBAL_TXN_JOURNAL" --run-id "$STAMP" \
+  --db-target "$PROD_DB" --app-target "$PUBLIC_APP" --history-target "$HISTORY_DB"
+run_step history_stage_init "$PY" - "$HISTORY_DB" "$HISTORY_STAGE" <<'PYCODE'
+import pathlib, sqlite3, sys
+source, target = map(pathlib.Path, sys.argv[1:])
+target.parent.mkdir(parents=True, exist_ok=True)
+target.unlink(missing_ok=True)
+if source.exists():
+    with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
+        src.backup(dst)
+PYCODE
+
   return 0
 }
 
@@ -182,7 +191,19 @@ restore_on_failure() {
     printf 'Restoring DB before source_detail_enrichment after failure rc=%s\n' "$rc" >&2
     printf 'backup: %s\n' "$ENRICHMENT_DB_BACKUP" >&2
     printf 'db: %s\n' "$DB" >&2
-    cp -p "$ENRICHMENT_DB_BACKUP" "$DB"
+  if [ "$rc" -ne 0 ] && [ -s "${GLOBAL_TXN_JOURNAL:-}" ]; then
+    printf 'Recovering global DB/app/history publication after failure rc=%s\n' "$rc" >&2
+    "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" recover \
+      --journal "$GLOBAL_TXN_JOURNAL" --run-id "$STAMP" \
+      --db-target "$PROD_DB" --app-target "$PUBLIC_APP" --history-target "$HISTORY_DB" >&2 || {
+        printf 'CRITICAL: global publication recovery failed; next official run will retry\n' >&2
+      }
+  fi
+    "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --apply \
+      --backup "$ENRICHMENT_DB_BACKUP" --target "$DB" \
+      --json-out "$RUN_DIR/rollback_enrichment_failure.json" >&2 || {
+        printf 'CRITICAL: transactional enrichment DB rollback failed\n' >&2
+      }
   fi
   if [ "$rc" -ne 0 ] \
     && [ "${DB_PROMOTE_DONE:-0}" = "1" ] \
@@ -191,7 +212,11 @@ restore_on_failure() {
     printf 'Restoring promoted DB after failed downstream gate rc=%s\n' "$rc" >&2
     printf 'backup_db: %s\n' "$DB_PROMOTE_BACKUP" >&2
     printf 'prod_db: %s\n' "$PROD_DB" >&2
-    cp -p "$DB_PROMOTE_BACKUP" "$PROD_DB"
+    "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --apply \
+      --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" \
+      --json-out "$RUN_DIR/rollback_db_failure.json" >&2 || {
+        printf 'CRITICAL: transactional production DB rollback failed\n' >&2
+      }
   fi
   if [ "$rc" -ne 0 ] \
     && [ "${APP_SWAP_DONE:-0}" = "1" ] \
@@ -253,6 +278,11 @@ run_step realestate_refresh \
 run_step playwright_import_gate "$PY" "$PROJECT/tests/audit_runtime_playwright_import.py"
 run_step seloger_cdp_collect "$PY" "$PROJECT/scripts/seloger_multi_page.py"
 run_step seloger_import "$PY" "$PROJECT/src/import_seloger_multipage.py" --db "$DB" --artifact "$SELOGER_ARTIFACT" --max-age-hours 6
+run_step source_manifest_bundle \
+  "$PY" "$PROJECT/scripts/build_source_manifest_bundle.py" \
+    --base "$RUN_DIR/realestate_watch/source_run_manifests.json" \
+    --external "$SELOGER_MANIFEST" \
+    --out "$SOURCE_MANIFEST_BUNDLE"
 
 # Recover source-detail descriptions before building the public artifact.
 # This is deliberately idempotent and guarded: it snapshots DB internally and
@@ -291,6 +321,9 @@ run_step source_detail_enrichment "$PY" "${ENRICH_ARGS[@]}"
 # seloger_multi_page.py) -- retire de l'exclusion. superimmo reste exclu
 # (hCaptcha reel, aucun contournement tente).
 run_step detail_enrich "$PY" "$PROJECT/scripts/detail_enrich.py" --limit 60 --delay 5 --only-active --exclude superimmo
+run_step description_observability_gate bash -lc \
+  'cd "$1" && "$2" -m src.description_observability --db "$3" --output "$4"' \
+  _ "$PROJECT" "$PY" "$DB" "$RUN_DIR/description_observability.json"
 
 # Recompute through a safe two-stage pipeline:
 # 1) build the technical app in an isolated stage, not in artifacts/app served by nginx;
@@ -351,31 +384,36 @@ PY
 run_step description_quality_stage_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_stage_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$CLEAN_STAGE"
 report_step public_delta_guard "$PY" "$PROJECT/scripts/audit_public_delta_guard.py" --baseline "$PROJECT/artifacts/app" --candidate "$CLEAN_STAGE" --json-out "$RUN_DIR/public_delta_guard.json"
 run_step dedup_stage_audit "$PY" "$PROJECT/scripts/audit_dedup_public.py" --listings "$CLEAN_STAGE/listings.json" --json-out "$RUN_DIR/dedup_audit.json" --md-out "$RUN_DIR/dedup_audit.md"
-run_step stage_source_freshness_gate "$PY" - "$CLEAN_STAGE/source_health.json" <<'PY'
-import json, os, sys
+run_step stage_source_freshness_gate "$PY" - "$CLEAN_STAGE/source_health.json" "$SOURCE_MANIFEST_BUNDLE" <<'PY'
+import json, sys
 from pathlib import Path
 
 payload = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+manifest_bundle = json.loads(Path(sys.argv[2]).read_text(encoding='utf-8'))
+manifest_gate = manifest_bundle.get('gate') or {}
 summary = payload.get('summary') or {}
 sources = payload.get('sources') or []
 coverage_low = summary.get('coverage_below_threshold') or []
 fresh = int((summary.get('status_counts') or {}).get('fresh') or 0)
 critical_attention = summary.get('stale_or_attention_critical') or []
 source_count = summary.get('source_count')
-report_only = os.environ.get('IMMO_FRESHNESS_REPORT_ONLY', '0') == '1'
 problems = []
+if not manifest_gate.get('ok'):
+    problems.append(f'current source manifest gate failed: {manifest_gate}')
+health_warnings = []
 if fresh < 11:
-    problems.append(f'fresh={fresh}/{source_count} < 11')
-if len(critical_attention) > 2:
-    problems.append(f'too many critical sources need attention: {critical_attention}')
+    health_warnings.append(f'fresh={fresh}/{source_count} < 11')
+if critical_attention:
+    health_warnings.append(f'critical sources need attention: {critical_attention}')
 if coverage_low:
-    problems.append(f'source coverage below threshold (coverage-low): {coverage_low}')
-if problems and not report_only:
+    health_warnings.append(f'source coverage below threshold (coverage-low): {coverage_low}')
+if problems:
     raise SystemExit('stage source freshness gate failed: ' + '; '.join(problems))
 print(json.dumps({
     'ok': not problems,
-    'report_only': report_only,
+    'manifest_gate': manifest_gate,
     'problems': problems,
+    'health_warnings': health_warnings,
     'fresh_sources': fresh,
     'source_count': source_count,
     'critical_attention': critical_attention,
@@ -384,16 +422,31 @@ print(json.dumps({
 }, ensure_ascii=False))
 PY
 
-if [ "$STAGE_DB_MODE" = "1" ]; then
-  run_step promote_db_candidate "$PY" "$PROJECT/scripts/promote_db_candidate.py" --candidate "$DB" --target "$PROD_DB" --max-drop-pct "${IMMO_MAX_DB_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_db.json"
-  DB_PROMOTE_BACKUP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_db.json")"
-  DB_PROMOTE_DONE=1
-  run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
-fi
-
-run_step listing_history_canonical "$PY" "$PROJECT/src/listing_history.py" --source-db "$PROD_DB" --db "$HISTORY_STAGE"
+run_step listing_history_canonical "$PY" "$PROJECT/src/listing_history.py" --source-db "$DB" --db "$HISTORY_STAGE" --source-run-manifest "$SOURCE_MANIFEST_BUNDLE"
 run_step listing_changes "$PY" "$PROJECT/src/listing_changes.py" --db "$HISTORY_STAGE" --limit 80 --out "$CLEAN_STAGE/changes.json" --html-out "$RUN_DIR/changes.html"
 report_step enhance_changes_decision bash -lc 'cp "$2" "$3/changes.json" && "$0" "$1" --app "$3"' "$PY" "$PROJECT/scripts/enhance_changes_decision_view.py" "$CLEAN_STAGE/changes.json" "$RUN_DIR"
+run_step build_product_v2_candidate env IMMO_APP_PATH="$CLEAN_STAGE" IMMO_DB_PATH="$DB" IMMO_EVENTS_DB="$HISTORY_STAGE" IMMO_V2_AS_ROOT=1 IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 bash "$PROJECT/scripts/build_product_v2.sh"
+run_step pipeline_reconciliation_candidate "$PY" "$PROJECT/scripts/build_pipeline_reconciliation.py" \
+  --feed "$CLEAN_STAGE/feed.json" \
+  --source-manifests "$RUN_DIR/source_run_manifests.json" \
+  --db "$DB" \
+  --out "$RUN_DIR/pipeline_reconciliation.json"
+run_step product_v2_candidate_gate env IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 "$PY" "$PROJECT/scripts/audit_product_v2.py" "$CLEAN_STAGE"
+run_step immo_health_candidate_gate env IMMO_APP_PATH="$CLEAN_STAGE" IMMO_DB_PATH="$DB" IMMO_EVENTS_DB="$HISTORY_STAGE" "$PY" "$PROJECT/scripts/immo_health_checks.py" --gate-chain --json "$RUN_DIR/immo_health_checks.json"
+run_step clean_portal_candidate_audit bash -lc 'IMMO_APP_PATH="$2" "$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) clean_portal_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_clean_portal.py" "$CLEAN_STAGE"
+run_step description_quality_candidate_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$CLEAN_STAGE"
+report_step public_quality_budget_candidate_audit "$PY" "$PROJECT/tests/audit_public_quality_budget.py" "$CLEAN_STAGE"
+report_step public_storage_state_candidate_audit "$PY" "$PROJECT/tests/audit_public_storage_state.py" "$CLEAN_STAGE"
+report_step public_perf_index_candidate_audit "$PY" "$PROJECT/tests/audit_public_perf_index.py" "$CLEAN_STAGE"
+report_step public_seo_candidate_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$CLEAN_STAGE"
+run_step build_manifest_candidate "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$CLEAN_STAGE" --run-dir "$RUN_DIR" --db "$DB"
+report_step build_manifest_candidate_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$CLEAN_STAGE"
+run_step candidate_app_permissions bash -lc '
+  set -euo pipefail
+  app="$1"
+  find "$app" -type d -exec chmod 755 {} +
+  find "$app" -type f -exec chmod 644 {} +
+' _ "$CLEAN_STAGE"
 run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" \
   --artifacts "$PROJECT/artifacts" \
   --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" \
@@ -402,39 +455,31 @@ run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retenti
   --protect "$CLEAN_STAGE" \
   --apply \
   --json-out "$RUN_DIR/pre_promote_artifact_retention.json"
+run_step global_publication_begin "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" begin \
+  --journal "$GLOBAL_TXN_JOURNAL" --run-id "$STAMP" \
+  --db-target "$PROD_DB" --app-target "$PUBLIC_APP" --history-target "$HISTORY_DB"
+if [ "$STAGE_DB_MODE" = "1" ]; then
+  run_step promote_db_candidate "$PY" "$PROJECT/scripts/promote_db_candidate.py" --candidate "$DB" --target "$PROD_DB" --max-drop-pct "${IMMO_MAX_DB_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_db.json"
+  DB_PROMOTE_BACKUP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_db.json")"
+  DB_PROMOTE_DONE=1
+  run_step rollback_db_drill "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --backup "$DB_PROMOTE_BACKUP" --target "$PROD_DB" --json-out "$RUN_DIR/rollback_db_drill.json" --qa-cmd "$PY $PROJECT/tests/audit_db_enrichment.py --db $DB_PROMOTE_BACKUP"
+fi
 
 export IMMO_MEDIA_COPY_MODE=hardlink
-run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PROJECT/artifacts/app" --max-drop-pct "${IMMO_MAX_APP_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_app.json"
+run_step promote_app_candidate "$PY" "$PROJECT/scripts/promote_app_candidate.py" --candidate "$CLEAN_STAGE" --target "$PUBLIC_APP" --max-drop-pct "${IMMO_MAX_APP_DROP_PCT:-15}" --json-out "$RUN_DIR/promote_app.json"
 BACKUP_APP="$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1])).get("backup") or "")' "$RUN_DIR/promote_app.json")"
 APP_SWAP_DONE=1
-run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PROJECT/artifacts/app" --json-out "$RUN_DIR/rollback_app_drill.json"
-
-# Bug trouve le 27/07 (soir) : promote_app_candidate ci-dessus fait un rmtree
-# puis recopie CLEAN_STAGE, qui ne contient ni v2/ ni feed.json ni
-# photos_manifest.json (produits par une chaine SEPAREE). build_product_v2.sh
-# existait deja depuis le matin du 27/07 mais n'etait jamais appele ici : le
-# premier run quotidien reel apres sa creation aurait donc efface /v2/ en
-# silence. DOIT rester APRES promote_app_candidate (l'ordre est l'invariant).
-run_step build_product_v2 env IMMO_V2_AS_ROOT=1 IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 bash "$PROJECT/scripts/build_product_v2.sh"
-
-run_step product_v2_gate env IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO=0.08 "$PY" "$PROJECT/scripts/audit_product_v2.py" "$PROJECT/artifacts/app"
-run_step immo_health_gate "$PY" "$PROJECT/scripts/immo_health_checks.py" --gate-chain --json "$RUN_DIR/immo_health_checks.json"
-
-run_step clean_portal_audit bash -lc '"$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) clean_portal_audit rc=$rc non-bloquant: audit legacy racine incompatible avec IMMO_V2_AS_ROOT=1" >&2; exit 0' "$PY" "$PROJECT/tests/audit_clean_portal.py"
-run_step description_quality_audit bash -lc '"$0" "$1" "$2"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0) description_quality_audit rc=$rc non-bloquant" >&2; exit 0' "$PY" "$PROJECT/tests/audit_description_quality.py" "$PROJECT/artifacts/app"
-report_step public_quality_budget_audit "$PY" "$PROJECT/tests/audit_public_quality_budget.py" "$PROJECT/artifacts/app"
-report_step public_storage_state_audit bash -lc '"$0" "$1"; rc=$?; [ "$rc" -eq 0 ] || echo "REPORT-ONLY(Phase0/V2-root) public_storage_state_audit rc=$rc non-bloquant: audit legacy homepage incompatible avec IMMO_V2_AS_ROOT=1" >&2; exit 0' "$PY" "$PROJECT/tests/audit_public_storage_state.py" "$PROJECT/artifacts/app"
-report_step public_perf_index_audit "$PY" "$PROJECT/tests/audit_public_perf_index.py" "$PROJECT/artifacts/app"
-report_step public_seo_audit "$PY" "$PROJECT/tests/audit_public_seo.py" "$PROJECT/artifacts/app"
-run_step build_manifest "$PY" "$PROJECT/scripts/generate_build_manifest.py" --app "$PROJECT/artifacts/app" --run-dir "$RUN_DIR" --db "$PROD_DB"
-report_step build_manifest_audit "$PY" "$PROJECT/tests/audit_build_manifest.py" "$PROJECT/artifacts/app"
-run_step public_app_permissions bash -lc '
-  set -euo pipefail
-  app="$1"
-  find "$app" -type d -exec chmod 755 {} +
-  find "$app" -type f -exec chmod 644 {} +
-' _ "$PROJECT/artifacts/app"
+run_step rollback_app_drill "$PY" "$PROJECT/scripts/rollback_public_app.py" --backup "$BACKUP_APP" --target "$PUBLIC_APP" --json-out "$RUN_DIR/rollback_app_drill.json"
+run_step promote_listing_history "$PY" - "$HISTORY_STAGE" "$HISTORY_DB" <<'PY'
+import pathlib, sys
+sys.path.insert(0, str(pathlib.Path.cwd()))
+from src.sqlite_atomic import atomic_sqlite_snapshot
+source, target = map(pathlib.Path, sys.argv[1:])
+atomic_sqlite_snapshot(source, target)
+PY
 run_step publish_clean_static bash "$PROJECT/deploy/publish-traefik.sh"
+run_step public_external_gate_v2 "$PY" "$PROJECT/scripts/qa_public_external_v2.py" \
+  --json-out "$RUN_DIR/public_external_gate_v2.json"
 run_step public_v2_qa env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2.json"
 report_step public_qa bash "$PROJECT/deploy/qa-public.sh"
 LOCAL_AUDIT_PORT="${IMMO_LOCAL_AUDIT_PORT:-18089}"
@@ -456,28 +501,15 @@ report_step opportunity_v2_audit "$PY" "$PROJECT/tests/audit_opportunity_v2.py" 
 report_step dedup_display_audit "$PY" "$PROJECT/tests/audit_dedup_display.py" "$PROJECT/artifacts/app"
 report_step public_dedup_canonical_display_audit "$PY" "$PROJECT/tests/audit_public_dedup_canonical_display.py" "$PROJECT/artifacts/app"
 run_step public_v2_qa_final env IMMO_QA_STRICT_LEGACY="${IMMO_QA_STRICT_LEGACY:-1}" "$PY" "$PROJECT/scripts/qa_public_v2.py" --json "$RUN_DIR/qa_public_v2_final.json"
-run_step artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" --artifacts "$PROJECT/artifacts" --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" --keep-pre-promote "${IMMO_RETENTION_KEEP_PRE_PROMOTE:-1}" --protect "$BACKUP_APP" --apply --json-out "$RUN_DIR/artifact_retention.json"
 run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" --warn-only --save-state --json "$RUN_DIR/immo_health_state_save.json"
 # P1 final postflight: this must remain the last blocking publication gate.
 # Keep it after every producer/audit that can touch artifacts/app, but before
 # APP_KEEP/DB_PROMOTE_KEEP so a failure still triggers the rollback trap.
 run_step postflight_public_contract env IMMO_MAX_FEED_AGE_H="${IMMO_MAX_FEED_AGE_H:-2}" "$PY" "$PROJECT/scripts/postflight_public_contract.py" --app "$PROJECT/artifacts/app" --container "${IMMO_PUBLIC_CONTAINER:-immo-dashboard}" --json-out "$RUN_DIR/postflight_public_contract.json"
-run_step promote_listing_history "$PY" -c '
-import os, pathlib, shutil, sys
-source, target = map(pathlib.Path, sys.argv[1:])
-target.parent.mkdir(parents=True, exist_ok=True)
-temporary = target.with_suffix(target.suffix + ".promoting")
-shutil.copy2(source, temporary)
-os.replace(temporary, target)
-' "$HISTORY_STAGE" "$HISTORY_DB"
-APP_KEEP=1
-ENRICHMENT_DB_KEEP=1
-DB_PROMOTE_KEEP=1
-
-"$PY" - "$RUN_DIR" <<'PY'
-import json, pathlib, sys
+"$PY" - "$RUN_DIR" "$PROJECT" <<'PY'
+import json, os, pathlib, sys
 run_dir=pathlib.Path(sys.argv[1])
-project=pathlib.Path('/opt/data/projects/reunion-immo-search')
+project=pathlib.Path(sys.argv[2])
 app=project/'artifacts/app'
 listings=json.loads((app/'listings.json').read_text())
 health_summary={}
@@ -491,23 +523,49 @@ if health_path.exists():
 steps=[]
 for p in sorted(run_dir.glob('*.status')):
     steps.append(p.read_text().strip())
-print(json.dumps({
-  'ok': True,
-  'run_dir': str(run_dir),
-  'steps': steps,
-  'public_app': 'rich_static_gallery',
-  'listings_exported': len(listings.get('listings') or []),
-  'local_multi_galleries': sum(1 for x in (listings.get('listings') or []) if isinstance(x.get('local_image_urls'), list) and len(x['local_image_urls']) > 1),
-  'opportunity_scored': sum(1 for x in (listings.get('listings') or []) if x.get('opportunity_analysis')),
-  'suspects_excluded': len(listings.get('suspects') or []),
-  'source_health': health_summary,
-  'seloger': seloger,
-  'stage_db_mode': True,
-  'daily_summary': str(run_dir/'daily_summary'/'summary.json'),
-  'promote_app': str(run_dir/'promote_app.json'),
-  'promote_db': str(run_dir/'promote_db.json'),
-  'rollback_app_drill': str(run_dir/'rollback_app_drill.json'),
-  'rollback_db_drill': str(run_dir/'rollback_db_drill.json'),
-  'public': 'https://immo.148.230.103.174.sslip.io/'
-}, ensure_ascii=False, indent=2))
+summary={
+    'ok': True,
+    'run_dir': str(run_dir),
+    'steps': steps,
+    'public_app': 'rich_static_gallery',
+    'listings_exported': len(listings.get('listings') or []),
+    'local_multi_galleries': sum(1 for x in (listings.get('listings') or []) if isinstance(x.get('local_image_urls'), list) and len(x['local_image_urls']) > 1),
+    'opportunity_scored': sum(1 for x in (listings.get('listings') or []) if x.get('opportunity_analysis')),
+    'suspects_excluded': len(listings.get('suspects') or []),
+    'source_health': health_summary,
+    'seloger': seloger,
+    'stage_db_mode': True,
+    'daily_summary': str(run_dir/'daily_summary'/'summary.json'),
+    'promote_app': str(run_dir/'promote_app.json'),
+    'promote_db': str(run_dir/'promote_db.json'),
+    'rollback_app_drill': str(run_dir/'rollback_app_drill.json'),
+    'rollback_db_drill': str(run_dir/'rollback_db_drill.json'),
+    'public': 'https://immo.148.230.103.174.sslip.io/',
+}
+destination=run_dir/'final_summary.json'
+temporary=run_dir/'.final_summary.json.prepared'
+encoded=json.dumps(summary, ensure_ascii=False, indent=2)+'\n'
+with temporary.open('w', encoding='utf-8') as handle:
+    handle.write(encoded)
+    handle.flush()
+    os.fsync(handle.fileno())
+os.replace(temporary, destination)
+try:
+    directory_fd=os.open(run_dir, os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0))
+except OSError:
+    directory_fd=None
+if directory_fd is not None:
+    try:
+        os.fsync(directory_fd)
+    finally:
+        os.close(directory_fd)
+if json.loads(destination.read_text(encoding='utf-8')) != summary:
+    raise SystemExit('durable final summary verification failed')
+print(encoded, end='')
 PY
+run_step global_publication_commit "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" commit \
+  --journal "$GLOBAL_TXN_JOURNAL" --run-id "$STAMP" \
+  --db-target "$PROD_DB" --app-target "$PUBLIC_APP" --history-target "$HISTORY_DB"
+ENRICHMENT_DB_KEEP=1
+APP_KEEP=1
+DB_PROMOTE_KEEP=1

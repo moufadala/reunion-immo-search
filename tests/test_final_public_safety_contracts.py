@@ -32,7 +32,7 @@ def test_same_building_address_without_second_proof_stays_visible() -> None:
 def test_event_feed_applies_policy_and_visible_count_after_dedup() -> None:
     source = (ROOT / "scripts" / "export_feed.py").read_text(encoding="utf-8")
     assert "if not evaluate_publication(item).eligible:" in source
-    assert source.index("listings, dedup_report = deduplicate_public_feed(listings)") < source.index(
+    assert source.index("listings, dedup_report = deduplicate_public_feed(") < source.index(
         "movements['actives'] = len(listings)"
     )
 

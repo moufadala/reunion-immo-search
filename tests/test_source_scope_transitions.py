@@ -37,15 +37,25 @@ def _watch_db(path: Path) -> None:
     con.close()
 
 
-def test_domimmo_complete_scope_deactivates_legacy_rows_immediately(tmp_path):
+def test_complete_scope_deactivates_only_after_two_distinct_complete_runs(tmp_path):
     db = tmp_path / "watch.db"
     _watch_db(db)
 
-    changed = realestate_watch.mark_stale_not_seen(
+    first = realestate_watch.mark_stale_not_seen(
         db,
         "2026-08-12T10:00:00+00:00",
         ["domimmo"],
         {"domimmo": 4},
+        run_id="run-1",
+    )
+    replay = realestate_watch.mark_stale_not_seen(
+        db, "2026-08-12T10:00:00+00:00", ["domimmo"], {"domimmo": 4}, run_id="run-1"
+    )
+    partial = realestate_watch.mark_stale_not_seen(
+        db, "2026-08-12T10:00:00+00:00", [], {"domimmo": 0}, run_id="run-partial"
+    )
+    second = realestate_watch.mark_stale_not_seen(
+        db, "2026-08-12T10:00:00+00:00", ["domimmo"], {"domimmo": 4}, run_id="run-2"
     )
 
     con = sqlite3.connect(db)
@@ -53,8 +63,37 @@ def test_domimmo_complete_scope_deactivates_legacy_rows_immediately(tmp_path):
         "SELECT COUNT(*) FROM rental_listings WHERE source_site='domimmo' AND is_active=1"
     ).fetchone()[0]
     con.close()
-    assert changed == {"domimmo": 39}
+    assert first == {"domimmo": 0}
+    assert replay == {"domimmo": 0}
+    assert partial == {}
+    assert second == {"domimmo": 39}
     assert active == 4
+
+
+def test_seen_listing_resets_its_missing_counter(tmp_path):
+    db = tmp_path / "watch.db"
+    _watch_db(db)
+    realestate_watch.mark_stale_not_seen(
+        db, "2026-08-12T10:00:00+00:00", ["domimmo"], run_id="run-1"
+    )
+    con = sqlite3.connect(db)
+    con.execute(
+        "UPDATE rental_listings SET seen_last_at=? WHERE source_site='domimmo' AND source_id='0'",
+        ("2026-08-12T10:01:00+00:00",),
+    )
+    con.commit()
+    con.close()
+    realestate_watch.mark_stale_not_seen(
+        db, "2026-08-12T10:00:00+00:00", ["domimmo"], run_id="run-2"
+    )
+    con = sqlite3.connect(db)
+    state = con.execute(
+        "SELECT COUNT(*) FROM source_absence_state WHERE source_site='domimmo' AND source_id='0'"
+    ).fetchone()[0]
+    active = con.execute("SELECT is_active FROM rental_listings WHERE source_id='0'").fetchone()[0]
+    con.close()
+    assert state == 0
+    assert active == 1
 
 
 def test_scope_version_change_resets_only_that_sources_volume_baseline(tmp_path, monkeypatch):

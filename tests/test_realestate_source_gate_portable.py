@@ -18,13 +18,13 @@ def _result(source: str, ok: bool) -> realestate_watch.RunnerResult:
     )
 
 
-def test_thirteen_of_fourteen_sources_pass_without_hiding_failed_source():
+def test_thirteen_of_fourteen_sources_block_when_critical_source_failed():
     sources = ["bienici", "ofim", "97immo", "adrezio", "alter", "citya", "domimmo", "fnaim", "immo974", "locamoi", "ofim_rss", "superimmo", "zimo"]
     results = [_result(source, True) for source in sources] + [_result("leboncoin", False)]
 
     gate = realestate_watch.evaluate_source_gate(results)
 
-    assert gate["ok"] is True
+    assert gate["ok"] is False
     assert gate["ok_count"] == 13
     assert gate["total"] == 14
     assert gate["failed_sources"] == ["leboncoin"]

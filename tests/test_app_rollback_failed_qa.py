@@ -15,7 +15,7 @@ def _app(path: Path, marker: str) -> None:
 
 
 def test_failed_pre_swap_qa_leaves_target_intact_and_removes_prepared_tree(tmp_path):
-    backup, target = tmp_path / "app.pre-promote", tmp_path / "app"
+    backup, target = tmp_path / "app.pre-promote-test", tmp_path / "app"
     _app(backup, "old")
     _app(target, "new")
     report = tmp_path / "rollback.json"

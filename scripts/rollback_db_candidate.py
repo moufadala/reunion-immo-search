@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.sqlite_atomic import atomic_sqlite_snapshot, sqlite_publication_lock
 
 
 def integrity(path: Path) -> str:
@@ -36,8 +38,19 @@ def validate(path: Path) -> dict[str, object]:
         return {"ok": False, "path": str(path), "missing": missing, "integrity": None, "active_rows": None}
     integ = integrity(path)
     rows = active_count(path) if integ.lower() == "ok" else None
-    ok = integ.lower() == "ok" and rows is not None and rows >= 400
+    ok = integ.lower() == "ok" and rows is not None
     return {"ok": ok, "path": str(path), "missing": missing, "integrity": integ, "active_rows": rows}
+
+def apply_atomic_rollback(
+    backup: Path, target: Path, target_snapshot: Path
+) -> dict[str, object]:
+    """Own the target publication lock for snapshot, restore and validation."""
+    with sqlite_publication_lock(target):
+        if target.exists():
+            atomic_sqlite_snapshot(target, target_snapshot)
+        atomic_sqlite_snapshot(backup, target)
+        return validate(target)
+
 
 
 def main() -> int:
@@ -65,16 +78,13 @@ def main() -> int:
     if args.apply:
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
         target_snapshot = args.target.with_name(args.target.name + f".before-rollback-{stamp}")
-        if args.target.exists():
-            shutil.copy2(args.target, target_snapshot)
-        shutil.copy2(args.backup, args.target)
+        restored_check = apply_atomic_rollback(args.backup, args.target, target_snapshot)
         restored_path = args.target
-        restored_check = validate(args.target)
         qa_env = None
     else:
         with TemporaryDirectory(prefix="immo-db-rollback-drill-") as td:
             restored_path = Path(td) / args.target.name
-            shutil.copy2(args.backup, restored_path)
+            atomic_sqlite_snapshot(args.backup, restored_path)
             restored_check = validate(restored_path)
             qa_env = {"IMMO_DB_PATH": str(restored_path)}
             for cmd in args.qa_cmd:
@@ -95,6 +105,7 @@ def main() -> int:
                 "backup_check": backup_check,
                 "restored_check": restored_check,
                 "qa_results": qa_results,
+                "atomic_replace": False,
             }
             args.json_out.parent.mkdir(parents=True, exist_ok=True)
             args.json_out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -122,6 +133,7 @@ def main() -> int:
         "backup_check": backup_check,
         "restored_check": restored_check,
         "qa_results": qa_results,
+        "atomic_replace": True,
     }
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

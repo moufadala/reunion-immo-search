@@ -25,7 +25,7 @@ def test_strong_cross_portal_duplicate_keeps_one_card_and_all_links() -> None:
     assert summary["canonical_display_id"] == visible[0]["id"]
     assert summary["member_count"] == 2
     assert summary["sources"] == ["a", "b"]
-    assert summary["reason"] == "same_address_and_photo"
+    assert summary["reason"] == "same_title_and_description"
     assert "url" not in summary
     assert set(visible[0]["images"]) == {"common.jpg", "a.jpg", "b.jpg"}
     assert visible[0]["balcony"] is True

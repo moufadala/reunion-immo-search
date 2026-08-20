@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, 'reconcile/**', 'fix/**']
+    branches: [main, 'reconcile/**', 'fix/**', 'stabilize/**']
 
 permissions:
   contents: read
@@ -24,6 +24,12 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install locked Python dependencies
+        run: uv sync --locked
+
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
@@ -40,18 +46,10 @@ jobs:
           python -m compileall -q src scripts tests
 
       - name: Behavior tests (pytest)
-        run: |
-          python -m pip install --quiet pytest
-          python -m pytest -q \
-            tests/test_leboncoin_apify_mapping.py \
-            tests/test_identity_dedup.py \
-            tests/test_normalize_db_commune_detection.py \
-            tests/test_enrich_source_details_v3.py \
-            tests/test_listing_contracts.py \
-            tests/test_source_health_coverage.py \
-            tests/test_realestate_source_gate_portable.py \
-            tests/test_pipeline_coverage_gate_contract.py \
-            tests/test_source_job_contracts.py
+        run: uv run pytest -q
+
+      - name: Explicit fourteen-source publication gate
+        run: uv run pytest -q tests/test_realestate_watch_source_gate.py
 
       - name: Frontend dependency audit and build
         working-directory: webapp

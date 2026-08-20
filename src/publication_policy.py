@@ -35,6 +35,21 @@ def _norm(value: Any) -> str:
     text = unicodedata.normalize("NFKD", str(value or "")).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z0-9]+", " ", text).strip()
 
+def _is_manifestly_commercial(row: Mapping[str, Any]) -> bool:
+    commercial_types = {"commercial", "commerce", "local commercial", "bureau", "bureaux", "retail"}
+    for key in ("type", "property_type", "property_type_normalized"):
+        value = _norm(row.get(key))
+        if value in commercial_types:
+            return True
+    text = " ".join(_norm(row.get(key)) for key in ("title", "description"))
+    # Narrow, affirmative inventory signals.  Incidental phrases such as
+    # "espace bureau" and "proche du centre commercial" remain residential.
+    return bool(re.search(
+        r"\b(?:bail commercial|cession (?:de |du |d un )?bail|droit au bail|"
+        r"fonds? de commerce|locaux? commerciaux?)\b",
+        text,
+    ))
+
 def _excluded_district(city: Any, district: Any) -> str | None:
     if _norm(city) not in {"saint denis", "st denis"}:
         return None
@@ -87,6 +102,13 @@ def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
         return PublicationDecision(False, "rent_missing_or_invalid")
     if rent > MAX_RENT_EUR:
         return PublicationDecision(False, "rent_above_1700")
+    residential = _first(row, "residential", "is_residential")
+    if residential is False or residential == 0 or _norm(residential) in {
+        "false", "no", "non",
+    }:
+        return PublicationDecision(False, "non_residential")
+    if _is_manifestly_commercial(row):
+        return PublicationDecision(False, "non_residential_commercial")
     city = _first(row, "commune", "city")
     city_norm = _norm(city)
     if not city_norm:
@@ -98,4 +120,9 @@ def evaluate_publication(row: Mapping[str, Any]) -> PublicationDecision:
         return PublicationDecision(False, "manifest_outside_scope")
     district = _first(row, "quartier", "district", "primary_zone", "location_label")
     reason = _excluded_district(city, district) or _excluded_district_from_text(city, row)
+    if reason is None and row.get("commune") not in (None, ""):
+        # Some portals put the Saint-Denis district in city while preserving
+        # the actual commune separately; true city values do not match here.
+        reason = _excluded_district(row.get("commune"), row.get("city"))
+
     return PublicationDecision(not bool(reason), reason)

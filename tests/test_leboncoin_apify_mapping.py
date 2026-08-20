@@ -153,16 +153,15 @@ def test_supports_flattened_item_shape_and_label_type() -> None:
     assert listing.city == "Sainte-Marie"
 
 
-def test_actor_input_is_incremental_and_uses_handoff_slugs() -> None:
-    payload = rms._leboncoin_actor_input(40)
-    assert payload["max_pages"] == 1
-    assert payload["limit_per_page"] == 10
-    assert payload["max_age_days"] == 30
+def test_actor_input_is_a_bounded_full_snapshot_for_the_two_live_communes() -> None:
+    payload = rms._leboncoin_actor_input(700)
+    assert payload["max_pages"] == 10
+    assert payload["limit_per_page"] == 35
+    assert payload["max_age_days"] == 0
     source = MOD_PATH.read_text(encoding="utf-8")
     assert "source_status[fname]={'ok': bool(listings)" in source
     assert [u.split("locations=", 1)[1].split("&", 1)[0] for u in payload["urls_list"]] == [
         "Saint-Denis_97400", "Sainte-Marie_97438",
-        "Sainte-Suzanne_97441", "Saint-André_97440",
     ]
     assert payload["proxyConfiguration"]["apifyProxyCountry"] == "FR"
 
@@ -285,7 +284,7 @@ def main() -> int:
         test_maps_native_residential_house_type_1,
         test_filters_non_residential_land_and_parking,
         test_supports_flattened_item_shape_and_label_type,
-        test_actor_input_is_incremental_and_uses_handoff_slugs,
+        test_actor_input_is_a_bounded_full_snapshot_for_the_two_live_communes,
         test_listings_helper_filters_and_maps_mixed_dataset,
     ]:
         test()

@@ -33,10 +33,12 @@ DEFAULT_OUT = ROOT / "artifacts" / "app" / "source_health.json"
 _DEFAULT_HTML_DIR = Path(os.environ.get("IMMO_RUN_DIR", str(ROOT / "artifacts" / "source-health")))
 DEFAULT_HTML_OUT = Path(os.environ.get("IMMO_SOURCE_HEALTH_HTML_OUT", str(_DEFAULT_HTML_DIR / "source_health.html")))
 CRITICAL_SOURCES = {
+    "leboncoin",
     "seloger", "zimo", "bienici", "ofim", "domimmo", "fnaim",
     "citya", "immo974", "locamoi", "97immo", "alter", "superimmo",
     "adrezio",
 }
+AUXILIARY_SOURCES = {"ofim_rss"}
 # Conservative freshness thresholds for rental listings. Some portals do not
 # change every hour; stale here means "needs attention", not "delete rows".
 FRESH_HOURS = 36
@@ -232,20 +234,30 @@ def build_payload(db_path: Path = DEFAULT_DB, smoke_summary: Path | None = None,
     smoke_path = smoke_summary or find_latest_summary()
     smoke = load_smoke_summary(smoke_path)
     stats = db_source_stats(db_path, reference_time=now)
-    sources = sorted(set(stats) | CRITICAL_SOURCES)
-    items = [classify_source(src, stats.get(src, {"source": src}), smoke, now) for src in sources]
-    counts = Counter(i["status"] for i in items)
-    severity_counts = Counter(i["severity"] for i in items)
-    stale_critical = [i["source"] for i in items if i.get("is_critical") and i["status"] in {"aging", "stale", "unknown", "empty"}]
-    coverage_low_all = [i["source"] for i in items if i["status"] == "coverage-low"]
-    coverage_low = [i["source"] for i in items if i.get("is_critical") and i["status"] == "coverage-low"]
+    portal_sources = sorted((set(stats) | CRITICAL_SOURCES) - AUXILIARY_SOURCES)
+    auxiliary_sources = sorted(AUXILIARY_SOURCES)
+    portal_items = [
+        classify_source(src, stats.get(src, {"source": src}), smoke, now)
+        for src in portal_sources
+    ]
+    auxiliary_items = [
+        classify_source(src, stats.get(src, {"source": src}), smoke, now)
+        for src in auxiliary_sources
+    ]
+    items = portal_items + auxiliary_items
+    counts = Counter(i["status"] for i in portal_items)
+    severity_counts = Counter(i["severity"] for i in portal_items)
+    stale_critical = [i["source"] for i in portal_items if i.get("is_critical") and i["status"] in {"aging", "stale", "unknown", "empty"}]
+    coverage_low_all = [i["source"] for i in portal_items if i["status"] == "coverage-low"]
+    coverage_low = [i["source"] for i in portal_items if i.get("is_critical") and i["status"] == "coverage-low"]
     return {
-        "ok": not coverage_low,
+        "ok": not coverage_low and not stale_critical,
         "generated_at": now.isoformat(),
         "db_path": db_path.name,
         "latest_smoke_summary": public_smoke_summary(smoke, smoke_path),
         "summary": {
-            "source_count": len(items),
+            "source_count": len(portal_items),
+            "auxiliary_source_count": len(auxiliary_items),
             "status_counts": dict(counts),
             "severity_counts": dict(severity_counts),
             "stale_or_attention_critical": stale_critical,
@@ -303,7 +315,7 @@ def main() -> int:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     render_html(payload, args.html_out)
-    print(json.dumps({"ok": True, "out": str(args.out), "html": str(args.html_out), "summary": payload["summary"]}, ensure_ascii=False))
+    print(json.dumps({"ok": bool(payload.get("ok")), "out": str(args.out), "html": str(args.html_out), "summary": payload["summary"]}, ensure_ascii=False))
     return 0
 
 

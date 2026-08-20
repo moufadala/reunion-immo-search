@@ -11,6 +11,12 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.promotion_journal import (
+    child_names, clear_journal, confined_path, fsync_directory, read_journal,
+    require_schema, write_journal,
+)
+from src.sqlite_atomic import sqlite_publication_lock
 from media_link_copy import copytree_media_aware
 
 REQUIRED = ["index.html", "listings.json"]
@@ -87,6 +93,8 @@ def _move_children(src: Path, dst: Path, moved: list[str]) -> None:
     for child in list(src.iterdir()):
         os.replace(child, dst / child.name)
         moved.append(child.name)
+        fsync_directory(src)
+        fsync_directory(dst)
 
 
 def _restore_original(
@@ -138,6 +146,139 @@ def transactional_child_swap(
     return installed_check
 
 
+def _rollback_journal_path(target: Path) -> Path:
+    return target.with_name(f".{target.name}.rollback-journal.json")
+
+
+def _write_pending_rollback_journal(
+    *, target: Path, backup: Path, prepared: Path, snapshot: Path
+) -> Path:
+    journal = _rollback_journal_path(target)
+    write_journal(
+        journal,
+        {
+            "kind": "app_rollback",
+            "op": "rollback_app",
+            "state": "prepared",
+            "target": str(target.resolve()),
+            "backup": str(backup.resolve()),
+            "prepared": str(prepared.resolve()),
+            "snapshot": str(snapshot.resolve()),
+            "original_names": sorted(child.name for child in target.iterdir()),
+            "prepared_names": sorted(child.name for child in prepared.iterdir()),
+        },
+    )
+    return journal
+
+
+def _remove_entry(path: Path) -> None:
+    if path.is_symlink() or path.is_file():
+        path.unlink(missing_ok=True)
+    elif path.exists():
+        shutil.rmtree(path)
+
+
+def _validate_rollback_journal(
+    target: Path, payload: dict
+) -> tuple[Path, Path, Path, set[str], set[str]]:
+    require_schema(
+        payload,
+        required={
+            "kind", "op", "state", "target", "backup", "prepared",
+            "snapshot", "original_names", "prepared_names",
+        },
+    )
+    if payload["kind"] != "app_rollback" or payload["op"] != "rollback_app":
+        raise RuntimeError("invalid app rollback journal kind/op")
+    if payload["state"] not in {"prepared", "committed", "recovered"}:
+        raise RuntimeError("invalid app rollback journal state")
+    if target.is_symlink():
+        raise RuntimeError("invalid app rollback journal target symlink")
+    root = target.resolve().parent
+    journal_target = confined_path(
+        payload["target"], root=root, field="target", direct_child=True,
+        name_prefix=target.name,
+    )
+    if journal_target != target.resolve():
+        raise RuntimeError("invalid app rollback journal target mismatch")
+    backup = confined_path(
+        payload["backup"], root=root, field="backup", direct_child=True,
+        name_prefix=f"{target.name}.pre-promote-",
+    )
+    prepared = confined_path(
+        payload["prepared"], root=root, field="prepared", direct_child=True,
+        name_prefix=f"{target.name}.rollback-prepared-",
+    )
+    snapshot = confined_path(
+        payload["snapshot"], root=root, field="snapshot", direct_child=True,
+        name_prefix=f"{target.name}.pre-rollback-",
+    )
+    original_names = child_names(payload["original_names"], field="original_names")
+    prepared_names = child_names(payload["prepared_names"], field="prepared_names")
+    return backup, prepared, snapshot, original_names, prepared_names
+
+
+def _recover_pending_rollback_locked(target: Path) -> bool:
+    journal = _rollback_journal_path(target)
+    payload = read_journal(journal)
+    if payload is None:
+        return False
+    _, prepared, snapshot, original_names, prepared_names = (
+        _validate_rollback_journal(target, payload)
+    )
+    state = payload["state"]
+    if state == "prepared":
+        target.mkdir(parents=True, exist_ok=True)
+        for name in original_names:
+            saved = snapshot / name
+            if saved.exists() or saved.is_symlink():
+                _remove_entry(target / name)
+                os.replace(saved, target / name)
+        for name in prepared_names - original_names:
+            _remove_entry(target / name)
+        fsync_directory(target)
+        if snapshot.exists():
+            fsync_directory(snapshot)
+        payload["state"] = "recovered"
+        write_journal(journal, payload)
+    if state in {"prepared", "recovered"}:
+        shutil.rmtree(prepared, ignore_errors=True)
+        shutil.rmtree(snapshot, ignore_errors=True)
+    clear_journal(journal)
+    return True
+
+
+def recover_pending_rollback(target: Path) -> bool:
+    target = Path(target)
+    with sqlite_publication_lock(target):
+        recovered = _recover_pending_rollback_locked(target)
+        if recovered:
+            restored = validate_app(target)
+            if not restored.get("ok"):
+                raise RuntimeError("recovered app rollback target is invalid")
+        return recovered
+
+
+def apply_rollback_transaction(
+    *, target: Path, backup: Path, prepared: Path, snapshot: Path
+) -> dict:
+    """Journal and lock the destructive child-swap rollback window."""
+    with sqlite_publication_lock(target):
+        _recover_pending_rollback_locked(target)
+        _write_pending_rollback_journal(
+            target=target, backup=backup, prepared=prepared, snapshot=snapshot
+        )
+        journal = _rollback_journal_path(target)
+        try:
+            restored = transactional_child_swap(prepared, target, snapshot)
+            committed = read_journal(journal) or {}
+            committed["state"] = "committed"
+            write_journal(journal, committed)
+            clear_journal(journal)
+            return restored
+        except BaseException:
+            _recover_pending_rollback_locked(target)
+            raise
 def main() -> int:
     ap = argparse.ArgumentParser(description="Validated rollback drill/apply for the public immo static app.")
     ap.add_argument("--backup", type=Path, required=True, help="Backup app directory to restore")
@@ -152,6 +293,9 @@ def main() -> int:
         help="copy mode for media files during rollback restore/snapshots",
     )
     args = ap.parse_args()
+    # Recover any SIGKILL-interrupted rollback before reading backup or target.
+    recover_pending_rollback(args.target)
+
 
     if args.backup.is_symlink() or not args.backup.exists() or not args.backup.is_dir():
         raise SystemExit(f"backup dir missing or unsafe: {args.backup}")
@@ -190,7 +334,12 @@ def main() -> int:
                 restored_check["ok"] = False
 
         if args.apply and restored_check["ok"]:
-            restored_check = transactional_child_swap(restored_path, args.target, target_snapshot)
+            restored_check = apply_rollback_transaction(
+                target=args.target,
+                backup=args.backup,
+                prepared=restored_path,
+                snapshot=target_snapshot,
+            )
             restored_path = args.target
             transaction = "prepared_child_swap"
         elif args.apply:

@@ -20,10 +20,46 @@ class OutsideScopeEvidence:
     matched_text: str
 
 
-_FIELDS = ("location_label", "address", "quartier", "title", "description")
+_FIELDS = ("commune", "city", "location_label", "address", "quartier", "title", "url", "description")
+_OUTSIDE_LOCALITIES = (
+    ("La Saline-les-Hauts", "la saline les hauts"),
+    ("Plaine-des-Cafres", "plaine des cafres"),
+    ("Saint-Gilles les Bains", "saint gilles les bains"),
+    ("Plaine-des-Palmistes", "plaine des palmistes"),
+    ("Saint-André", "saint andre"),
+    ("Les Avirons", "avirons"),
+    ("Sainte-Suzanne", "sainte suzanne"),
+    ("Saint-Philippe", "saint philippe"),
+    ("Le Tévelave", "tevelave"),
+    ("Le Tampon", "le tampon"),
+    ("Saint-Pierre", "saint pierre"),
+    ("Saint-Paul", "saint paul"),
+    ("La Possession", "la possession"),
+    ("Saint-Leu", "saint leu"),
+    ("Saint-Louis", "saint louis"),
+    ("Le Port", "le port"),
+    ("Saint-Benoît", "saint benoit"),
+    ("Saint-Joseph", "saint joseph"),
+    ("Bras-Panon", "bras panon"),
+    ("Entre-Deux", "entre deux"),
+    ("Étang-Salé", "etang sale"),
+    ("La Saline", "la saline"),
+    ("Petite Île", "petite ile"),
+    ("Cilaos", "cilaos"),
+    ("Salazie", "salazie"),
+    ("Trois-Bassins", "trois bassins"),
+)
 _PROXIMITY_PREFIX = re.compile(
-    r"(?:proche\s+de|a\s+proximite\s+de|a\s+\d+(?:[.,]\d+)?\s*km\s+de)"
+    r"(?:proche\s+d(?:e|u|es)|a\s+proximite\s+d(?:e|u|es)|"
+    r"a\s+\d+(?:[.,]\d+)?\s*(?:minutes?|km)\s+d(?:e|u|es)|"
+    r"(?:notre\s+)?agence(?:\s+immobiliere)?\s+d(?:e|u|es)|"
+    r"vue(?:\s+degagee)?\s+(?:sur|vers))"
     r"\s+(?:(?:la|le|les|l)\s+)?$"
+)
+_NAMED_PLACE_PREFIX = re.compile(
+    r"(?:rue|avenue|boulevard|chemin|impasse|allee|route|residence|"
+    r"ecole|college|lycee|eglise|hopital|clinique)"
+    r"(?:\s+(?:de|du|des|la|le|les|l))?\s+$"
 )
 
 
@@ -35,6 +71,13 @@ def _normalise(value: object) -> str:
 
 def _is_proximity_mention(text: str, match_start: int) -> bool:
     return bool(_PROXIMITY_PREFIX.search(text[max(0, match_start - 35) : match_start]))
+
+
+def _is_named_place_mention(field: str, text: str, match_start: int) -> bool:
+    if field not in {"address", "title", "description"}:
+        return False
+    prefix = text[max(0, match_start - 45) : match_start]
+    return bool(_NAMED_PLACE_PREFIX.search(prefix))
 
 
 def _find(text: str, phrase: str) -> int | None:
@@ -50,20 +93,20 @@ def manifest_outside_scope(listing: Mapping[str, Any]) -> OutsideScopeEvidence |
         if not text:
             continue
 
-        candidates = (
-            ("La Saline-les-Hauts", "la saline les hauts"),
-            ("Plaine-des-Cafres", "plaine des cafres"),
-        )
-        for locality, phrase in candidates:
-            start = _find(text, phrase)
-            if start is not None and not _is_proximity_mention(text, start):
-                return OutsideScopeEvidence(locality, field, phrase)
-
         river = _find(text, "la riviere")
         saint_louis = _find(text, "saint louis")
         if river is not None and saint_louis is not None:
             first = min(river, saint_louis)
             if not _is_proximity_mention(text, first):
                 return OutsideScopeEvidence("La Riviere / Saint-Louis", field, "la riviere saint louis")
+
+        for locality, phrase in _OUTSIDE_LOCALITIES:
+            start = _find(text, phrase)
+            if (
+                start is not None
+                and not _is_proximity_mention(text, start)
+                and not _is_named_place_mention(field, text, start)
+            ):
+                return OutsideScopeEvidence(locality, field, phrase)
 
     return None

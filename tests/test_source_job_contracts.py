@@ -12,6 +12,15 @@ def test_ofim_job_uses_the_catalogue_scraper_and_has_no_duplicate_rss_job():
     assert jobs["ofim"]["args"] == ["--only", "ofim"]
     assert "ofim_rss" not in jobs
     assert "ofim_rss" not in source_health.CRITICAL_SOURCES
+    assert "ofim_rss" in source_health.AUXILIARY_SOURCES
+
+
+def test_every_watch_portal_is_blocking_and_source_health_tracks_all_fourteen():
+    assert realestate_watch.NON_BLOCKING_REFRESH_SOURCES == set()
+    assert realestate_watch.CRITICAL_REFRESH_SOURCES == {
+        job["source"] for job in realestate_watch.SOURCE_JOBS
+    }
+    assert len(source_health.CRITICAL_SOURCES) == 14
 
 
 def test_domimmo_rejects_commercial_and_land_inventory():

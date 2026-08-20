@@ -63,7 +63,7 @@ def test_full_recent_coverage_is_healthy(tmp_path):
     assert item["status"] == "fresh"
 
 
-def test_optional_leboncoin_low_coverage_is_reported_but_not_blocking(tmp_path):
+def test_leboncoin_low_coverage_is_reported_and_blocks_publication(tmp_path):
     db = tmp_path / "watch.db"
     con = _db(db)
     con.executemany(
@@ -72,7 +72,7 @@ def test_optional_leboncoin_low_coverage_is_reported_but_not_blocking(tmp_path):
             ("leboncoin", str(i), 1,
              "2026-08-12T08:00:00+00:00" if i < 2 else "2026-08-01T08:00:00+00:00",
              "x.jpg")
-            for i in range(10)
+            for i in range(20)
         ],
     )
     con.commit()
@@ -82,6 +82,6 @@ def test_optional_leboncoin_low_coverage_is_reported_but_not_blocking(tmp_path):
         db,
         reference_time=datetime(2026, 8, 12, 12, 0, tzinfo=timezone.utc),
     )
-    assert payload["ok"] is True
-    assert "leboncoin" not in payload["summary"]["coverage_below_threshold"]
+    assert payload["ok"] is False
+    assert "leboncoin" in payload["summary"]["coverage_below_threshold"]
     assert "leboncoin" in payload["summary"]["coverage_below_threshold_all"]

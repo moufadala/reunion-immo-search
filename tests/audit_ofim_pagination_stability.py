@@ -25,10 +25,16 @@ def links_html(ids):
     )
 
 
+def target_listing(mod, source, url, ptype, sid):
+    return mod.Listing(
+        source, sid, url, url, None, 'Saint-Denis', None, ptype,
+        None, None, None, None, None, None, None, None, None, None, 'hash',
+    )
+
 def test_ofim_does_not_stop_on_full_overlap_page_before_later_new_items():
     mod = load_module()
     mod.time.sleep = lambda *args, **kwargs: None
-    mod.detail_listing = lambda source, url, ptype=None, sid=None: {"source": source, "sid": sid, "url": url}
+    mod.detail_listing = lambda source, url, ptype=None, sid=None: target_listing(mod, source, url, ptype, sid)
 
     def fake_fetch(url, method="GET", data=None):
         if "liste-location-appartements" in url:
@@ -45,7 +51,7 @@ def test_ofim_does_not_stop_on_full_overlap_page_before_later_new_items():
         return "", url
 
     mod.fetch = fake_fetch
-    got = {row["sid"] for row in mod.scrape_ofim(max_items=90, max_pages=6, delay=0)}
+    got = {row.source_id for row in mod.scrape_ofim(max_items=90, max_pages=6, delay=0)}
 
     expected = {str(i) for i in range(1, 21)}
     assert expected <= got, f"OFIM queue lost after overlap page: {sorted(expected - got)}"
@@ -54,7 +60,7 @@ def test_ofim_does_not_stop_on_full_overlap_page_before_later_new_items():
 def test_ofim_stops_on_empty_page():
     mod = load_module()
     mod.time.sleep = lambda *args, **kwargs: None
-    mod.detail_listing = lambda source, url, ptype=None, sid=None: {"source": source, "sid": sid, "url": url}
+    mod.detail_listing = lambda source, url, ptype=None, sid=None: target_listing(mod, source, url, ptype, sid)
     calls = []
 
     def fake_fetch(url, method="GET", data=None):
@@ -68,7 +74,7 @@ def test_ofim_stops_on_empty_page():
         raise AssertionError(f"scraper continued after empty OFIM page: {url}")
 
     mod.fetch = fake_fetch
-    got = {row["sid"] for row in mod.scrape_ofim(max_items=90, max_pages=6, delay=0)}
+    got = {row.source_id for row in mod.scrape_ofim(max_items=90, max_pages=6, delay=0)}
     assert got == {"1", "2", "3"}
     assert any("start=10" in u for u in calls)
 

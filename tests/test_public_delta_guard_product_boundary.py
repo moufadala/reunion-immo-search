@@ -71,7 +71,11 @@ def test_true_critical_source_collapse_still_blocks(tmp_path: Path) -> None:
 
 def test_candidate_technical_photo_and_price_fields_are_deduplicated_like_feed(tmp_path: Path) -> None:
     baseline, candidate = tmp_path / "baseline", tmp_path / "candidate"
-    canonical = _row("seloger", "same") | {"address": "1 rue Test", "images": ["/same.jpg"]}
+    canonical = _row("seloger", "same") | {
+        "address": "1 rue Test",
+        "images": ["/same.jpg"],
+        "description": "Référence annonce: GES10980017-495",
+    }
     duplicate = {
         "id": "ofim:same",
         "source": "ofim",
@@ -82,6 +86,7 @@ def test_candidate_technical_photo_and_price_fields_are_deduplicated_like_feed(t
         "surface": 70,
         "address": "1 rue Test",
         "local_image_urls": ["/same.jpg"],
+        "description": "Référence annonce: GES10980017-495",
     }
     _write(baseline, "feed.json", [canonical])
     _write(candidate, "listings.json", [canonical, duplicate])

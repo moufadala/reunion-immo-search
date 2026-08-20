@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -96,7 +97,8 @@ def test_cli_dry_run_does_not_write_state() -> None:
         result = subprocess.run(
             [sys.executable, str(ROOT / "src" / "source_health_alerts.py"), "--source-health", str(payload_path), "--state", str(state_path), "--dry-run"],
             cwd=ROOT,
-            text=True,
+            env={**os.environ, "PYTHONUTF8": "1"},
+            encoding="utf-8",
             capture_output=True,
             check=True,
         )

@@ -4,7 +4,9 @@ SeLoger La Réunion — Multi-page scraper.
 Utilise JS clicks pour la pagination (boutons React sans href).
 267 annonces disponibles, 30/page.
 """
-import json, re, time, os, socket
+import json, re, time, os, socket, sys
+from pathlib import Path
+
 
 # Playwright must come from the interpreter environment selected by the
 # pipeline (normally PROJECT/.venv). Never prepend a user-site from another
@@ -12,8 +14,16 @@ import json, re, time, os, socket
 # greenlet._greenlet and breaks the collector.
 os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', '/opt/data/.cache/ms-playwright')
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from src.seloger_collection_manifest import (
+    build_seloger_manifest, evaluate_seloger_collection, extract_reported_total,
+)
+
 from playwright.sync_api import sync_playwright
-from datetime import datetime
+from datetime import datetime, timezone
 
 def default_cdp_url():
     # The CDP proxy rewrites websocket URLs using its public host. Chrome rejects
@@ -33,7 +43,8 @@ OUT_DIR = '/opt/data/artifacts/realestate/'
 os.makedirs(OUT_DIR, exist_ok=True)
 
 BASE_URL = 'https://www.seloger.com/classified-search?distributionTypes=Rent&estateTypes=House,Apartment&locations=AD04RE1'
-MAX_PAGES = 9  # 267 / 30 ≈ 9 pages
+PAGE_SIZE = 30
+MAX_PAGES = int(os.getenv('SELOGER_MAX_PAGES', '100'))  # safety cap, not completion proof
 
 def force_dismiss_consent(page):
     """Agressively remove all consent overlays."""
@@ -191,108 +202,182 @@ def parse_card(card):
         'date_collecte': datetime.now().isoformat(),
     }
 
-def main():
+def collect_all_pages():
     print('=== SeLoger La Réunion — Multi-Page Scraper ===')
     print(f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-
     all_annonces = {}
+    page_sizes = []
+    pages_attempted = 0
+    pages_succeeded = 0
+    reported_total = None
+    terminal_reason = 'page_cap'
+    collection_error = None
 
-    with sync_playwright() as p:
-        browser = p.chromium.connect_over_cdp(CDP_IP)
-        ctx = browser.contexts[0] if browser.contexts else browser.new_context()
-        page = ctx.new_page()
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.connect_over_cdp(CDP_IP)
+            ctx = browser.contexts[0] if browser.contexts else browser.new_context()
+            page = ctx.new_page()
 
-        # Load page 1
-        page.goto(BASE_URL, wait_until='domcontentloaded', timeout=30000)
-        force_dismiss_consent(page)
-        time.sleep(4)
-        force_dismiss_consent(page)
-
-        total_text = page.evaluate("() => { const h1 = document.querySelector('h1'); return h1 ? h1.innerText : '?'; }")
-        print(f'Total: {total_text}')
-
-        # Page 1
-        cards = extract_cards(page)
-        for card in cards:
-            p_data = parse_card(card)
-            all_annonces[p_data['id']] = p_data
-        print(f'Page 1: {len(cards)} cards | Total: {len(all_annonces)}')
-
-        # Pages 2+
-        for page_num in range(2, MAX_PAGES + 1):
+            pages_attempted += 1
+            page.goto(BASE_URL, wait_until='domcontentloaded', timeout=30000)
             force_dismiss_consent(page)
-            result = click_page_button(page, page_num)
-            print(f'Page {page_num} click: {result}')
-
-            if not result.get('clicked'):
-                print(f'  No button found for page {page_num}, stopping')
-                break
-
-            time.sleep(4)
-            force_dismiss_consent(page)
-
             cards = extract_cards(page)
-            new_count = 0
             for card in cards:
                 p_data = parse_card(card)
-                if p_data['id'] not in all_annonces:
-                    all_annonces[p_data['id']] = p_data
-                    new_count += 1
+                all_annonces[p_data['id']] = p_data
+            pages_succeeded += 1
+            page_sizes.append(len(cards))
+            total_text = page.evaluate(
+                "() => { const h1 = document.querySelector('h1'); return h1 ? h1.innerText : ''; }"
+            )
+            reported_total = extract_reported_total(total_text)
+            print(f'Total annoncé: {total_text!r} -> {reported_total}')
+            print(f'Page 1: {len(cards)} cards | Total unique: {len(all_annonces)}')
 
-            print(f'Page {page_num}: {len(cards)} cards | {new_count} nouveaux | Total: {len(all_annonces)}')
+            if reported_total is not None and len(all_annonces) >= reported_total:
+                terminal_reason = 'reported_total_reached'
+            elif len(cards) == 0:
+                terminal_reason = 'empty_page'
+            elif len(cards) < PAGE_SIZE:
+                terminal_reason = 'short_page'
+            else:
+                for page_num in range(2, MAX_PAGES + 1):
+                    pages_attempted += 1
+                    force_dismiss_consent(page)
+                    click_result = click_page_button(page, page_num)
+                    print(f'Page {page_num} click: {click_result}')
+                    if not click_result.get('clicked'):
+                        terminal_reason = 'no_next_page_button'
+                        break
 
-            if new_count == 0:
-                print('  No new cards, pagination complete')
-                break
+                    time.sleep(4)
+                    force_dismiss_consent(page)
+                    cards = extract_cards(page)
+                    pages_succeeded += 1
+                    page_sizes.append(len(cards))
+                    new_count = 0
+                    for card in cards:
+                        p_data = parse_card(card)
+                        if p_data['id'] not in all_annonces:
+                            all_annonces[p_data['id']] = p_data
+                            new_count += 1
+                    print(
+                        f'Page {page_num}: {len(cards)} cards | '
+                        f'{new_count} nouveaux | Total unique: {len(all_annonces)}'
+                    )
 
-            time.sleep(1.5)
+                    if reported_total is not None and len(all_annonces) >= reported_total:
+                        terminal_reason = 'reported_total_reached'
+                        break
+                    if len(cards) == 0:
+                        terminal_reason = 'empty_page'
+                        break
+                    if new_count == 0:
+                        terminal_reason = 'repeated_page'
+                        break
+                    if len(cards) < PAGE_SIZE:
+                        terminal_reason = 'short_page'
+                        break
+                    time.sleep(1.5)
+            page.close()
+    except Exception as exc:
+        collection_error = f'{type(exc).__name__}: {exc}'
+        terminal_reason = 'page_error'
+        print(f'COLLECTION_ERROR: {collection_error}')
 
-        page.close()
+    evidence = evaluate_seloger_collection(
+        page_sizes=page_sizes,
+        unique_ids=len(all_annonces),
+        reported_total=reported_total,
+        terminal_reason=terminal_reason,
+        pages_attempted=pages_attempted,
+        pages_succeeded=pages_succeeded,
+        error=collection_error,
+        page_size=PAGE_SIZE,
+    )
+    return all_annonces, evidence
 
+
+def main():
+    refresh_run_dir = os.getenv('IMMO_REFRESH_RUN_DIR', '').strip()
+    run_id = (
+        os.getenv('IMMO_RUN_ID', '').strip()
+        or (Path(refresh_run_dir).name if refresh_run_dir else datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ'))
+    )
+    all_annonces, evidence = collect_all_pages()
     annonces = list(all_annonces.values())
-
-    # Stats
     with_price = [a for a in annonces if a['prix']]
     types = {}
     for a in annonces:
         t = a.get('type_bien', 'Autre')
         types[t] = types.get(t, 0) + 1
-
-    print(f'\n=== RÉSULTAT FINAL ===')
+    print('\n=== RÉSULTAT FINAL ===')
     print(f'Total: {len(annonces)} annonces SeLoger La Réunion')
     print(f'Avec prix: {len(with_price)}')
     print(f'Types: {types}')
     if with_price:
         prices = sorted(a['prix'] for a in with_price)
         print(f'Prix: {prices[0]}€ min / {prices[-1]}€ max / {int(sum(prices)/len(prices))}€ moy')
-
     print('\nSample:')
     for a in annonces[:8]:
         print(f'  {a["type_bien"]} {a["nb_pieces"]}p {a["surface"]}m² — {a["prix"]}€')
 
-    out_path = f'{OUT_DIR}seloger_multipage_results.json'
-    with open(out_path, 'w') as f:
-        json.dump({
-            'date': datetime.now().isoformat(),
-            'total': len(annonces),
-            'with_price': len(with_price),
-            'types': types,
-            'annonces': annonces,
-        }, f, ensure_ascii=False, indent=2, default=str)
+    out_path = Path(OUT_DIR) / 'seloger_multipage_results.json'
+    out_path.write_text(
+        json.dumps(
+            {
+                'date': datetime.now(timezone.utc).isoformat(),
+                'total': len(annonces),
+                'with_price': len(with_price),
+                'types': types,
+                'collection': {
+                    'page_sizes': list(evidence.page_sizes),
+                    'reported_total': evidence.reported_total,
+                    'terminal_reason': evidence.terminal_reason,
+                    'pages_attempted': evidence.pages_attempted,
+                    'pages_succeeded': evidence.pages_succeeded,
+                    'complete': evidence.complete,
+                    'truncation_signals': evidence.truncation_signals,
+                    'error': evidence.error,
+                },
+                'annonces': annonces,
+            },
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        ),
+        encoding='utf-8',
+    )
     print(f'\nSaved: {out_path}')
+    manifest = build_seloger_manifest(
+        evidence,
+        run_id=run_id,
+        artifact_path=out_path,
+        normalized_ids=set(all_annonces),
+        event_statuses=['seen'] * len(annonces),
+    )
+    manifest_path = Path(OUT_DIR) / 'seloger_collection_manifest.provisional.json'
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True),
+        encoding='utf-8',
+    )
+    print(f'Manifest: {manifest_path} [{manifest["status"]}]')
     smoke_summary = {
-        'ok': bool(len(annonces) >= 10 and len(with_price) >= 10),
+        'ok': manifest['status'] == 'complete',
         'source': 'seloger_cdp_reunion_rentals',
         'total': len(annonces),
         'with_price': len(with_price),
         'types': types,
-        'artifact': out_path,
+        'artifact': str(out_path),
+        "source_manifest": str(manifest_path),
+        'manifest_status': manifest['status'],
+        'terminal_reason': manifest['terminal_reason'],
+        'page_sizes': manifest['page_sizes'],
         'sample': annonces[:3],
     }
-    # Machine-readable final line for scraper_smoke_runner.py.
     print(json.dumps(smoke_summary, ensure_ascii=False, default=str))
-    return len(annonces)
+    return 0 if manifest["status"] == "complete" else 2
 
 if __name__ == '__main__':
-    n = main()
-    print(f'\n✅ SeLoger La Réunion: {n} annonces extraites')
+    raise SystemExit(main())

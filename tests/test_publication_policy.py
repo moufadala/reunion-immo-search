@@ -30,6 +30,11 @@ def test_only_saint_denis_and_sainte_marie_are_public() -> None:
     assert evaluate_publication(row(commune=None)).reason == "commune_missing_or_invalid"
 
 
+def test_explicit_non_residential_flag_is_excluded() -> None:
+    assert (
+        evaluate_publication(row(residential=False)).reason == "non_residential"
+    )
+
 
 def test_excluded_saint_denis_quartiers_handle_spelling_variants() -> None:
     for quartier in ["Providence", "La Providence", "Saint-François", "Saint Francois", "St-François"]:
@@ -47,3 +52,14 @@ def test_manifestly_wrong_location_is_excluded_even_when_commune_is_mislabeled()
         title="Appartement T3 - Plaine-des-Cafres",
     )
     assert evaluate_publication(candidate).reason == "manifest_outside_scope"
+
+
+def test_excluded_saint_denis_quartiers_are_rejected_when_portal_uses_city_field() -> None:
+    assert evaluate_publication(row(commune="Saint-Denis", city="Providence")).reason == "saint_denis_providence"
+    assert evaluate_publication(row(commune="Saint-Denis", city="Saint-Fran\u00e7ois")).reason == "saint_denis_saint_francois"
+
+
+def test_actual_city_values_are_not_misclassified_as_excluded_quartiers() -> None:
+    assert evaluate_publication(row(commune=None, city="Saint-Denis")).eligible
+    assert evaluate_publication(row(commune=None, city="Sainte-Marie")).eligible
+    assert evaluate_publication(row(commune="Saint-Denis", city="Saint-Denis")).eligible
