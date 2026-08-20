@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+import ssl
 import json
 import sqlite3
 from types import SimpleNamespace
@@ -174,6 +175,57 @@ def test_immo974_uses_only_target_city_catalogues_and_accounts_for_scope_leaks(m
         "immo974", raw=3, unique=3, normalized=2,
         rejected={"out_of_scope": 1},
     )
+
+def test_immo974_tls_eof_uses_bounded_curl_fallback_and_records_success(monkeypatch):
+    body = '<h1>1 annonce en location</h1>' + _immo974_article("d1", "Saint Denis")
+    calls = []
+
+    def urllib_eof(*_args, **_kwargs):
+        raise ssl.SSLError("[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred")
+
+    def fake_run(argv, **kwargs):
+        calls.append((argv, kwargs))
+        return SimpleNamespace(returncode=0, stdout=body.encode(), stderr=b"")
+
+    monkeypatch.setattr(multi, "_sf", None)
+    monkeypatch.setattr(multi, "_legacy_fetch", urllib_eof)
+    monkeypatch.setattr(
+        multi, "subprocess", SimpleNamespace(run=fake_run, TimeoutExpired=TimeoutError),
+        raising=False,
+    )
+
+    text, final = multi.fetch(multi.IMMO974_CITY_ROUTES["Saint-Denis"])
+
+    assert text == body
+    assert final == multi.IMMO974_CITY_ROUTES["Saint-Denis"]
+    assert len(calls) == 1
+    argv, kwargs = calls[0]
+    assert argv[0] == "curl"
+    assert argv[-1].startswith("https://www.immo974.com/")
+    assert kwargs.get("shell") is not True
+    assert kwargs["timeout"] <= 45
+    assert multi.FETCH_LOG[-1]["ok"] is True
+    assert multi.FETCH_LOG[-1]["mode"] == "curl_tls_eof_fallback"
+
+
+def test_immo974_tls_eof_curl_failure_remains_failed(monkeypatch):
+    def urllib_eof(*_args, **_kwargs):
+        raise ssl.SSLError("UNEXPECTED_EOF_WHILE_READING")
+
+    def fake_run(_argv, **_kwargs):
+        return SimpleNamespace(returncode=35, stdout=b"", stderr=b"TLS failed")
+
+    monkeypatch.setattr(multi, "_sf", None)
+    monkeypatch.setattr(multi, "_legacy_fetch", urllib_eof)
+    monkeypatch.setattr(
+        multi, "subprocess", SimpleNamespace(run=fake_run, TimeoutExpired=TimeoutError),
+        raising=False,
+    )
+
+    with pytest.raises(ssl.SSLError):
+        multi.fetch(multi.IMMO974_CITY_ROUTES["Sainte-Marie"])
+    assert multi.FETCH_LOG[-1]["ok"] is False
+    assert multi.FETCH_LOG[-1]["mode"] == "curl_tls_eof_fallback"
 
 
 def _locamoi_page(sid: str, city: str, kind: str, total: int = 1) -> str:

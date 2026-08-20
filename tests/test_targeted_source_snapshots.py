@@ -335,6 +335,12 @@ def test_citya_uses_strict_cards_and_rejects_goldens_outside_target_scope(monkey
     assert {item.source_id for item in listings} == {"GES11111111-542"}
     assert all(item.city in {"Saint-Denis", "Sainte-Marie"} for item in listings)
     meta = multi.SOURCE_RUNTIME_META["citya"]
+    assert meta["parsed_items"] == meta["raw_items"] - sum(meta["unparsed_items_by_reason"].values())
+    assert meta["parsed_items"] - meta["pre_unique_rejections_by_reason"]["duplicate_raw"] == meta["unique_ids"]
+    assert meta["pre_unique_rejections_by_reason"] == {"duplicate_raw": 12}
+    assert meta["unique_ids"] == 4
+    assert meta["unique_ids"] == len({"GES11111111-542", "GES27390302-542", "GES56851227-542", "GES99999999-542"})
+    assert "missing_id" not in meta["pre_unique_rejections_by_reason"]
     assert meta["full_snapshot_proof"] is True
     assert meta["rejected_out_of_scope"] >= 2
     assert meta["rejected_non_card"] >= 1
@@ -387,18 +393,20 @@ def test_superimmo_retries_one_transient_fetch_then_completes(monkeypatch):
 
 def test_superimmo_exhausted_fetch_retries_remain_partial(monkeypatch):
     attempts = defaultdict(int)
+    sleeps = []
 
     def always_fails(url: str, method: str = "GET", data=None):
         attempts[url] += 1
         raise TimeoutError("still down")
 
     monkeypatch.setattr(multi, "fetch", always_fails)
-    monkeypatch.setattr(multi.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(multi.time, "sleep", sleeps.append)
     monkeypatch.setattr(multi, "save_raw", lambda *_: None)
 
-    assert multi.scrape_superimmo(max_pages=50, delay=0) == []
+    assert multi.scrape_superimmo(max_pages=50) == []
 
     assert set(attempts.values()) == {3}
+    assert sleeps == [5, 10, 5, 10]
     meta = multi.SOURCE_RUNTIME_META["superimmo"]
     assert meta["full_snapshot_proof"] is False
     assert meta["retries"] == 4

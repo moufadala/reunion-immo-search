@@ -10,7 +10,7 @@ Sources implemented:
 This is technical ingestion, not final alert criteria.
 """
 from __future__ import annotations
-import argparse, hashlib, html, json, os, re, sqlite3, ssl, time
+import argparse, hashlib, html, json, os, re, sqlite3, ssl, subprocess, time
 from dataclasses import dataclass, asdict, replace
 from html.parser import HTMLParser
 from datetime import datetime, timezone
@@ -122,6 +122,54 @@ def _legacy_fetch(url, method='GET', data=None):
         return r.read().decode('utf-8','replace'), r.url
 
 
+def _tls_eof_error(exc):
+    """Recognize only the urllib/OpenSSL premature-EOF failure family."""
+    pending = [exc]
+    seen = set()
+    ssl_error = False
+    text = []
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        ssl_error = ssl_error or isinstance(current, ssl.SSLError)
+        text.append(str(current).lower())
+        pending.extend((getattr(current, 'reason', None), getattr(current, '__cause__', None)))
+    joined = ' '.join(text)
+    return ssl_error and (
+        'unexpected_eof' in joined
+        or 'eof occurred in violation of protocol' in joined
+    )
+
+
+def _immo974_curl_fetch(url, method='GET', data=None):
+    parts = urlsplit(url)
+    if (
+        parts.scheme.lower() != 'https'
+        or (parts.hostname or '').lower() != 'www.immo974.com'
+        or method.upper() != 'GET'
+        or data is not None
+    ):
+        raise RuntimeError('curl TLS fallback refused outside bounded Immo974 GET')
+    encoded = urlunsplit((
+        parts.scheme, parts.netloc, quote(parts.path, safe='/%'),
+        quote(parts.query, safe='=&?/%'), parts.fragment,
+    ))
+    argv = [
+        'curl', '--fail', '--silent', '--show-error', '--location',
+        '--max-time', '40', '--user-agent', UA,
+        '--header', 'Accept: text/html,application/xhtml+xml,application/json,text/plain,*/*',
+        '--header', 'Accept-Language: fr-FR,fr;q=0.9',
+        '--header', 'Referer: https://www.google.com/', encoded,
+    ]
+    completed = subprocess.run(argv, capture_output=True, timeout=45, check=False)
+    if completed.returncode != 0 or not completed.stdout:
+        detail = completed.stderr.decode('utf-8', 'replace')[-500:]
+        raise RuntimeError(f'Immo974 curl fallback failed rc={completed.returncode}: {detail}')
+    return completed.stdout.decode('utf-8', 'replace'), url
+
+
 def fetch(url, method='GET', data=None):
     """Fetch HTML, preferring Scrapling when enabled, else the historical urllib
     path. Records one instrumentation row per call in FETCH_LOG. On failure it
@@ -139,6 +187,20 @@ def fetch(url, method='GET', data=None):
             status=getattr(e,'code',None)
             ec, reason=(('site-antibot',f'http_{status}') if status in (401,403,429,503)
                         else ('network',type(e).__name__))
+            if _tls_eof_error(e) and (urlsplit(url).hostname or '').lower() == 'www.immo974.com' and method.upper() == 'GET' and data is None:
+                try:
+                    text, final = _immo974_curl_fetch(url, method=method, data=data)
+                except Exception as curl_error:
+                    FETCH_LOG.append({'url':url,'mode':'curl_tls_eof_fallback','engine':'curl','ok':False,
+                              'status':None,
+                              'duration_ms':int((__import__('time').time()-t0)*1000),
+                              'error':f'{type(curl_error).__name__}: {curl_error}',
+                              'error_class':'network','reason':'urllib_tls_eof_curl_failed','text_len':0})
+                    raise e
+                FETCH_LOG.append({'url':url,'mode':'curl_tls_eof_fallback','engine':'curl','ok':True,
+                                  'status':None,'duration_ms':int((__import__('time').time()-t0)*1000),
+                                  'error':None,'error_class':'none','reason':'urllib_tls_eof','text_len':len(text)})
+                return text, final
             FETCH_LOG.append({'url':url,'mode':'fallback','engine':'fallback','ok':False,
                               'status':status if isinstance(status,int) else None,
                               'duration_ms':int((__import__('time').time()-t0)*1000),
@@ -306,7 +368,7 @@ def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
                 except Exception:
                     if attempt < fetch_retries:
                         retries += 1
-                        time.sleep(delay)
+                        time.sleep(delay * (attempt + 1))
                         continue
                     signals.append('fetch_failure')
                     state['terminal'] = f'fetch_failure:page:{page}'
@@ -467,7 +529,7 @@ def _superimmo_articles(text):
     )
 
 
-def scrape_superimmo(max_pages=50, max_items=2000, delay=1.5):
+def scrape_superimmo(max_pages=50, max_items=2000, delay=5):
     found = _walk_target_routes(
         source='superimmo', routes=SUPERIMMO_CITY_ROUTES,
         max_pages=max_pages, max_items=max_items, delay=delay,
@@ -932,6 +994,7 @@ def scrape_citya(max_items=2000, max_pages=50, delay=1.5):
     rejected_out_of_scope.difference_update(accepted_ids)
     rejected_non_card.difference_update(accepted_ids | rejected_out_of_scope)
     duplicate_raw = max(0, raw_items - len(raw_unique_ids))
+    parsed_items = max(0, raw_items - missing_id)
     _set_snapshot_meta(
         'citya', found=[(None, sid, None) for sid in raw_unique_ids],
         route_states=route_states, pages_attempted=pages_attempted,
@@ -939,13 +1002,13 @@ def scrape_citya(max_items=2000, max_pages=50, delay=1.5):
         extra={
             'rejected_out_of_scope': len(rejected_out_of_scope),
             'rejected_non_card': len(rejected_non_card),
+            'parsed_items': parsed_items,
+            'unique_ids': len(raw_unique_ids),
+            'unparsed_items_by_reason': (
+                {'missing_id': missing_id} if missing_id else {}
+            ),
             'pre_unique_rejections_by_reason': (
-                {
-                    reason: count for reason, count in {
-                        'duplicate_raw': duplicate_raw,
-                        'missing_id': missing_id,
-                    }.items() if count
-                }
+                {'duplicate_raw': duplicate_raw} if duplicate_raw else {}
             ),
         },
     )
