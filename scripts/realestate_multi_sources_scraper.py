@@ -167,6 +167,39 @@ def _immo974_curl_fetch(url, method='GET', data=None):
     return completed.stdout.decode('utf-8', 'replace'), url
 
 
+def _immo974_bounded_get(url, method='GET', data=None):
+    parts = urlsplit(url)
+    return (
+        parts.scheme.lower() == 'https'
+        and (parts.hostname or '').lower() == 'www.immo974.com'
+        and method.upper() == 'GET'
+        and data is None
+    )
+
+
+def _immo974_has_usable_cards(text):
+    return bool(re.search(r'<article\b[^>]*>[\s\S]*?/annonce/locations/', text or '', re.I))
+
+
+def _immo974_explicit_zero_results(text):
+    source = text or ''
+    patterns = (
+        r'<meta[^>]+name=["\']total-results["\'][^>]+content=["\']\s*0\s*["\']',
+        r'<meta[^>]+content=["\']\s*0\s*["\'][^>]+name=["\']total-results["\']',
+        r'\bdata-total(?:-results)?=["\']\s*0\s*["\']',
+        r'\b(?:0\s+(?:annonces?|biens?)|aucun(?:e)?\s+(?:annonce|bien|résultat))\b',
+    )
+    return any(re.search(pattern, source, re.I) for pattern in patterns)
+
+
+def _immo974_response_usable(text):
+    return _immo974_has_usable_cards(text) or _immo974_explicit_zero_results(text)
+
+class _Immo974FetchDecisionError(RuntimeError):
+    pass
+
+
+
 def fetch(url, method='GET', data=None):
     """Fetch HTML, preferring Scrapling when enabled, else the historical urllib
     path. Records one instrumentation row per call in FETCH_LOG. On failure it
@@ -176,11 +209,37 @@ def fetch(url, method='GET', data=None):
         t0=__import__('time').time()
         try:
             text, final=_legacy_fetch(url, method=method, data=data)
+            if _immo974_bounded_get(url, method=method, data=data) and not _immo974_response_usable(text):
+                try:
+                    curl_text, curl_final = _immo974_curl_fetch(url, method=method, data=data)
+                except Exception as curl_error:
+                    FETCH_LOG.append({'url':url,'mode':'curl_unusable_response_fallback','engine':'curl','ok':False,
+                                      'status':None,
+                                      'duration_ms':int((__import__('time').time()-t0)*1000),
+                                      'error':f'{type(curl_error).__name__}: {curl_error}',
+                                      'error_class':'network','reason':'curl_fallback_failed','text_len':0})
+                    raise _Immo974FetchDecisionError('Immo974 unusable urllib response and curl fallback failed') from curl_error
+                if not _immo974_response_usable(curl_text):
+                    FETCH_LOG.append({'url':url,'mode':'curl_unusable_response_fallback','engine':'curl','ok':False,
+                                      'status':None,
+                                      'duration_ms':int((__import__('time').time()-t0)*1000),
+                                      'error':'curl response has no usable Immo974 cards or explicit zero proof',
+                                      'error_class':'content','reason':'curl_response_unusable',
+                                      'text_len':len(curl_text or '')})
+                    raise _Immo974FetchDecisionError('Immo974 curl fallback response unusable')
+                FETCH_LOG.append({'url':url,'mode':'curl_unusable_response_fallback','engine':'curl','ok':True,
+                                  'status':None,
+                                  'duration_ms':int((__import__('time').time()-t0)*1000),
+                                  'error':None,'error_class':'none',
+                                  'reason':'urllib_response_unusable','text_len':len(curl_text)})
+                return curl_text, curl_final
             FETCH_LOG.append({'url':url,'mode':'fallback','engine':'fallback','ok':bool(text),
                               'status':None,'duration_ms':int((__import__('time').time()-t0)*1000),
                               'error':None,'error_class':'none','reason':None,'text_len':len(text or '')})
             return text, final
         except Exception as e:
+            if isinstance(e, _Immo974FetchDecisionError):
+                raise
             status=getattr(e,'code',None)
             ec, reason=(('site-antibot',f'http_{status}') if status in (401,403,429,503)
                         else ('network',type(e).__name__))
@@ -333,7 +392,8 @@ def _merge_rejection_reasons(source, reasons):
 
 
 def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
-                        page_url, parse_items, item_key, fetch_retries=0):
+                        page_url, parse_items, item_key, fetch_retries=0,
+                        empty_page_proof=None):
     found = []
     all_unique_global = set()
     safety_rejected = set()
@@ -401,11 +461,18 @@ def _walk_target_routes(*, source, routes, max_pages, max_items, delay,
             total = _reported_total(text)
             if total is not None:
                 state['reported_total'] = total
+            if not page_items:
+                if page == 1 and empty_page_proof is not None:
+                    if empty_page_proof(text):
+                        state.update(status='complete', terminal='explicit_zero')
+                    else:
+                        signals.append('unproven_empty_page')
+                        state['terminal'] = 'unproven_empty_page:page:1'
+                else:
+                    state.update(status='complete', terminal='empty_page')
+                break
             if total is not None and len(route_ids) >= total:
                 state.update(status='complete', terminal='reported_total')
-                break
-            if not page_items:
-                state.update(status='complete', terminal='empty_page')
                 break
             if not _has_next_page(text, page + 1):
                 state.update(status='complete', terminal='no_next')
@@ -1659,6 +1726,7 @@ def scrape_immo974(max_pages=50, page_size=20, max_items=5000, delay=1.5):
             })
         ),
         parse_items=_article_blocks, item_key=_immo974_item_id,
+        empty_page_proof=_immo974_explicit_zero_results,
     )
     out = []
     rejected = {'mapping_failure': set(), 'non_residential': set(), 'out_of_scope': set()}
