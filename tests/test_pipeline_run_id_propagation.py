@@ -7,6 +7,11 @@ from scripts import realestate_watch
 
 
 ROOT = Path(__file__).resolve().parents[1]
+def test_watch_runtime_prefers_the_parent_run_id_environment():
+    source = (ROOT / "scripts" / "realestate_watch.py").read_text(encoding="utf-8")
+    assert "logical_run_id = os.environ.get('IMMO_RUN_ID') or" in source
+
+
 
 
 def test_daily_pipeline_exports_the_canonical_timestamp_as_run_id():

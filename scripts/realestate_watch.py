@@ -832,7 +832,7 @@ def main() -> None:
     refresh_started_at = datetime.now(timezone.utc).isoformat()
     if args.refresh or args.dry_run_scrapers:
         results = run_scrapers(db, run_dir, dry_run=args.dry_run_scrapers)
-        logical_run_id = run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name
+        logical_run_id = os.environ.get('IMMO_RUN_ID') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name)
         source_manifests = source_manifests_for_results(
             results, run_id=logical_run_id, active_before=active_before,
         )
