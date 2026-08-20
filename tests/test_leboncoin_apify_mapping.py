@@ -214,6 +214,10 @@ def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch)
     monkeypatch.setenv("APIFY_TOKEN", "token-not-logged")
     monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
     calls = []
+    second_city = native_apartment()
+    second_city["list_id"] = 2712345679
+    second_city["url"] = "https://www.leboncoin.fr/ad/locations/2712345679"
+    second_city["location"] = {"city": "Sainte-Marie", "zipcode": "97438"}
 
     def fake_apify_json(url, token, payload=None, timeout=180):
         calls.append((url, payload))
@@ -221,13 +225,13 @@ def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch)
         if "/runs" in url:
             return {"id": "run123", "status": "SUCCEEDED", "defaultDatasetId": "ds123", "usageTotalUsd": 0.42}
         if "/datasets/ds123/items" in url:
-            return [native_apartment()]
+            return [native_apartment(), second_city]
         raise AssertionError(url)
 
     monkeypatch.setattr(rms, "_apify_json", fake_apify_json)
     out = rms.scrape_leboncoin_apify_dataset()
 
-    assert len(out) == 1
+    assert len(out) == 2
     rows = [json.loads(line) for line in report.read_text().splitlines()]
     assert rows == [{
         "actor": rms.DEFAULT_LEBONCOIN_ACTOR,
@@ -235,7 +239,7 @@ def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch)
         "dataset_id": "ds123",
         "mode": "actor_run",
         "provider": "apify",
-        "result_count": 1,
+        "result_count": 2,
         "run_id": "run123",
         "source": "leboncoin",
         "ts": rows[0]["ts"],
@@ -305,6 +309,143 @@ def test_leboncoin_rejection_accounting_is_exact() -> None:
         "non_object": 1, "non_residential": 1, "missing_id": 1, "non_974": 1,
     }
 
+
+def _actor_item(item_id: int, city: str) -> dict:
+    item = native_apartment()
+    item["list_id"] = item_id
+    item["url"] = f"https://www.leboncoin.fr/ad/locations/{item_id}"
+    item["location"] = {
+        "city": city,
+        "zipcode": "97438" if city == "Sainte-Marie" else "97400",
+    }
+    return item
+
+
+def test_partial_actor_snapshot_retries_once_and_uses_complete_second_only(tmp_path, monkeypatch) -> None:
+    report = tmp_path / "usage.jsonl"
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", str(report))
+    monkeypatch.setattr(rms, "save_raw", lambda *_: None)
+    monkeypatch.setenv("APIFY_TOKEN", "token")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+    first = [_actor_item(index, "Saint-Denis") for index in range(1, 7)]
+    second = [_actor_item(101, "Saint-Denis"), _actor_item(202, "Sainte-Marie")]
+    actor_calls = 0
+
+    def fake(url, _token, payload=None, timeout=180):
+        nonlocal actor_calls
+        if "/runs" in url:
+            actor_calls += 1
+            return {
+                "id": f"run-{actor_calls}", "status": "SUCCEEDED",
+                "defaultDatasetId": f"ds-{actor_calls}",
+                "usageTotalUsd": 0.005 if actor_calls == 1 else 0.46,
+            }
+        if "/datasets/ds-1/items" in url:
+            return first
+        if "/datasets/ds-2/items" in url:
+            return second
+        raise AssertionError(url)
+
+    monkeypatch.setattr(rms, "_apify_json", fake)
+    rows = rms.scrape_leboncoin_apify_dataset()
+
+    assert actor_calls == 2
+    assert {row.source_id for row in rows} == {"101", "202"}
+    meta = rms.SOURCE_RUNTIME_META["leboncoin"]
+    assert meta["full_snapshot_proof"] is True
+    assert meta["dataset_id"] == "ds-2"
+    assert meta["retries"] == 1
+    usage = [json.loads(line) for line in report.read_text().splitlines()]
+    assert [row["run_id"] for row in usage] == ["run-1", "run-2"]
+
+
+def test_two_partial_actor_snapshots_keep_only_second_and_stay_partial(monkeypatch) -> None:
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", None)
+    monkeypatch.setattr(rms, "save_raw", lambda *_: None)
+    monkeypatch.setenv("APIFY_TOKEN", "token")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+    first = [_actor_item(1, "Saint-Denis"), _actor_item(2, "Saint-Denis")]
+    second = [_actor_item(301, "Saint-Denis"), _actor_item(302, "Saint-Denis")]
+    actor_calls = 0
+
+    def fake(url, _token, payload=None, timeout=180):
+        nonlocal actor_calls
+        if "/runs" in url:
+            actor_calls += 1
+            return {"id": f"run-{actor_calls}", "status": "SUCCEEDED", "defaultDatasetId": f"ds-{actor_calls}"}
+        return first if "/ds-1/" in url else second
+
+    monkeypatch.setattr(rms, "_apify_json", fake)
+    rows = rms.scrape_leboncoin_apify_dataset()
+
+    assert actor_calls == 2
+    assert {row.source_id for row in rows} == {"301", "302"}
+    meta = rms.SOURCE_RUNTIME_META["leboncoin"]
+    assert meta["full_snapshot_proof"] is False
+    assert meta["retries"] == 1
+    assert "actor_retry_still_partial" in meta["truncation_signals"]
+
+
+def test_full_first_actor_snapshot_runs_actor_only_once(monkeypatch) -> None:
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", None)
+    monkeypatch.setattr(rms, "save_raw", lambda *_: None)
+    monkeypatch.setenv("APIFY_TOKEN", "token")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+    actor_calls = 0
+
+    def fake(url, _token, payload=None, timeout=180):
+        nonlocal actor_calls
+        if "/runs" in url:
+            actor_calls += 1
+            return {"id": "run-full", "status": "SUCCEEDED", "defaultDatasetId": "ds-full"}
+        return [_actor_item(1, "Saint-Denis"), _actor_item(2, "Sainte-Marie")]
+
+    monkeypatch.setattr(rms, "_apify_json", fake)
+    rows = rms.scrape_leboncoin_apify_dataset()
+
+    assert actor_calls == 1
+    assert len(rows) == 2
+    assert rms.SOURCE_RUNTIME_META["leboncoin"]["full_snapshot_proof"] is True
+
+
+def test_dataset_reuse_is_never_retried(monkeypatch) -> None:
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", None)
+    monkeypatch.setattr(rms, "save_raw", lambda *_: None)
+    monkeypatch.setenv("APIFY_TOKEN", "token")
+    monkeypatch.setenv("APIFY_LEBONCOIN_DATASET_ID", "existing")
+    calls = []
+    monkeypatch.setattr(rms, "_apify_json", lambda url, *_args, **_kwargs: calls.append(url) or [_actor_item(1, "Saint-Denis")])
+
+    rms.scrape_leboncoin_apify_dataset()
+
+    assert len(calls) == 1
+    assert rms.SOURCE_RUNTIME_META["leboncoin"]["retries"] == 0
+
+
+def test_failed_second_actor_keeps_first_partial_with_explicit_signal(monkeypatch) -> None:
+    monkeypatch.setattr(rms, "APIFY_USAGE_REPORT", None)
+    monkeypatch.setattr(rms, "save_raw", lambda *_: None)
+    monkeypatch.setenv("APIFY_TOKEN", "token")
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+    actor_calls = 0
+
+    def fake(url, _token, payload=None, timeout=180):
+        nonlocal actor_calls
+        if "/runs" in url:
+            actor_calls += 1
+            if actor_calls == 2:
+                return {"id": "run-failed", "status": "FAILED", "defaultDatasetId": "ds-failed"}
+            return {"id": "run-1", "status": "SUCCEEDED", "defaultDatasetId": "ds-1"}
+        return [_actor_item(1, "Saint-Denis")]
+
+    monkeypatch.setattr(rms, "_apify_json", fake)
+    rows = rms.scrape_leboncoin_apify_dataset()
+
+    assert [row.source_id for row in rows] == ["1"]
+    meta = rms.SOURCE_RUNTIME_META["leboncoin"]
+    assert meta["full_snapshot_proof"] is False
+    assert meta["retries"] == 1
+    assert any(signal.startswith("actor_retry_failed:") for signal in meta["truncation_signals"])
 def main() -> int:
     for test in [
         test_maps_real_piotrv1001_item_shape,

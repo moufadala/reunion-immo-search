@@ -201,7 +201,7 @@ def test_immo974_tls_eof_uses_bounded_curl_fallback_and_records_success(monkeypa
     assert len(calls) == 1
     argv, kwargs = calls[0]
     assert argv[0] == "curl"
-    assert argv[-1].startswith("https://www.immo974.com/")
+    assert argv[-1] == multi.IMMO974_CITY_ROUTES["Saint-Denis"]
     assert kwargs.get("shell") is not True
     assert kwargs["timeout"] <= 45
     assert multi.FETCH_LOG[-1]["ok"] is True

@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import html
+import os
 import json
 import re
 import sqlite3
@@ -554,7 +555,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--max-price", type=int)
     parser.add_argument("--min-rooms", type=int)
     args = parser.parse_args(argv)
-    run_id = args.run_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run_id = args.run_id or os.environ.get("IMMO_RUN_ID") or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     result = collect_pages(
         fetch_json,

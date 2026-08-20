@@ -240,3 +240,26 @@ def test_upsert_reports_reappeared_when_an_inactive_listing_is_seen_again(tmp_pa
         (listing.source_site, listing.source_id),
     ).fetchone()[0] == 1
     connection.close()
+
+
+def test_main_uses_pipeline_run_id_from_environment(monkeypatch, tmp_path: Path):
+    result = bienici.CollectionResult(
+        ads=[], page_payloads=[{"total": 0, "realEstateAds": []}],
+        urls=["https://example.test"], page_sizes=[0], reported_totals=[0],
+        reported_total=0, pages_attempted=1, pages_succeeded=1,
+        complete=True, terminal_reason="reported_total_reached",
+    )
+    monkeypatch.setenv("IMMO_RUN_ID", "pipeline-20260820")
+    monkeypatch.setattr(bienici, "collect_pages", lambda *_args, **_kwargs: result)
+    artifact_dir = tmp_path / "artifacts"
+    manifest_path = tmp_path / "manifest.json"
+
+    rc = bienici.main([
+        "--dry-run", "--artifact-dir", str(artifact_dir),
+        "--manifest", str(manifest_path),
+    ])
+
+    assert rc == 0
+    payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert payload["run_id"] == "pipeline-20260820"
+    assert (artifact_dir / "collection-pipeline-20260820.json").is_file()

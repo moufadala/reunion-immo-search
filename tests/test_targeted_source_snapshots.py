@@ -411,3 +411,99 @@ def test_superimmo_exhausted_fetch_retries_remain_partial(monkeypatch):
     assert meta["full_snapshot_proof"] is False
     assert meta["retries"] == 4
     assert "fetch_failure" in meta["truncation_signals"]
+
+
+def test_complete_runtime_proof_overrides_recovered_fetch_log_failure():
+    listing = SimpleNamespace(source_id="recovered")
+    complete = multi.build_source_manifest(
+        source="fnaim", run_id="recovered", listings=[listing],
+        event_statuses=["seen"], source_status={"ok": True, "count": 1},
+        fetch_log=[{"ok": False}, {"ok": True}],
+        runtime_meta={
+            "pages_attempted": 1, "pages_succeeded": 1,
+            "raw_items": 1, "parsed_items": 1, "unique_ids": 1,
+            "full_snapshot_proof": True, "truncation_signals": [],
+            "rejected_items_by_reason": {},
+        },
+    )
+    final_failure = multi.build_source_manifest(
+        source="fnaim", run_id="failed", listings=[listing],
+        event_statuses=["seen"], source_status={"ok": True, "count": 1},
+        fetch_log=[{"ok": False}],
+        runtime_meta={
+            "pages_attempted": 1, "pages_succeeded": 0,
+            "raw_items": 1, "parsed_items": 1, "unique_ids": 1,
+            "full_snapshot_proof": False, "truncation_signals": [],
+            "rejected_items_by_reason": {},
+        },
+    )
+
+    assert complete["status"] == "complete"
+    assert "fetch_failure" not in complete["truncation_signals"]
+    assert final_failure["status"] == "partial"
+    assert "fetch_failure" in final_failure["truncation_signals"]
+
+
+def test_fnaim_catalogue_pages_retry_twice_with_growing_backoff(monkeypatch):
+    attempts = defaultdict(int)
+    sleeps = []
+
+    def fake_fetch(url: str, method: str = "GET", data=None):
+        attempts[url] += 1
+        if attempts[url] <= 2:
+            raise TimeoutError("catalogue transient")
+        sid = "2" if "38245" in url else "1"
+        return _fnaim_page(sid, total=1), url
+
+    def detail(_source, url, ptype=None, sid=None):
+        city = "Sainte-Marie" if sid == "2" else "Saint-Denis"
+        return multi.Listing(
+            "fnaim", sid, url, url, url, city, None, ptype,
+            3, 2, 70.0, 900, None, None, None, None, "detail", None, "hash",
+        )
+
+    monkeypatch.setattr(multi, "fetch", fake_fetch)
+    monkeypatch.setattr(multi, "detail_listing", detail)
+    monkeypatch.setattr(multi.time, "sleep", sleeps.append)
+    monkeypatch.setattr(multi, "save_raw", lambda *_: None)
+
+    rows = multi.scrape_fnaim(max_pages=5, delay=2)
+
+    catalogue_attempts = [count for url, count in attempts.items() if "id-location" not in url]
+    assert catalogue_attempts == [3, 3]
+    assert sleeps[:4] == [2, 4, 2, 4]
+    assert {row.source_id for row in rows} == {"1", "2"}
+    assert multi.SOURCE_RUNTIME_META["fnaim"]["retries"] == 4
+
+
+def test_fnaim_detail_retries_recover_one_and_final_failure_stays_partial(monkeypatch):
+    detail_attempts = defaultdict(int)
+    sleeps = []
+
+    def fake_fetch(url: str, method: str = "GET", data=None):
+        sid = "2" if "38245" in url else "1"
+        return _fnaim_page(sid, total=1), url
+
+    def detail(_source, url, ptype=None, sid=None):
+        detail_attempts[sid] += 1
+        if sid == "1" and detail_attempts[sid] == 3:
+            return multi.Listing(
+                "fnaim", sid, url, url, url, "Saint-Denis", None, ptype,
+                3, 2, 70.0, 900, None, None, None, None, "detail", None, "hash",
+            )
+        raise TimeoutError("detail transient")
+
+    monkeypatch.setattr(multi, "fetch", fake_fetch)
+    monkeypatch.setattr(multi, "detail_listing", detail)
+    monkeypatch.setattr(multi.time, "sleep", sleeps.append)
+    monkeypatch.setattr(multi, "save_raw", lambda *_: None)
+
+    rows = multi.scrape_fnaim(max_pages=5, delay=2)
+
+    assert detail_attempts == {"1": 3, "2": 3}
+    assert sleeps == [2, 4, 2, 2, 4]
+    assert [row.source_id for row in rows] == ["1"]
+    meta = multi.SOURCE_RUNTIME_META["fnaim"]
+    assert meta["retries"] == 4
+    assert meta["full_snapshot_proof"] is False
+    assert "detail_fetch_failure" in meta["truncation_signals"]

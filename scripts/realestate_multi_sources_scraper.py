@@ -152,10 +152,7 @@ def _immo974_curl_fetch(url, method='GET', data=None):
         or data is not None
     ):
         raise RuntimeError('curl TLS fallback refused outside bounded Immo974 GET')
-    encoded = urlunsplit((
-        parts.scheme, parts.netloc, quote(parts.path, safe='/%'),
-        quote(parts.query, safe='=&?/%'), parts.fragment,
-    ))
+    encoded = urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ''))
     argv = [
         'curl', '--fail', '--silent', '--show-error', '--location',
         '--max-time', '40', '--user-agent', UA,
@@ -759,6 +756,7 @@ def scrape_fnaim(max_items=2000, max_pages=50, delay=1.5):
         max_items=max_items, delay=delay,
         page_url=lambda base, page: f'{base}/{page}',
         parse_items=_fnaim_links, item_key=lambda url: url,
+        fetch_retries=2,
     )
     out = []
     detail_failures = set()
@@ -770,11 +768,20 @@ def scrape_fnaim(max_items=2000, max_pages=50, delay=1.5):
             continue
         sid_match = re.search(r'id-location-[^/]+-(\d+)/?', url)
         sid = sid_match.group(1) if sid_match else None
-        try:
-            listing = detail_listing(
-                'fnaim', url, 'house' if 'maison' in url else 'flat', sid,
-            )
-        except Exception:
+        listing = None
+        for attempt in range(3):
+            try:
+                listing = detail_listing(
+                    'fnaim', url, 'house' if 'maison' in url else 'flat', sid,
+                )
+                break
+            except Exception:
+                if attempt < 2:
+                    SOURCE_RUNTIME_META['fnaim']['retries'] = int(
+                        SOURCE_RUNTIME_META['fnaim'].get('retries', 0) or 0
+                    ) + 1
+                    time.sleep(delay * (attempt + 1))
+        if listing is None:
             detail_failures.add(url)
             continue
         observed = listing.city
@@ -1418,6 +1425,39 @@ def _leboncoin_runtime_meta(items, *, dataset_id, mode, max_items):
     }
 
 
+def _leboncoin_actor_snapshot(*, token, actor, max_items):
+    """Run the actor once and account for exactly that run."""
+    run_url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/runs'
+               f'?waitForFinish=180')
+    run = _apify_json(run_url, token, payload=_leboncoin_actor_input(max_items))
+    if isinstance(run, dict) and isinstance(run.get('data'), dict):
+        run = run['data']
+    dataset_id = run.get('defaultDatasetId') if isinstance(run, dict) else None
+    run_status = str(run.get('status') or '').upper() if isinstance(run, dict) else ''
+    if run_status != 'SUCCEEDED':
+        _write_apify_usage(mode='actor_run', actor=actor, dataset_id=dataset_id,
+                           run=run, result_count=0)
+        raise RuntimeError(f'Apify run not successful: status={run_status or "missing"}')
+    if not dataset_id:
+        _write_apify_usage(mode='actor_run', actor=actor, dataset_id=None,
+                           run=run, result_count=0)
+        raise RuntimeError('Apify run finished without defaultDatasetId')
+    url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
+           f'?clean=true&format=json&limit={max_items}')
+    try:
+        items = _apify_json(url, token)
+    except Exception:
+        _write_apify_usage(mode='actor_run', actor=actor, dataset_id=dataset_id,
+                           run=run, result_count=0)
+        raise
+    if isinstance(items, dict):
+        items = items.get('items') or items.get('data') or []
+    items = items if isinstance(items, list) else []
+    _write_apify_usage(mode='actor_run', actor=actor, dataset_id=dataset_id,
+                       run=run, result_count=len(items))
+    return items, dataset_id
+
+
 def scrape_leboncoin_apify_dataset():
     """Leboncoin residential rentals via Apify (Scrapifier universal scraper).
 
@@ -1441,39 +1481,58 @@ def scrape_leboncoin_apify_dataset():
         url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
                f'?clean=true&format=json&limit={max_items}')
         items = _apify_json(url, token)
-        run = None
         mode = 'dataset'
         actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
+        if isinstance(items, dict):
+            items = items.get('items') or items.get('data') or []
+        items = items if isinstance(items, list) else []
+        _write_apify_usage(mode=mode, actor=actor, dataset_id=dataset_id,
+                           run=None, result_count=len(items))
+        runtime_meta = _leboncoin_runtime_meta(
+            items, dataset_id=dataset_id, mode=mode, max_items=max_items,
+        )
+        runtime_meta['retries'] = 0
     else:
         actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
-        run_url = (f'{APIFY_BASE}/acts/{quote(actor, safe="~")}/runs'
-                   f'?waitForFinish=180')
-        run = _apify_json(run_url, token, payload=_leboncoin_actor_input(max_items))
-        if isinstance(run, dict) and isinstance(run.get('data'), dict):
-            run = run['data']
-        dataset_id = run.get('defaultDatasetId') if isinstance(run, dict) else None
-        run_status = str(run.get('status') or '').upper() if isinstance(run, dict) else ''
-        if run_status != 'SUCCEEDED':
-            _write_apify_usage(mode='actor_run', actor=actor, dataset_id=dataset_id,
-                               run=run, result_count=0)
-            raise RuntimeError(f'Apify run not successful: status={run_status or "missing"}')
-
-        if not dataset_id:
-            raise RuntimeError('Apify run finished without defaultDatasetId')
-        url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
-               f'?clean=true&format=json&limit={max_items}')
-        items = _apify_json(url, token)
         mode = 'actor_run'
-    if isinstance(items, dict):
-        items = items.get('items') or items.get('data') or []
-    items = items if isinstance(items, list) else []
-    _write_apify_usage(mode=mode, actor=actor, dataset_id=dataset_id,
-                       run=run, result_count=len(items))
+        items, dataset_id = _leboncoin_actor_snapshot(
+            token=token, actor=actor, max_items=max_items,
+        )
+        runtime_meta = _leboncoin_runtime_meta(
+            items, dataset_id=dataset_id, mode=mode, max_items=max_items,
+        )
+        runtime_meta['retries'] = 0
+        if items and not runtime_meta['full_snapshot_proof']:
+            first_items = items
+            first_dataset_id = dataset_id
+            first_meta = runtime_meta
+            try:
+                items, dataset_id = _leboncoin_actor_snapshot(
+                    token=token, actor=actor, max_items=max_items,
+                )
+            except Exception as exc:
+                items = first_items
+                dataset_id = first_dataset_id
+                runtime_meta = first_meta
+                runtime_meta['retries'] = 1
+                signals = list(runtime_meta.get('truncation_signals') or [])
+                signals.append(f'actor_retry_failed:{type(exc).__name__}')
+                runtime_meta['truncation_signals'] = list(dict.fromkeys(signals))
+                runtime_meta['retry_error'] = f'{type(exc).__name__}: {exc}'
+                runtime_meta['full_snapshot_proof'] = False
+                runtime_meta['snapshot_proof'] = None
+            else:
+                runtime_meta = _leboncoin_runtime_meta(
+                    items, dataset_id=dataset_id, mode=mode, max_items=max_items,
+                )
+                runtime_meta['retries'] = 1
+                if not runtime_meta['full_snapshot_proof']:
+                    signals = list(runtime_meta.get('truncation_signals') or [])
+                    signals.append('actor_retry_still_partial')
+                    runtime_meta['truncation_signals'] = list(dict.fromkeys(signals))
+    SOURCE_RUNTIME_META['leboncoin'] = runtime_meta
     if not items:
         raise RuntimeError('Apify dataset empty: leboncoin source produced no listings')
-    SOURCE_RUNTIME_META['leboncoin'] = _leboncoin_runtime_meta(
-        items, dataset_id=dataset_id, mode=mode, max_items=max_items,
-    )
     return _leboncoin_listings(items)
 
 
@@ -2312,7 +2371,7 @@ def build_source_manifest(*, source, run_id, listings, event_statuses,
     cap = SOURCE_RESULT_CAPS.get(source)
     if cap is not None and normalized >= cap:
         signals.append(f'result_cap_reached:{cap}')
-    if any(not row.get('ok') for row in fetch_log):
+    if not runtime_meta.get('full_snapshot_proof') and any(not row.get('ok') for row in fetch_log):
         signals.append('fetch_failure')
     if pages_attempted == 0:
         signals.append('no_page_evidence')
