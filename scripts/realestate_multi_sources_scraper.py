@@ -1379,8 +1379,33 @@ def _apify_json(url, token, payload=None, timeout=180):
         headers['Content-Type'] = 'application/json'
         method = 'POST'
     req = Request(url, data=body, headers=headers, method=method)
-    with urlopen(req, timeout=timeout, context=CTX) as r:
-        raw = r.read().decode('utf-8', 'replace')
+    try:
+        with urlopen(req, timeout=timeout, context=CTX) as r:
+            raw = r.read().decode('utf-8', 'replace')
+    except HTTPError as exc:
+        try:
+            response_body = exc.read(8192)
+        except Exception:
+            response_body = b''
+        detail = clean(getattr(exc, 'reason', None)) or f'HTTP {exc.code}'
+        try:
+            error_payload = json.loads(response_body.decode('utf-8', 'replace')) if response_body else None
+        except (TypeError, ValueError):
+            error_payload = None
+        error = error_payload.get('error') if isinstance(error_payload, dict) else None
+        if isinstance(error, dict):
+            error_type = error.get('type')
+            error_message = error.get('message')
+            safe_parts = [
+                value.strip() for value in (error_type, error_message)
+                if isinstance(value, str) and value.strip()
+            ]
+            if safe_parts:
+                detail = ': '.join(safe_parts)
+        message = f'Apify API HTTP {exc.code}: {detail}'
+        if token:
+            message = message.replace(token, '[REDACTED]')
+        raise RuntimeError(message) from None
     return json.loads(raw) if raw.strip() else []
 
 

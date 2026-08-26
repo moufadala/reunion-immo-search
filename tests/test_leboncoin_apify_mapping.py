@@ -8,9 +8,13 @@ source_site='leboncoin', and tolerance for native + flattened Apify item shapes.
 from __future__ import annotations
 
 import importlib.util
+from io import BytesIO
 import json
 import sys
+from urllib.error import HTTPError
 from pathlib import Path
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MOD_PATH = ROOT / "scripts" / "realestate_multi_sources_scraper.py"
@@ -206,6 +210,58 @@ def test_raw_writes_can_be_isolated_with_env(tmp_path, monkeypatch) -> None:
     assert listing.raw_json_path is not None
     assert Path(listing.raw_json_path).parent == tmp_path
     assert (tmp_path / "leboncoin_2712345678.json").exists()
+
+
+def test_apify_json_http_error_reports_safe_json_detail_without_token(monkeypatch) -> None:
+    token = "token-secret"
+    body = json.dumps({
+        "error": {
+            "type": "token-not-found",
+            "message": f"Access denied for {token}",
+        }
+    }).encode()
+
+    def denied(*_args, **_kwargs):
+        raise HTTPError(
+            "https://api.apify.com/v2/acts/example/runs",
+            403,
+            "Forbidden",
+            hdrs=None,
+            fp=BytesIO(body),
+        )
+
+    monkeypatch.setattr(rms, "urlopen", denied)
+
+    with pytest.raises(RuntimeError) as caught:
+        rms._apify_json("https://api.apify.com/v2/acts/example/runs", token)
+
+    message = str(caught.value)
+    assert "Apify API HTTP 403" in message
+    assert "token-not-found" in message
+    assert "Access denied" in message
+    assert token not in message
+
+
+def test_apify_json_non_json_http_error_does_not_echo_arbitrary_html(monkeypatch) -> None:
+    def denied(*_args, **_kwargs):
+        raise HTTPError(
+            "https://api.apify.com/v2/datasets/example/items",
+            403,
+            "Forbidden",
+            hdrs=None,
+            fp=BytesIO(b"<html><script>arbitrary-secret-html</script></html>"),
+        )
+
+    monkeypatch.setattr(rms, "urlopen", denied)
+
+    with pytest.raises(RuntimeError) as caught:
+        rms._apify_json("https://api.apify.com/v2/datasets/example/items", "safe-token")
+
+    message = str(caught.value)
+    assert "Apify API HTTP 403" in message
+    assert "Forbidden" in message
+    assert "arbitrary-secret-html" not in message
+    assert "<html>" not in message
 
 
 def test_apify_usage_report_writes_dataset_count_and_cost(tmp_path, monkeypatch) -> None:
