@@ -74,6 +74,37 @@ def check_feed_freshness(data: dict[str, object], evidence: dict[str, object], e
         )
 
 
+def check_listing_observation_freshness(data: dict[str, object], evidence: dict[str, object], errors: list[str]) -> None:
+    """Reject a freshly regenerated feed when its underlying observations are old."""
+    raw_rows = data.get("listings")
+    rows = raw_rows if isinstance(raw_rows, list) else []
+    active_rows = [row for row in rows if isinstance(row, dict) and row.get("active", True)]
+    observed: list[datetime] = []
+    for row in active_rows:
+        for key in ("seen_last_at", "last_seen_at", "updated_at"):
+            parsed = parse_feed_datetime(row.get(key))
+            if parsed is not None:
+                observed.append(parsed)
+                break
+    evidence["active_rows_with_observation_time"] = len(observed)
+    evidence["active_rows_checked_for_observation_time"] = len(active_rows)
+    if not active_rows:
+        return
+    if not observed:
+        errors.append("listing observation freshness unknown: no seen_last_at/last_seen_at/updated_at on active rows")
+        return
+    latest = max(observed)
+    age_hours = max(0.0, (datetime.now(timezone.utc) - latest).total_seconds() / 3600)
+    evidence["latest_listing_observed_at"] = latest.isoformat()
+    evidence["latest_listing_observation_age_hours"] = round(age_hours, 2)
+    evidence["listing_observation_max_age_hours"] = MAX_FEED_AGE_HOURS
+    if age_hours > MAX_FEED_AGE_HOURS:
+        errors.append(
+            f"listing observations stale: latest={latest.isoformat()} "
+            f"âge={age_hours:.1f}h > {MAX_FEED_AGE_HOURS}h"
+        )
+
+
 def fetch_interne(path: str) -> tuple[int, bytes]:
     """Vérifie le contenu publié depuis le répertoire canonique local.
 
@@ -164,6 +195,7 @@ def main() -> int:
         evidence["feed_status"] = status
         data = json.loads(body.decode("utf-8"))
         check_feed_freshness(data, evidence, errors)
+        check_listing_observation_freshness(data, evidence, errors)
         errors.extend(feed_contract_errors(data))
         rows = data.get("listings") or []
         total = len(rows)
