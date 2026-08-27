@@ -452,6 +452,36 @@ run_step candidate_app_permissions bash -lc '
   find "$app" -type d -exec chmod 755 {} +
   find "$app" -type f -exec chmod 644 {} +
 ' _ "$CLEAN_STAGE"
+run_step public_monitor_candidate_gate env \
+  IMMO_PUBLIC_MONITOR_APP_DIR="$CLEAN_STAGE" \
+  IMMO_PUBLIC_MONITOR_SKIP_AUTH=1 \
+  "$PY" "$PROJECT/scripts/immo_public_monitor.py"
+if [ "${IMMO_CANDIDATE_ONLY:-0}" = "1" ]; then
+  "$PY" - "$RUN_DIR" "$CLEAN_STAGE" "$DB" "$HISTORY_STAGE" <<'PY'
+import json, os, pathlib, sys
+run_dir, app, db, history = map(pathlib.Path, sys.argv[1:])
+summary = {
+    'ok': True,
+    'mode': 'candidate-only',
+    'run_dir': str(run_dir),
+    'candidate_app': str(app),
+    'candidate_db': str(db),
+    'candidate_history': str(history),
+    'promoted': False,
+    'message': 'Candidate gates passed; production app/db/history were not promoted.',
+}
+destination = run_dir / 'candidate_only_summary.json'
+temporary = run_dir / '.candidate_only_summary.json.prepared'
+encoded = json.dumps(summary, ensure_ascii=False, indent=2) + '\n'
+with temporary.open('w', encoding='utf-8') as handle:
+    handle.write(encoded)
+    handle.flush()
+    os.fsync(handle.fileno())
+os.replace(temporary, destination)
+print(encoded, end='')
+PY
+  exit 0
+fi
 run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" \
   --artifacts "$PROJECT/artifacts" \
   --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" \
