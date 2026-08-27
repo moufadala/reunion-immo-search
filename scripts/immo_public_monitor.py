@@ -31,7 +31,9 @@ from src.publication_policy import evaluate_publication
 #      la source de verite produit).
 
 PUBLIC_BASE = os.environ.get("IMMO_PUBLIC_BASE", "https://immo.148.230.103.174.sslip.io/")
-LOCAL_APP_DIR = Path(os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR", "/opt/data/projects/reunion-immo-search/artifacts/app"))
+DEFAULT_LOCAL_APP_DIR = Path("/opt/data/projects/reunion-immo-search/artifacts/app")
+LOCAL_APP_DIR_ENV = os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR")
+LOCAL_APP_DIR = Path(LOCAL_APP_DIR_ENV or DEFAULT_LOCAL_APP_DIR)
 SKIP_AUTH_GATE = os.environ.get("IMMO_PUBLIC_MONITOR_SKIP_AUTH", "").lower() in {"1", "true", "yes"}
 MIN_LISTINGS = 100
 MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
@@ -159,8 +161,19 @@ def main() -> int:
 
     # --- 1. la porte d'acces prive est toujours active ---
     if SKIP_AUTH_GATE:
-        evidence["auth_gate_status"] = "skipped"
-        evidence["auth_gate_skip_reason"] = "IMMO_PUBLIC_MONITOR_SKIP_AUTH"
+        if LOCAL_APP_DIR_ENV is None or LOCAL_APP_DIR.resolve() == DEFAULT_LOCAL_APP_DIR.resolve():
+            errors.append(
+                "unsafe auth gate skip refused: IMMO_PUBLIC_MONITOR_SKIP_AUTH requires "
+                "IMMO_PUBLIC_MONITOR_APP_DIR on a non-production candidate directory"
+            )
+            evidence["auth_gate_status"] = "skip_refused"
+        else:
+            evidence["auth_gate_status"] = "skipped"
+            evidence["auth_gate_skip_reason"] = "IMMO_PUBLIC_MONITOR_SKIP_AUTH on local candidate"
+            print(
+                "WARNING: auth gate skipped for local candidate monitor only",
+                file=sys.stderr,
+            )
     else:
         try:
             code = fetch_externe_sans_auth("feed.json")

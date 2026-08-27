@@ -100,6 +100,23 @@ def test_monitor_can_run_against_local_candidate_without_external_auth(tmp_path)
     assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
+def test_monitor_refuses_auth_skip_on_default_production_app_dir():
+    proc = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "immo_public_monitor.py")],
+        env={
+            "IMMO_PUBLIC_MONITOR_SKIP_AUTH": "1",
+            "PYTHONPATH": str(ROOT),
+        },
+        text=True,
+        capture_output=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert proc.returncode == 2
+    assert "unsafe auth gate skip refused" in proc.stdout
+
+
 def test_monitor_rejects_feed_with_fresh_meta_but_stale_listing_observations(tmp_path):
     app = tmp_path / "candidate"
     (app / "v2").mkdir(parents=True)
