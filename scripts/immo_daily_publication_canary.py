@@ -12,6 +12,6 @@ from build_daily_edition import main
 
 
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        sys.argv.append("--check-canary")
+    if "--check-canary" not in sys.argv and "--run-dir" not in sys.argv:
+        sys.argv.insert(1, "--check-canary")
     raise SystemExit(main())

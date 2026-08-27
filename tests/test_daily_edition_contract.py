@@ -131,3 +131,21 @@ def test_canary_wrapper_defaults_to_publication_check(tmp_path: Path) -> None:
     assert "ALERTE IMMO" in result.stdout
     assert "publication quotidienne absente" in result.stdout
     assert "--run-dir is required" not in result.stderr
+
+    dated = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "immo_daily_publication_canary.py"),
+            "--expected-date",
+            "2026-08-27",
+        ],
+        cwd=ROOT,
+        env=env,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+
+    assert dated.returncode == 2
+    assert "publication quotidienne absente pour 2026-08-27" in dated.stdout
+    assert "--run-dir is required" not in dated.stderr
