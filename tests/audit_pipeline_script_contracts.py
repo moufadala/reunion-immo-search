@@ -16,6 +16,8 @@ RUNTIME_SCRIPT_CONTRACTS = [
     ("reunion_watch_daily_async.sh", "scripts/reunion_watch_daily_async.sh"),
     ("reunion_watch_daily_notify.sh", "scripts/reunion_watch_daily_notify.sh"),
     ("reunion_watch_post_refresh_alerts.sh", "scripts/reunion_watch_post_refresh_alerts.sh"),
+    ("build_daily_edition.py", "scripts/build_daily_edition.py"),
+    ("immo_daily_publication_canary.py", "scripts/immo_daily_publication_canary.py"),
     ("immo_p0_freshness_check.sh", "scripts/immo_p0_freshness_check.sh"),
     ("immo_saved_search_alerts.sh", "scripts/immo_saved_search_alerts.sh"),
     ("immo_daily_public_refresh.sh", "scripts/immo_daily_public_refresh.sh"),

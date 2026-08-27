@@ -20,8 +20,11 @@ mkdir -p "$LOG_DIR"
 PIPELINE_JSON="$RUN_DIR/pipeline_result.json"
 COHERENCE_JSON="$RUN_DIR/coherence_result.json"
 IMMO_REFRESH_JSON="$RUN_DIR/immo_public_refresh_result.json"
+IMMO_DAILY_EDITION_JSON="$RUN_DIR/daily_edition_result.json"
 PIPELINE_LOG="$LOG_DIR/reunion_watch_daily_${STAMP}.log"
 
+PIPELINE_RC=0
+set +e
 python3 /opt/data/scripts/reunion_watch_pipeline.py \
   --run-dir "$RUN_DIR" \
   --skip-flight \
@@ -33,21 +36,45 @@ python3 /opt/data/scripts/reunion_watch_pipeline.py \
   --min-price 450 \
   --min-rooms 2 \
   --limit 15 >"$PIPELINE_JSON" 2>"$PIPELINE_LOG"
+PIPELINE_RC=$?
+set -e
+if [ "$PIPELINE_RC" -ne 0 ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ALERTE reunion_watch_pipeline failed rc=$PIPELINE_RC json=$PIPELINE_JSON" >>"$PIPELINE_LOG"
+fi
 
 # 2026-07-21 (decision Moufadal): scraping VOLS coupe -- projet vols-run en refonte.
 # Reversible: retirer --skip-flight ci-dessus et restaurer reunion_watch_daily.sh.bak_20260721
 FLIGHT_RUN_DIR=""
 COHERENCE_STATUS="SKIPPED-VOLS-COUPES"
 
+IMMO_REFRESH_RC=0
+set +e
 IMMO_REFRESH_RUN_DIR="$RUN_DIR/immo_public_refresh" \
   IMMO_REFRESH_STAMP="$STAMP" \
   IMMO_FRESHNESS_REPORT_ONLY=1 \
-  /opt/data/scripts/immo_daily_public_refresh.sh >"$IMMO_REFRESH_JSON" 2>>"$PIPELINE_LOG" || {
-    rc=$?
-    echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] CRITICAL immo_daily_public_refresh failed rc=$rc json=$IMMO_REFRESH_JSON" >>"$PIPELINE_LOG"
-    exit "$rc"
-  }
+  /opt/data/scripts/immo_daily_public_refresh.sh >"$IMMO_REFRESH_JSON" 2>>"$PIPELINE_LOG"
+IMMO_REFRESH_RC=$?
+set -e
+if [ "$IMMO_REFRESH_RC" -ne 0 ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] ALERTE immo_daily_public_refresh failed rc=$IMMO_REFRESH_RC json=$IMMO_REFRESH_JSON" >>"$PIPELINE_LOG"
+fi
 
+IMMO_EDITION_RC=0
+set +e
+python3 /opt/data/scripts/build_daily_edition.py \
+  --run-dir "$RUN_DIR" \
+  --immo-rc "$IMMO_REFRESH_RC" >"$IMMO_DAILY_EDITION_JSON" 2>>"$PIPELINE_LOG"
+IMMO_EDITION_RC=$?
+set -e
+if [ "$IMMO_EDITION_RC" -ne 0 ]; then
+  echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] CRITICAL build_daily_edition failed rc=$IMMO_EDITION_RC json=$IMMO_DAILY_EDITION_JSON" >>"$PIPELINE_LOG"
+fi
+
+if [ -s "$RUN_DIR/telegram_summary.txt" ]; then
+  cat "$RUN_DIR/telegram_summary.txt"
+fi
+
+if [ -f "$RUN_DIR/manifest.json" ]; then
 python3 - <<PY
 import json
 from pathlib import Path
@@ -108,3 +135,8 @@ print(f"Dashboard: {run/'dashboard.html'}")
 print(f"Rapport cohérence: {run/'coherence_air_austral_vs_kiwi.md'}")
 print(f"Log: {Path('$PIPELINE_LOG')}")
 PY
+fi
+
+if [ "$IMMO_EDITION_RC" -ne 0 ]; then
+  exit "$IMMO_EDITION_RC"
+fi
