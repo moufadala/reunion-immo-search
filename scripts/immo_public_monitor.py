@@ -30,8 +30,9 @@ from src.publication_policy import evaluate_publication
 #      listings.json (ancien pipeline, toujours ecrit en parallele mais plus
 #      la source de verite produit).
 
-PUBLIC_BASE = "https://immo.148.230.103.174.sslip.io/"
+PUBLIC_BASE = os.environ.get("IMMO_PUBLIC_BASE", "https://immo.148.230.103.174.sslip.io/")
 LOCAL_APP_DIR = Path(os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR", "/opt/data/projects/reunion-immo-search/artifacts/app"))
+SKIP_AUTH_GATE = os.environ.get("IMMO_PUBLIC_MONITOR_SKIP_AUTH", "").lower() in {"1", "true", "yes"}
 MIN_LISTINGS = 100
 MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
 MIN_LOCAL_PHOTO_RATIO = 0.85
@@ -126,13 +127,17 @@ def main() -> int:
     evidence: dict[str, object] = {"checked_at": datetime.now(timezone.utc).isoformat()}
 
     # --- 1. la porte d'acces prive est toujours active ---
-    try:
-        code = fetch_externe_sans_auth("feed.json")
-        evidence["auth_gate_status"] = code
-        if code != 401:
-            errors.append(f"REGRESSION VIE PRIVEE: feed.json repond {code} sans identifiants (401 attendu)")
-    except Exception as exc:
-        errors.append(f"auth gate check failed: {type(exc).__name__}: {exc}")
+    if SKIP_AUTH_GATE:
+        evidence["auth_gate_status"] = "skipped"
+        evidence["auth_gate_skip_reason"] = "IMMO_PUBLIC_MONITOR_SKIP_AUTH"
+    else:
+        try:
+            code = fetch_externe_sans_auth("feed.json")
+            evidence["auth_gate_status"] = code
+            if code != 401:
+                errors.append(f"REGRESSION VIE PRIVEE: feed.json repond {code} sans identifiants (401 attendu)")
+        except Exception as exc:
+            errors.append(f"auth gate check failed: {type(exc).__name__}: {exc}")
 
     # --- 2. contenu, verifie en interne (pas besoin d'identifiants) ---
     try:

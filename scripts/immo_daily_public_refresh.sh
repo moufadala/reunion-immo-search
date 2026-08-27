@@ -16,7 +16,12 @@ unset PYTHONPATH
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
 export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/.cache/ms-playwright}"
 
-PROJECT="/opt/data/projects/reunion-immo-search"
+PROJECT="${IMMO_PROJECT_DIR:-/opt/data/projects/reunion-immo-search}"
+if [ ! -d "$PROJECT/scripts" ] || [ ! -d "$PROJECT/tests" ]; then
+  printf 'IMMO_PROJECT_DIR is not a reunion-immo-search checkout: %s\n' "$PROJECT" >&2
+  exit 64
+fi
+export IMMO_PROJECT="$PROJECT"
 PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
 if [ ! -x "$PY" ]; then
   printf 'IMMO_PROJECT_PYTHON is not executable: %s\n' "$PY" >&2
