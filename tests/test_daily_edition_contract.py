@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -110,3 +112,22 @@ def test_publication_canary_is_silent_for_today_degraded_status(tmp_path: Path) 
     assert ok is True
     assert message == ""
 
+
+def test_canary_wrapper_defaults_to_publication_check(tmp_path: Path) -> None:
+    env = os.environ.copy()
+    env["IMMO_PUBLIC_APP"] = str(tmp_path / "missing-public-app")
+    env["IMMO_PUBLIC_BASE_URL"] = "https://immo.example.test/"
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "immo_daily_publication_canary.py")],
+        cwd=ROOT,
+        env=env,
+        encoding="utf-8",
+        capture_output=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    assert "ALERTE IMMO" in result.stdout
+    assert "publication quotidienne absente" in result.stdout
+    assert "--run-dir is required" not in result.stderr
