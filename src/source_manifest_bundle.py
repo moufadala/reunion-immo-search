@@ -7,6 +7,7 @@ make the consolidated 14-portal gate fail closed.
 """
 from __future__ import annotations
 
+import os
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Iterable, Mapping
@@ -34,12 +35,23 @@ CRITICAL_PORTALS = frozenset(
 )
 
 
+def _env_source_set(name: str) -> set[str]:
+    raw = os.environ.get(name, "")
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+def _required_sources_from_env(default: frozenset[str]) -> frozenset[str]:
+    return frozenset(default - _env_source_set("IMMO_NON_BLOCKING_REFRESH_SOURCES"))
+
+
 def merge_and_gate_source_manifests(
     base_bundle: Mapping[str, Any],
     external_manifests: Iterable[Mapping[str, Any]],
     *,
-    required_sources: frozenset[str] = CRITICAL_PORTALS,
+    required_sources: frozenset[str] | None = None,
 ) -> dict[str, Any]:
+    if required_sources is None:
+        required_sources = _required_sources_from_env(CRITICAL_PORTALS)
     run_id = str(base_bundle.get("run_id") or "").strip()
     raw_base = base_bundle.get("sources")
     if not run_id:
@@ -58,8 +70,10 @@ def merge_and_gate_source_manifests(
         source for source, count in counts.items() if source and count > 1
     )
     present = {source for source in names if source}
+    known_sources = set(CRITICAL_PORTALS) | set(required_sources)
+    non_blocking_sources = sorted((set(CRITICAL_PORTALS) - set(required_sources)) & present)
     missing = sorted(required_sources - present)
-    unexpected = sorted(present - required_sources)
+    unexpected = sorted(present - known_sources)
     mismatches = sorted(
         {
             str(item.get("source") or "unknown")
@@ -107,6 +121,9 @@ def merge_and_gate_source_manifests(
         "errors": errors,
         "required_source_count": len(required_sources),
         "present_required_source_count": len(required_sources & present),
+        "known_source_count": len(CRITICAL_PORTALS),
+        "present_known_source_count": len(set(CRITICAL_PORTALS) & present),
+        "non_blocking_sources": non_blocking_sources,
     }
     return {
         "run_id": run_id,

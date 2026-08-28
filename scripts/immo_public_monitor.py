@@ -83,7 +83,10 @@ def check_listing_observation_freshness(data: dict[str, object], evidence: dict[
     active_rows = [row for row in rows if isinstance(row, dict) and row.get("active", True)]
     observed: list[datetime] = []
     for row in active_rows:
-        for key in ("seen_last_at", "last_seen_at", "updated_at"):
+        # Le contrat feed réel expose `seen_last` (scripts/export_feed.py),
+        # tandis que la base conserve `seen_last_at`. Garder les anciens noms en
+        # repli évite de casser des artefacts historiques/tests existants.
+        for key in ("seen_last", "seen_last_at", "last_seen_at", "updated_at"):
             parsed = parse_feed_datetime(row.get(key))
             if parsed is not None:
                 observed.append(parsed)

@@ -1,6 +1,11 @@
 import sys
 import types
+from datetime import datetime, timezone
 from pathlib import Path
+
+
+def _fresh_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -39,7 +44,7 @@ def test_feed_exposes_complete_description_evidence():
         text,
         {
             "http_status": 200,
-            "fetched_at": "2026-08-15T10:00:00Z",
+            "fetched_at": _fresh_now(),
             "description_full_text_evidence": 1,
         },
     )
@@ -51,7 +56,7 @@ def test_feed_exposes_complete_description_evidence():
 
 def test_http_200_and_long_text_do_not_claim_detail_read_without_full_text_evidence():
     text = "Appartement familial lumineux avec trois chambres, varangue et parking securise."
-    detail = {"http_status": 200, "fetched_at": "2026-08-15T10:00:00Z"}
+    detail = {"http_status": 200, "fetched_at": _fresh_now()}
     quality = description_quality_payload(text, detail)
 
     assert quality["status"] == "fetched_complete"

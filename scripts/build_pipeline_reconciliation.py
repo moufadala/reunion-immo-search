@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.pipeline_reconciliation_runtime import build_runtime_reconciliation
 from src.source_health import CRITICAL_SOURCES
+from src.source_manifest_bundle import _env_source_set
 
 
 def _write_atomic(path: Path, payload: dict) -> None:
@@ -37,6 +38,14 @@ def main() -> int:
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     expected_sources = set(args.expected_source) or set(CRITICAL_SOURCES)
+    # Same env contract as scripts/build_source_manifest_bundle.py: a source
+    # listed here still has to publish a valid manifest (so it stays in
+    # expected_sources, and an unexpected/missing manifest still fails), but a
+    # degraded snapshot warns instead of blocking. Empty in production, where
+    # every critical portal blocks.
+    critical_sources = expected_sources - _env_source_set(
+        "IMMO_NON_BLOCKING_REFRESH_SOURCES"
+    )
 
     try:
         result = build_runtime_reconciliation(
@@ -45,6 +54,7 @@ def main() -> int:
             db_path=args.db,
             before_db_path=args.before_db,
             expected_sources=expected_sources,
+            critical_sources=critical_sources,
         )
     except Exception as exc:
         result = {

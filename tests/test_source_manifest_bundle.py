@@ -112,3 +112,30 @@ def test_unexpected_fifteenth_source_blocks_the_closed_world_gate():
     assert bundle["gate"]["unexpected_sources"] == ["ofim_rss"]
     assert "ofim_rss" in bundle["gate"]["blocking_sources"]
     assert any("unexpected source manifest" in error for error in bundle["gate"]["errors"])
+
+
+def test_present_non_blocking_known_sources_are_warnings_not_unexpected(monkeypatch):
+    monkeypatch.setenv("IMMO_NON_BLOCKING_REFRESH_SOURCES", "leboncoin,superimmo,seloger")
+    complete_sources = CRITICAL_PORTALS - {"leboncoin", "superimmo", "seloger"}
+    base = {
+        "run_id": "run-1",
+        "sources": [_complete(source) for source in sorted(complete_sources)],
+    }
+    degraded = []
+    for source in ("leboncoin", "superimmo", "seloger"):
+        degraded.append(
+            {
+                **_complete(source),
+                "status": "partial",
+                "truncation_signals": ["degraded_candidate"],
+            }
+        )
+
+    bundle = merge_and_gate_source_manifests(base, degraded)
+
+    assert bundle["gate"]["ok"] is True
+    assert bundle["gate"]["unexpected_sources"] == []
+    assert bundle["gate"]["blocking_sources"] == []
+    assert bundle["gate"]["non_blocking_sources"] == ["leboncoin", "seloger", "superimmo"]
+    assert bundle["gate"]["known_source_count"] == 14
+    assert bundle["gate"]["present_known_source_count"] == 14

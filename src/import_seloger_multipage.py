@@ -248,16 +248,19 @@ def mark_seloger_inactive_not_seen(
 
 
 
-def _load_complete_collection_manifest(
+def _load_collection_manifest(
     path: Path,
     artifact: Path,
     unique_ids: set[str],
+    *,
+    allow_partial: bool = False,
 ) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     parsed = SourceRunManifest.from_dict(payload)
     if parsed.source != "seloger":
         raise RuntimeError(f"Wrong source in SeLoger collection manifest: {parsed.source}")
-    if parsed.status != "complete":
+    allowed_statuses = {"complete", "partial"} if allow_partial else {"complete"}
+    if parsed.status not in allowed_statuses:
         raise RuntimeError(f"SeLoger collection manifest is not complete: {parsed.status}")
     expected_hash = str(payload.get("artifact_sha256") or "").strip()
     actual_hash = hashlib.sha256(artifact.read_bytes()).hexdigest()
@@ -317,6 +320,7 @@ def import_artifact(
     max_age_hours: float | None = None,
     collection_manifest: Path | None = None,
     source_manifest_out: Path | None = None,
+    allow_partial_manifest: bool = False,
 ) -> dict[str, Any]:
     if max_age_hours is not None:
         age_hours = (time.time() - artifact.stat().st_mtime) / 3600
@@ -333,7 +337,12 @@ def import_artifact(
             f"SeLoger artifact contains duplicate ids: total={len(raw_ids)} unique={len(unique_ids)}"
         )
     provisional = (
-        _load_complete_collection_manifest(collection_manifest, artifact, unique_ids)
+        _load_collection_manifest(
+            collection_manifest,
+            artifact,
+            unique_ids,
+            allow_partial=allow_partial_manifest,
+        )
         if collection_manifest is not None
         else None
     )
@@ -397,6 +406,8 @@ def import_artifact(
 
     run_id = str(provisional.get("run_id")) if provisional is not None else now
     inactive_marked = 0
+    if allow_partial_manifest and provisional is not None and provisional.get("status") != "complete":
+        mark_inactive = False
     if mark_inactive:
         inactive_marked = int(
             mark_stale_not_seen(
@@ -448,6 +459,11 @@ def main() -> int:
     ap.add_argument("--collection-manifest", type=Path, default=DEFAULT_COLLECTION_MANIFEST)
     ap.add_argument("--source-manifest-out", type=Path, default=DEFAULT_SOURCE_MANIFEST)
     ap.add_argument("--no-mark-inactive", action="store_true")
+    ap.add_argument(
+        "--allow-partial-manifest",
+        action="store_true",
+        help="Candidate-only/degraded mode: import observed SeLoger rows from a partial manifest without marking missing rows inactive.",
+    )
     ap.add_argument("--max-age-hours", type=float, default=None, help="Reject artifact if its mtime is older than this many hours.")
     args = ap.parse_args()
     result = import_artifact(
@@ -457,6 +473,7 @@ def main() -> int:
         max_age_hours=args.max_age_hours,
         collection_manifest=args.collection_manifest,
         source_manifest_out=args.source_manifest_out,
+        allow_partial_manifest=args.allow_partial_manifest,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

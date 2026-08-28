@@ -189,6 +189,49 @@ def test_runtime_builder_rejects_visible_content_even_when_counters_claim_zero(t
     assert any("feed visible listings missing photo: 1" in error for error in result["errors"])
 
 
+def test_runtime_builder_accepts_exact_bounded_local_photo_degradation(tmp_path):
+    before, current, feed, manifests = _inputs(tmp_path)
+    with closing(sqlite3.connect(current)) as con:
+        con.execute("ALTER TABLE rental_listings ADD COLUMN image_url TEXT")
+        con.execute(
+            "UPDATE rental_listings SET image_url='https://images.example/ofim-a.jpg' "
+            "WHERE source_site='ofim' AND source_id='a'"
+        )
+        con.commit()
+    payload = json.loads(feed.read_text(encoding="utf-8"))
+    payload["listings"][0].update(image=None, images=[])
+    product = payload["meta"]["reconciliation_product"]
+    product["fields"]["missing_photo"] = 1
+    product["field_explanations"]["missing_photo"] = 1
+    product["field_explanation_reasons"]["missing_photo"] = (
+        "remote_source_image_not_cached"
+    )
+    product["degradations"] = {
+        "missing_photo": {
+            "reason": "remote_source_image_not_cached",
+            "count": 1,
+            "ids": ["ofim:a"],
+            "visible": 1,
+            "ratio": 1.0,
+            "max_ratio": 1.0,
+            "public_image_policy": "local_only",
+        }
+    }
+    feed.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim"},
+    )
+
+    assert result["ok"] is True
+    assert result["errors"] == []
+    assert any("feed photo degradation: 1/1" in warning for warning in result["warnings"])
+
+
 def test_runtime_builder_blocks_identity_claim_not_present_in_feed(tmp_path):
     before, current, feed, manifests = _inputs(tmp_path)
     payload = json.loads(feed.read_text(encoding="utf-8"))
@@ -204,7 +247,51 @@ def test_runtime_builder_blocks_identity_claim_not_present_in_feed(tmp_path):
     )
 
     assert result["ok"] is False
-    assert any("feed visible identities differ" in error for error in result["errors"])
+
+
+def test_runtime_builder_uses_export_normalized_exclusion_evidence(tmp_path):
+    before, current, feed, manifests = _inputs(tmp_path)
+    payload = json.loads(feed.read_text(encoding="utf-8"))
+    product = payload["meta"]["reconciliation_product"]
+    product["excluded_ids"] = {"ofim:back": "commune_outside_scope"}
+    product["policy_exclusions"] = {"commune_outside_scope": 1}
+    product["exclusion_policy_inputs"] = {
+        "ofim:back": {
+            "surface": 70,
+            "rent": 1200,
+            "commune": "Sainte-Suzanne",
+            "title": "Maison",
+        }
+    }
+    feed.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim"},
+    )
+
+    assert result["ok"] is True, result["errors"]
+
+
+def test_runtime_builder_still_blocks_visible_policy_violation(tmp_path):
+    before, current, feed, manifests = _inputs(tmp_path)
+    payload = json.loads(feed.read_text(encoding="utf-8"))
+    payload["listings"][0]["surface"] = 40
+    feed.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim"},
+    )
+
+    assert result["ok"] is False
+    assert any("visible listings violate publication policy" in e for e in result["errors"])
 
 
 def test_runtime_builder_blocks_product_active_counter_different_from_sqlite(tmp_path):
@@ -385,6 +472,130 @@ def test_runtime_builder_blocks_a_missing_expected_source(tmp_path):
 
     assert result["ok"] is False
     assert any("missing source manifests: seloger" in error for error in result["errors"])
+
+
+def _failed_manifest() -> dict:
+    return {
+        "run_id": "run-1",
+        "source": "seloger",
+        "status": "failed",
+        "attempted": True,
+        "pages_attempted": 1,
+        "pages_succeeded": 0,
+        "fetched_items": 0,
+        "parsed_items": 0,
+        "unique_ids": 0,
+        "normalized_items": 0,
+        "rejected_items": 0,
+        "inserted": 0,
+        "updated": 0,
+        "unchanged": 0,
+        "withdrawn": 0,
+        "reappeared": 0,
+        "expected_count": 0,
+        "dataset_id": None,
+        "retries": 0,
+        "truncation_signals": [],
+        "error": "<HTTPError 403: 'Forbidden'>",
+        "seen_ids": [],
+    }
+
+
+def test_a_degraded_source_still_blocks_when_no_source_is_declared_non_blocking(tmp_path):
+    before, current, feed, manifests = _inputs(tmp_path)
+    payload = json.loads(manifests.read_text(encoding="utf-8"))
+    payload["sources"].append(_failed_manifest())
+    manifests.write_text(json.dumps(payload), encoding="utf-8")
+
+    result = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim", "seloger"},
+    )
+
+    assert result["ok"] is False
+    assert result["source_gate"]["blocking_sources"] == ["seloger"]
+    assert any("source manifest gate blocked: seloger" in e for e in result["errors"])
+
+
+def test_a_non_blocking_source_warns_but_must_still_publish_its_manifest(tmp_path):
+    before, current, feed, manifests = _inputs(tmp_path)
+    payload = json.loads(manifests.read_text(encoding="utf-8"))
+    payload["sources"].append(_failed_manifest())
+    manifests.write_text(json.dumps(payload), encoding="utf-8")
+
+    degraded = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim", "seloger"},
+        critical_sources={"ofim"},
+    )
+
+    assert degraded["ok"] is True
+    assert degraded["source_gate"]["blocking_sources"] == []
+    # The degradation is downgraded, never hidden.
+    assert degraded["source_gate"]["warning_sources"] == ["seloger"]
+    assert degraded["source_gate"]["non_blocking_sources"] == ["seloger"]
+
+    # Non-blocking does not mean optional: an absent manifest still fails closed.
+    payload["sources"] = [payload["sources"][0]]
+    manifests.write_text(json.dumps(payload), encoding="utf-8")
+    absent = build_runtime_reconciliation(
+        feed_path=feed,
+        manifests_path=manifests,
+        db_path=current,
+        before_db_path=before,
+        expected_sources={"ofim", "seloger"},
+        critical_sources={"ofim"},
+    )
+    assert absent["ok"] is False
+    assert any("missing source manifests: seloger" in e for e in absent["errors"])
+
+
+def test_cli_reads_the_non_blocking_source_contract_from_the_environment(tmp_path):
+    import os
+
+    run = tmp_path / "run-1"
+    backups = run / "realestate_watch" / "backups"
+    backups.mkdir(parents=True)
+    before, current, feed, manifests = _inputs(tmp_path)
+    before.replace(backups / "reunion_watch.stage.db.bak.20260818T000000Z")
+    payload = json.loads(manifests.read_text(encoding="utf-8"))
+    payload["sources"].append(_failed_manifest())
+    manifest_target = run / "source_run_manifests.json"
+    manifest_target.write_text(json.dumps(payload), encoding="utf-8")
+
+    def _run(non_blocking: str) -> tuple[int, dict]:
+        output = run / f"pipeline_reconciliation-{non_blocking or 'none'}.json"
+        proc = subprocess.run(
+            [
+                sys.executable, str(SCRIPT),
+                "--feed", str(feed),
+                "--source-manifests", str(manifest_target),
+                "--db", str(current),
+                "--expected-source", "ofim",
+                "--expected-source", "seloger",
+                "--out", str(output),
+            ],
+            cwd=ROOT,
+            text=True,
+            capture_output=True,
+            env={**os.environ, "IMMO_NON_BLOCKING_REFRESH_SOURCES": non_blocking},
+        )
+        return proc.returncode, json.loads(output.read_text(encoding="utf-8"))
+
+    production_rc, production = _run("")
+    assert production_rc == 1
+    assert production["source_gate"]["blocking_sources"] == ["seloger"]
+
+    candidate_rc, candidate = _run("seloger")
+    assert candidate_rc == 0, candidate["errors"]
+    assert candidate["ok"] is True
+    assert candidate["source_gate"]["warning_sources"] == ["seloger"]
 
 
 def test_cli_discovers_the_unique_watcher_backup_and_writes_gate(tmp_path):

@@ -62,3 +62,50 @@ def test_product_reconciliation_leaves_missing_visible_content_unexplained():
     assert "missing_photo" not in report["field_explanations"]
     assert "missing_description" not in report["field_explanation_reasons"]
     assert "missing_photo" not in report["field_explanation_reasons"]
+
+
+def test_product_reconciliation_records_bounded_local_photo_degradation(monkeypatch):
+    monkeypatch.setenv("IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO", "0.08")
+    visible = [_item(str(i)) for i in range(20)]
+    visible[0].update(image=None, images=[])
+
+    report = reconciliation_product_payload(20, {}, visible, visible)
+
+    assert report["field_explanations"]["missing_photo"] == 1
+    assert report["degradations"]["missing_photo"] == {
+        "reason": "remote_source_image_not_cached",
+        "count": 1,
+        "ids": ["0"],
+        "visible": 20,
+        "ratio": 0.05,
+        "max_ratio": 0.08,
+        "public_image_policy": "local_only",
+    }
+
+
+def test_product_reconciliation_does_not_explain_photo_gap_over_budget(monkeypatch):
+    monkeypatch.setenv("IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO", "0.04")
+    visible = [_item(str(i)) for i in range(20)]
+    visible[0].update(image=None, images=[])
+
+    report = reconciliation_product_payload(20, {}, visible, visible)
+
+    assert "missing_photo" not in report["field_explanations"]
+    assert report["degradations"] == {}
+
+
+def test_product_reconciliation_carries_exact_exclusion_policy_inputs():
+    evidence = {
+        "ofim:x": {
+            "surface": 80,
+            "rent": 1200,
+            "commune": "Sainte-Suzanne",
+            "title": "Maison",
+        }
+    }
+
+    report = reconciliation_product_payload(
+        1, {"ofim:x": "commune_outside_scope"}, [], [], evidence
+    )
+
+    assert report["exclusion_policy_inputs"] == evidence
