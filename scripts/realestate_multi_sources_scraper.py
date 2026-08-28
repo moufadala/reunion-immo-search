@@ -167,6 +167,34 @@ def _immo974_curl_fetch(url, method='GET', data=None):
     return completed.stdout.decode('utf-8', 'replace'), url
 
 
+def _superimmo_proxy_curl_fetch(url, method='GET', data=None):
+    # Opt-in, bounded rescue path for Superimmo only. Direct VPS sometimes gets
+    # 429/503 while Moufadal's Tailscale SOCKS path returns the normal result page.
+    proxy = os.environ.get('IMMO_SUPERIMMO_SOCKS_PROXY', '').strip()
+    parts = urlsplit(url)
+    if (
+        not proxy
+        or parts.scheme.lower() != 'https'
+        or (parts.hostname or '').lower() != 'www.superimmo.com'
+        or method.upper() != 'GET'
+        or data is not None
+    ):
+        raise RuntimeError('superimmo proxy curl fallback refused outside bounded GET')
+    encoded = urlunsplit((parts.scheme, parts.netloc, parts.path, parts.query, ''))
+    argv = [
+        'curl', '--fail', '--silent', '--show-error', '--location',
+        '--max-time', '45', '--socks5-hostname', proxy, '--user-agent', UA,
+        '--header', 'Accept: text/html,application/xhtml+xml,application/json,text/plain,*/*',
+        '--header', 'Accept-Language: fr-FR,fr;q=0.9',
+        '--header', 'Referer: https://www.google.com/', encoded,
+    ]
+    completed = subprocess.run(argv, capture_output=True, timeout=55, check=False)
+    if completed.returncode != 0 or not completed.stdout:
+        detail = completed.stderr.decode('utf-8', 'replace')[-500:]
+        raise RuntimeError(f'Superimmo proxy curl fallback failed rc={completed.returncode}: {detail}')
+    return completed.stdout.decode('utf-8', 'replace'), url
+
+
 def _immo974_bounded_get(url, method='GET', data=None):
     parts = urlsplit(url)
     return (
@@ -256,6 +284,21 @@ def fetch(url, method='GET', data=None):
                 FETCH_LOG.append({'url':url,'mode':'curl_tls_eof_fallback','engine':'curl','ok':True,
                                   'status':None,'duration_ms':int((__import__('time').time()-t0)*1000),
                                   'error':None,'error_class':'none','reason':'urllib_tls_eof','text_len':len(text)})
+                return text, final
+            if status in (429, 503) and os.environ.get('IMMO_SUPERIMMO_SOCKS_PROXY') and (urlsplit(url).hostname or '').lower() == 'www.superimmo.com' and method.upper() == 'GET' and data is None:
+                try:
+                    text, final = _superimmo_proxy_curl_fetch(url, method=method, data=data)
+                except Exception as curl_error:
+                    FETCH_LOG.append({'url':url,'mode':'superimmo_proxy_curl_fallback','engine':'curl+socks','ok':False,
+                              'status':None,
+                              'duration_ms':int((__import__('time').time()-t0)*1000),
+                              'error':f'{type(curl_error).__name__}: {curl_error}',
+                              'error_class':'network','reason':'superimmo_http_429_503_proxy_failed','text_len':0})
+                    raise e
+                FETCH_LOG.append({'url':url,'mode':'superimmo_proxy_curl_fallback','engine':'curl+socks','ok':True,
+                                  'status':None,'duration_ms':int((__import__('time').time()-t0)*1000),
+                                  'error':None,'error_class':'none','reason':f'superimmo_http_{status}_proxy',
+                                  'text_len':len(text)})
                 return text, final
             FETCH_LOG.append({'url':url,'mode':'fallback','engine':'fallback','ok':False,
                               'status':status if isinstance(status,int) else None,
@@ -1563,13 +1606,33 @@ def scrape_leboncoin_apify_dataset():
     """
     token = os.environ.get('APIFY_TOKEN', '').strip()
     dataset_id = os.environ.get('APIFY_LEBONCOIN_DATASET_ID', '').strip()
+    dataset_file = os.environ.get('APIFY_LEBONCOIN_DATASET_FILE', '').strip()
     try:
         max_items = int(os.environ.get('APIFY_LEBONCOIN_MAX_ITEMS', '') or LEBONCOIN_DATASET_CAPACITY)
     except ValueError:
         max_items = LEBONCOIN_DATASET_CAPACITY
-    if not token:
+    if dataset_file:
+        path = Path(dataset_file)
+        items = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(items, dict):
+            items = items.get('items') or items.get('data') or []
+        items = items if isinstance(items, list) else []
+        items = items[:max_items]
+        dataset_id = f'file:{path.name}'
+        mode = 'local_replay'
+        actor = os.environ.get('APIFY_LEBONCOIN_ACTOR', '').strip() or DEFAULT_LEBONCOIN_ACTOR
+        runtime_meta = _leboncoin_runtime_meta(
+            items, dataset_id=dataset_id, mode=mode, max_items=max_items,
+        )
+        runtime_meta['retries'] = 0
+        signals = list(runtime_meta.get('truncation_signals') or [])
+        signals.append('local_replay_stale')
+        runtime_meta['truncation_signals'] = list(dict.fromkeys(signals))
+        runtime_meta['full_snapshot_proof'] = False
+        runtime_meta['snapshot_proof'] = None
+    elif not token:
         raise RuntimeError('APIFY_TOKEN missing: cannot query Apify (leboncoin)')
-    if dataset_id:
+    elif dataset_id:
         url = (f'{APIFY_BASE}/datasets/{quote(dataset_id, safe="")}/items'
                f'?clean=true&format=json&limit={max_items}')
         items = _apify_json(url, token)

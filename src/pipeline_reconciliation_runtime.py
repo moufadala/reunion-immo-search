@@ -248,6 +248,7 @@ def build_runtime_reconciliation(
         "product": product,
         "fields": fields,
         "field_explanations": explanations,
+        "field_explanation_reasons": explanation_reasons,
     }
     core = reconcile_pipeline(report)
 

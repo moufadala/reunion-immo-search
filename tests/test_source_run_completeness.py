@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 
 from scripts import realestate_multi_sources_scraper as multi
 from scripts import realestate_watch
@@ -85,6 +86,47 @@ def test_leboncoin_dataset_reuse_and_saturated_actor_are_partial():
     assert "dataset_reuse_unverified" in reused["truncation_signals"]
     assert saturated["full_snapshot_proof"] is False
     assert "dataset_limit_reached:700" in saturated["truncation_signals"]
+
+
+def test_leboncoin_local_replay_is_forced_stale_and_not_authoritative(tmp_path, monkeypatch):
+    items = [
+        {"list_id": 1, "location": {"city": "Saint-Denis"}, "subject": "T2", "url": "https://example.test/1"},
+        {"list_id": 2, "location": {"city": "Sainte-Marie"}, "subject": "T3", "url": "https://example.test/2"},
+    ]
+    dataset = tmp_path / "leboncoin.json"
+    dataset.write_text(json.dumps(items), encoding="utf-8")
+    monkeypatch.setenv("APIFY_LEBONCOIN_DATASET_FILE", str(dataset))
+    monkeypatch.delenv("APIFY_TOKEN", raising=False)
+    monkeypatch.delenv("APIFY_LEBONCOIN_DATASET_ID", raising=False)
+
+    multi.SOURCE_RUNTIME_META.pop("leboncoin", None)
+    listings = multi.scrape_leboncoin_apify_dataset()
+    meta = multi.SOURCE_RUNTIME_META["leboncoin"]
+    assert isinstance(listings, list)
+    assert meta["dataset_id"] == "file:leboncoin.json"
+    assert meta["pages_attempted"] == 0
+    assert meta["pages_succeeded"] == 0
+    assert meta["full_snapshot_proof"] is False
+    assert meta["snapshot_proof"] is None
+    assert "dataset_reuse_unverified" in meta["truncation_signals"]
+    assert "local_replay_stale" in meta["truncation_signals"]
+
+
+def test_superimmo_proxy_curl_fallback_refuses_unbounded_inputs(monkeypatch):
+    monkeypatch.setenv("IMMO_SUPERIMMO_SOCKS_PROXY", "127.0.0.1:1055")
+    refused = [
+        ("http://www.superimmo.com/annonces", "GET", None),
+        ("https://example.com/annonces", "GET", None),
+        ("https://www.superimmo.com/annonces", "POST", None),
+        ("https://www.superimmo.com/annonces", "GET", {"q": "x"}),
+    ]
+    for url, method, data in refused:
+        try:
+            multi._superimmo_proxy_curl_fetch(url, method=method, data=data)
+        except RuntimeError as exc:
+            assert "refused outside bounded GET" in str(exc)
+        else:
+            raise AssertionError(f"fallback accepted unbounded input: {url} {method} {data}")
 
 
 def test_adapter_manifest_keeps_apify_dataset_identity_and_rejection_counts():
