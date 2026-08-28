@@ -1,6 +1,29 @@
 from src.publication_policy import evaluate_publication
 
 
+def test_direct_saint_francois_location_in_description_is_excluded():
+    decision = evaluate_publication({
+        "surface": 75,
+        "rent": 900,
+        "commune": "Saint-Denis",
+        "description": "Maison rénovée dans quartier calme à St François.",
+    })
+    assert decision.eligible is False
+    assert decision.reason == "saint_denis_saint_francois"
+
+
+def test_raw_district_contradiction_survives_normalized_quartier():
+    decision = evaluate_publication({
+        "surface": 75,
+        "rent": 900,
+        "commune": "Saint-Denis",
+        "quartier": "Saint-Denis",
+        "district": "Saint-Denis - Petite-Ile - Bas de la Rivière",
+    })
+    assert decision.eligible is False
+    assert decision.reason == "manifest_outside_scope"
+
+
 def row(**values):
     base = {"surface": 65, "rent": 1700, "commune": "Saint-Denis", "quartier": "Le Chaudron"}
     base.update(values)

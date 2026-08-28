@@ -11,8 +11,12 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src.photo_gallery import canonicalize_gallery  # noqa: E402
 
 STATIC_MAX_ACTIVES_SANS_PHOTO = int(__import__('os').environ.get('IMMO_MAX_ACTIVES_SANS_PHOTO', '30'))
 MAX_ACTIVES_SANS_PHOTO_RATIO = float(__import__('os').environ.get('IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO', '0.04'))
@@ -70,9 +74,18 @@ def main() -> int:
     # galeries par portail (ça dépend des 404/limitations CDN). Elle vérifie ce
     # que le produit contrôle vraiment : si le manifeste local possède plusieurs
     # photos pour une annonce visible dans le feed, le feed doit les exposer.
+    # Le nombre attendu est celui du manifeste APRES canonicalisation : le feed
+    # public collapse volontairement les copies d'un meme contenu (URLs
+    # differentes, octets identiques) via src.photo_gallery, et
+    # audit_public_galleries traite justement un doublon intra-galerie comme une
+    # violation. Comparer au brut ferait echouer un run pour un portail qui sert
+    # deux fois la meme photo -- constate le 2026-08-27 sur
+    # bienici:ag971031-474984932 (photo_1 et photo_2 byte-identiques, sha256
+    # commun) : manifeste 20 -> feed 19, alors que le produit est correct.
     man_p = app / 'photos_manifest.json'
     manifest_multi_expected = {}
     manifest_to_feed_losses = []
+    manifest_content_duplicates = 0
     if man_p.is_file():
         try:
             man = json.loads(man_p.read_text(encoding='utf-8'))
@@ -80,11 +93,18 @@ def main() -> int:
             erreurs.append('photos_manifest.json illisible')
         else:
             feed_by_id = {x['id']: x for x in listings}
+            hash_cache = {}
             for cle, v in (man.get('photos') or {}).items():
                 dispo = ['/' + str(u).lstrip('/') for u in (v.get('locals') or [])
                          if u and (app / str(u).lstrip('/')).is_file()]
                 if len(dispo) <= 1:
                     continue
+                attendues, dedup = canonicalize_gallery(
+                    dispo, app_root=app, hash_cache=hash_cache)
+                manifest_content_duplicates += (dedup['duplicate_content']
+                                                + dedup['duplicate_urls'])
+                if len(attendues) <= 1:
+                    continue  # une seule photo distincte : pas une galerie.
                 site, _, sid = cle.partition(':')
                 fid = '%s:%s' % (site, sid)
                 x = feed_by_id.get(fid)
@@ -92,9 +112,9 @@ def main() -> int:
                     continue  # hors périmètre public : pas une perte d'export.
                 manifest_multi_expected[site] = manifest_multi_expected.get(site, 0) + 1
                 exposees = [str(i) for i in (x.get('images') or [])]
-                if len(exposees) < len(dispo):
+                if len(exposees) < len(attendues):
                     manifest_to_feed_losses.append('%s: manifeste %d -> feed %d'
-                                                   % (fid, len(dispo), len(exposees)))
+                                                   % (fid, len(attendues), len(exposees)))
             if manifest_to_feed_losses:
                 erreurs.append('%d galeries locales non exposées intégralement (%s)'
                                % (len(manifest_to_feed_losses),
@@ -130,6 +150,7 @@ def main() -> int:
         'actives_sans_photo': len(sans),
         'multi_photo_par_source': multi_par_source,
         'multi_photo_attendues_depuis_manifest': manifest_multi_expected,
+        'manifest_doublons_contenu': manifest_content_duplicates,
         'manifest_to_feed_losses': manifest_to_feed_losses[:10],
         'erreurs': erreurs,
     }

@@ -286,7 +286,9 @@ def active_public_listings(listings):
     """The public feed is an availability feed; history lives in movements/pages."""
     return [item for item in listings if item.get('active') is True]
 
-def reconciliation_product_payload(active_input, excluded_ids, eligible_items, visible_items):
+def reconciliation_product_payload(
+        active_input, excluded_ids, eligible_items, visible_items,
+        exclusion_policy_inputs=None):
     """Account for every active identity from DB input to one public card/link."""
     if not isinstance(excluded_ids, Mapping):
         raise TypeError('excluded_ids must be a mapping of identity to reason')
@@ -300,6 +302,15 @@ def reconciliation_product_payload(active_input, excluded_ids, eligible_items, v
             raise ValueError(f'duplicate excluded identity after normalization: {identity}')
         normalized_excluded_ids[identity] = reason
     normalized_excluded_ids = dict(sorted(normalized_excluded_ids.items()))
+    normalized_policy_inputs = {}
+    if exclusion_policy_inputs is not None:
+        if not isinstance(exclusion_policy_inputs, Mapping):
+            raise TypeError('exclusion_policy_inputs must be a mapping')
+        for identity in normalized_excluded_ids:
+            policy_input = exclusion_policy_inputs.get(identity)
+            if not isinstance(policy_input, Mapping):
+                raise ValueError(f'missing exclusion policy input for {identity}')
+            normalized_policy_inputs[identity] = dict(policy_input)
     policy_exclusions = Counter(normalized_excluded_ids.values())
 
     eligible_ids = [str(item.get('id') or '') for item in eligible_items]
@@ -336,17 +347,46 @@ def reconciliation_product_payload(active_input, excluded_ids, eligible_items, v
             )
         ),
     }
-    # A visible card without description or photo is never an acceptable,
-    # explained loss. Other gaps remain explicit accounting evidence.
+    # Missing descriptions remain a hard defect. A missing local photo can be
+    # published only as an explicit, bounded degradation: remote URLs are not
+    # copied into the public feed, and eligible listings are not silently
+    # discarded merely because the offline cache could not materialise them.
     hard_visible_requirements = {'missing_description', 'missing_photo'}
     explanations = {
         key: value for key, value in fields.items()
         if value and key not in hard_visible_requirements
     }
+    missing_photo_ids = sorted(
+        str(item.get('id') or '').strip()
+        for item in visible_items
+        if not str(item.get('image') or '').strip()
+        and not any(
+            str(value or '').strip()
+            for value in (item.get('images') if isinstance(item.get('images'), list) else [])
+        )
+    )
+    photo_degradation = None
+    try:
+        max_photo_ratio = float(os.environ.get('IMMO_MAX_ACTIVES_SANS_PHOTO_RATIO', '0'))
+    except ValueError:
+        max_photo_ratio = 0.0
+    photo_ratio = len(missing_photo_ids) / len(visible_items) if visible_items else 0.0
+    if missing_photo_ids and 0 < max_photo_ratio <= 1 and photo_ratio <= max_photo_ratio:
+        explanations['missing_photo'] = len(missing_photo_ids)
+        photo_degradation = {
+            'reason': 'remote_source_image_not_cached',
+            'count': len(missing_photo_ids),
+            'ids': missing_photo_ids,
+            'visible': len(visible_items),
+            'ratio': photo_ratio,
+            'max_ratio': max_photo_ratio,
+            'public_image_policy': 'local_only',
+        }
     return {
         'active_input': int(active_input),
         'policy_exclusions': {str(k): int(v) for k, v in sorted(policy_exclusions.items())},
         'excluded_ids': normalized_excluded_ids,
+        'exclusion_policy_inputs': normalized_policy_inputs,
         'eligible': len(eligible_ids),
         'dedup_hidden': len(hidden_ids),
         'visible': len(visible_ids),
@@ -363,7 +403,9 @@ def reconciliation_product_payload(active_input, excluded_ids, eligible_items, v
             'missing_rent': 'publication_policy_should_exclude',
             'missing_surface': 'publication_policy_should_exclude',
             'missing_commune': 'publication_policy_should_exclude',
+            **({'missing_photo': 'remote_source_image_not_cached'} if photo_degradation else {}),
         },
+        'degradations': {'missing_photo': photo_degradation} if photo_degradation else {},
     }
 
 
@@ -814,6 +856,21 @@ def main():
     diagnostics_actifs = Counter()
     reconciliation_active_input = 0
     reconciliation_excluded_ids = {}
+    reconciliation_exclusion_policy_inputs = {}
+
+    def publication_policy_input(listing):
+        """Freeze the exact normalized values used for an exclusion decision."""
+        return {
+            key: listing.get(key)
+            for key in (
+                'surface', 'surface_m2', 'rent', 'rent_eur', 'price',
+                'commune', 'city', 'quartier', 'district', 'primary_zone',
+                'location_label', 'type', 'property_type',
+                'property_type_normalized', 'title', 'description',
+                'residential', 'is_residential',
+            )
+            if key in listing
+        }
 
     def compter_exclusion(regle, listing):
         filtres_produit[regle] += 1
@@ -821,10 +878,12 @@ def main():
             filtres_produit[regle + '_actives'] += 1
             identity = str(listing.get('id') or '')
             if identity and identity not in reconciliation_excluded_ids:
-                decision = evaluate_publication(listing)
+                policy_input = publication_policy_input(listing)
+                decision = evaluate_publication(policy_input)
                 reconciliation_excluded_ids[identity] = (
                     decision.reason if not decision.eligible else regle
                 )
+                reconciliation_exclusion_policy_inputs[identity] = policy_input
 
     for r in c.execute('select * from rental_listings order by seen_last_at desc'):
         k = (r['source_site'], r['source_id'])
@@ -853,6 +912,11 @@ def main():
                     'rent_eur': r['rent_eur'],
                     'commune': normalized_city,
                     'quartier': normalized_zone,
+                    # Preserve the raw contradictory scope evidence too. The
+                    # normalized location is useful for display, but must not
+                    # erase an explicit outside locality from the source row.
+                    'city': r['city'],
+                    'district': r['district'],
                     'property_type': e.get('property_type_normalized') or r['property_type'],
                     'title': r['title'],
                     'description': d.get('description_full') or r['description'],
@@ -866,6 +930,7 @@ def main():
                 reconciliation_excluded_ids[row_identity] = (
                     decision.reason if not decision.eligible else 'manifest_outside_scope'
                 )
+                reconciliation_exclusion_policy_inputs[row_identity] = policy_input
             continue
 
         lat, lon = d.get('lat'), d.get('lon')
@@ -1116,6 +1181,7 @@ def main():
         reconciliation_excluded_ids,
         reconciliation_eligible,
         listings,
+        reconciliation_exclusion_policy_inputs,
     )
     # Backward-compatible metadata for older audits/UI while the canonical
     # implementation lives in src.public_feed_dedup.

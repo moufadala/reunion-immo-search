@@ -2,7 +2,7 @@
   "version": "acceptance_search_oracle_v2",
   "principle": "Generated from product domain inventory; tests families, not only user examples.",
   "source_inventory": "artifacts/domain_inventory_v2.json",
-  "case_count": 195,
+  "case_count": 160,
   "cases": [
     {
       "id": "loc_saint_denis_0",
@@ -69,286 +69,6 @@
           "saint denis",
           "st denis",
           "st-denis"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_pierre_0",
-      "query": "saint-pierre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Pierre"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-pierre",
-          "saint pierre",
-          "st pierre",
-          "st-pierre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_pierre_1",
-      "query": "saint pierre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Pierre"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-pierre",
-          "saint pierre",
-          "st pierre",
-          "st-pierre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_pierre_2",
-      "query": "st pierre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Pierre"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-pierre",
-          "saint pierre",
-          "st pierre",
-          "st-pierre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_pierre_3",
-      "query": "st-pierre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Pierre"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-pierre",
-          "saint pierre",
-          "st pierre",
-          "st-pierre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_paul_0",
-      "query": "saint-paul",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Paul"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-paul",
-          "saint paul",
-          "st paul",
-          "st-paul"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_paul_1",
-      "query": "saint paul",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Paul"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-paul",
-          "saint paul",
-          "st paul",
-          "st-paul"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_paul_2",
-      "query": "st paul",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Paul"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-paul",
-          "saint paul",
-          "st paul",
-          "st-paul"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_paul_3",
-      "query": "st-paul",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Paul"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-paul",
-          "saint paul",
-          "st paul",
-          "st-paul"
-        ]
-      }
-    },
-    {
-      "id": "loc_le_tampon_0",
-      "query": "le tampon",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Le Tampon"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "le tampon",
-          "le-tampon"
-        ]
-      }
-    },
-    {
-      "id": "loc_le_tampon_1",
-      "query": "le-tampon",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Le Tampon"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "le tampon",
-          "le-tampon"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_0",
-      "query": "saint-andré",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_1",
-      "query": "saint andré",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_2",
-      "query": "saint andre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_3",
-      "query": "saint-andre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_4",
-      "query": "st andre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_andre_5",
-      "query": "st-andre",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-André"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-andré",
-          "saint andré",
-          "saint andre",
-          "saint-andre",
-          "st andre",
-          "st-andre"
         ]
       }
     },
@@ -421,372 +141,32 @@
       }
     },
     {
-      "id": "loc_saint_leu_0",
-      "query": "saint-leu",
+      "id": "loc_la_bretagne_0",
+      "query": "la bretagne",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Leu"
+          "La Bretagne"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-leu",
-          "saint leu",
-          "st leu",
-          "st-leu"
+          "la bretagne",
+          "bretagne"
         ]
       }
     },
     {
-      "id": "loc_saint_leu_1",
-      "query": "saint leu",
+      "id": "loc_la_bretagne_1",
+      "query": "bretagne",
       "family": "location",
       "expect": {
         "understood_any": [
-          "Saint-Leu"
+          "La Bretagne"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "saint-leu",
-          "saint leu",
-          "st leu",
-          "st-leu"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_leu_2",
-      "query": "st leu",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Leu"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-leu",
-          "saint leu",
-          "st leu",
-          "st-leu"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_leu_3",
-      "query": "st-leu",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Leu"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-leu",
-          "saint leu",
-          "st leu",
-          "st-leu"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_possession_0",
-      "query": "la possession",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Possession"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la possession",
-          "la-possession"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_possession_1",
-      "query": "la-possession",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Possession"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la possession",
-          "la-possession"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_louis_0",
-      "query": "saint-louis",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Louis"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_louis_1",
-      "query": "saint louis",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Louis"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_louis_2",
-      "query": "st louis",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Louis"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_louis_3",
-      "query": "st-louis",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Louis"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-louis",
-          "saint louis",
-          "st louis",
-          "st-louis"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_suzanne_0",
-      "query": "sainte-suzanne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Suzanne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-suzanne",
-          "sainte suzanne",
-          "ste suzanne",
-          "ste-suzanne"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_suzanne_1",
-      "query": "sainte suzanne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Suzanne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-suzanne",
-          "sainte suzanne",
-          "ste suzanne",
-          "ste-suzanne"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_suzanne_2",
-      "query": "ste suzanne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Suzanne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-suzanne",
-          "sainte suzanne",
-          "ste suzanne",
-          "ste-suzanne"
-        ]
-      }
-    },
-    {
-      "id": "loc_sainte_suzanne_3",
-      "query": "ste-suzanne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Sainte-Suzanne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "sainte-suzanne",
-          "sainte suzanne",
-          "ste suzanne",
-          "ste-suzanne"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_0",
-      "query": "saint-joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_1",
-      "query": "saint joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_2",
-      "query": "st joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_saint_joseph_3",
-      "query": "st-joseph",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Saint-Joseph"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "saint-joseph",
-          "saint joseph",
-          "st joseph",
-          "st-joseph"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_0",
-      "query": "étang-salé",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_1",
-      "query": "étang salé",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_2",
-      "query": "etang sale",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
-        ]
-      }
-    },
-    {
-      "id": "loc_etang_sale_3",
-      "query": "etang-sale",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Étang-Salé"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "étang-salé",
-          "étang salé",
-          "etang sale",
-          "etang-sale"
+          "la bretagne",
+          "bretagne"
         ]
       }
     },
@@ -873,32 +253,240 @@
       }
     },
     {
-      "id": "loc_la_saline_les_bains_0",
-      "query": "la saline les bains",
+      "id": "loc_la_montagne_0",
+      "query": "la montagne",
       "family": "location",
       "expect": {
         "understood_any": [
-          "La Saline les Bains"
+          "La Montagne"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "la saline les bains",
-          "la-saline-les-bains"
+          "la montagne",
+          "la-montagne"
         ]
       }
     },
     {
-      "id": "loc_la_saline_les_bains_1",
-      "query": "la-saline-les-bains",
+      "id": "loc_la_montagne_1",
+      "query": "la-montagne",
       "family": "location",
       "expect": {
         "understood_any": [
-          "La Saline les Bains"
+          "La Montagne"
         ],
         "no_all_base": true,
         "result_hay_any": [
-          "la saline les bains",
-          "la-saline-les-bains"
+          "la montagne",
+          "la-montagne"
+        ]
+      }
+    },
+    {
+      "id": "loc_la_grande_montee_0",
+      "query": "la grande montée",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "La Grande Montée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "la grande montée",
+          "la-grande-montée",
+          "la grande montee",
+          "la-grande-montee"
+        ]
+      }
+    },
+    {
+      "id": "loc_la_grande_montee_1",
+      "query": "la-grande-montée",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "La Grande Montée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "la grande montée",
+          "la-grande-montée",
+          "la grande montee",
+          "la-grande-montee"
+        ]
+      }
+    },
+    {
+      "id": "loc_la_grande_montee_2",
+      "query": "la grande montee",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "La Grande Montée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "la grande montée",
+          "la-grande-montée",
+          "la grande montee",
+          "la-grande-montee"
+        ]
+      }
+    },
+    {
+      "id": "loc_la_grande_montee_3",
+      "query": "la-grande-montee",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "La Grande Montée"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "la grande montée",
+          "la-grande-montée",
+          "la grande montee",
+          "la-grande-montee"
+        ]
+      }
+    },
+    {
+      "id": "loc_beausejour_0",
+      "query": "beauséjour",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Beauséjour"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "beauséjour",
+          "beausejour"
+        ]
+      }
+    },
+    {
+      "id": "loc_beausejour_1",
+      "query": "beausejour",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Beauséjour"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "beauséjour",
+          "beausejour"
+        ]
+      }
+    },
+    {
+      "id": "loc_moufia_0",
+      "query": "moufia",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Moufia"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "moufia"
+        ]
+      }
+    },
+    {
+      "id": "loc_duparc_0",
+      "query": "duparc",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Duparc"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "duparc"
+        ]
+      }
+    },
+    {
+      "id": "loc_bois_de_nefles_sainte_clotilde_0",
+      "query": "bois de nefles sainte clotilde",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Bois de Nèfles Sainte-Clotilde"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "bois de nefles sainte clotilde",
+          "bois de nèfles sainte-clotilde",
+          "ste clotilde bois de nefles",
+          "sainte clotilde bois de nefles"
+        ]
+      }
+    },
+    {
+      "id": "loc_bois_de_nefles_sainte_clotilde_1",
+      "query": "bois de nèfles sainte-clotilde",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Bois de Nèfles Sainte-Clotilde"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "bois de nefles sainte clotilde",
+          "bois de nèfles sainte-clotilde",
+          "ste clotilde bois de nefles",
+          "sainte clotilde bois de nefles"
+        ]
+      }
+    },
+    {
+      "id": "loc_bois_de_nefles_sainte_clotilde_2",
+      "query": "ste clotilde bois de nefles",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Bois de Nèfles Sainte-Clotilde"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "bois de nefles sainte clotilde",
+          "bois de nèfles sainte-clotilde",
+          "ste clotilde bois de nefles",
+          "sainte clotilde bois de nefles"
+        ]
+      }
+    },
+    {
+      "id": "loc_bois_de_nefles_sainte_clotilde_3",
+      "query": "sainte clotilde bois de nefles",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Bois de Nèfles Sainte-Clotilde"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "bois de nefles sainte clotilde",
+          "bois de nèfles sainte-clotilde",
+          "ste clotilde bois de nefles",
+          "sainte clotilde bois de nefles"
+        ]
+      }
+    },
+    {
+      "id": "loc_montgaillard_0",
+      "query": "montgaillard",
+      "family": "location",
+      "expect": {
+        "understood_any": [
+          "Montgaillard"
+        ],
+        "no_all_base": true,
+        "result_hay_any": [
+          "montgaillard"
         ]
       }
     },
@@ -971,36 +559,6 @@
       }
     },
     {
-      "id": "loc_beausejour_0",
-      "query": "beauséjour",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Beauséjour"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "beauséjour",
-          "beausejour"
-        ]
-      }
-    },
-    {
-      "id": "loc_beausejour_1",
-      "query": "beausejour",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Beauséjour"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "beauséjour",
-          "beausejour"
-        ]
-      }
-    },
-    {
       "id": "loc_grande_montee_0",
       "query": "grande montée",
       "family": "location",
@@ -1065,20 +623,6 @@
           "grande montee",
           "la grande montée",
           "la grande montee"
-        ]
-      }
-    },
-    {
-      "id": "loc_duparc_0",
-      "query": "duparc",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Duparc"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "duparc"
         ]
       }
     },
@@ -1177,50 +721,6 @@
           "les cafes",
           "cafés",
           "cafes"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_bretagne_0",
-      "query": "la bretagne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Bretagne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la bretagne",
-          "bretagne"
-        ]
-      }
-    },
-    {
-      "id": "loc_la_bretagne_1",
-      "query": "bretagne",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "La Bretagne"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "la bretagne",
-          "bretagne"
-        ]
-      }
-    },
-    {
-      "id": "loc_moufia_0",
-      "query": "moufia",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Moufia"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "moufia"
         ]
       }
     },
@@ -1337,20 +837,6 @@
       }
     },
     {
-      "id": "loc_montgaillard_0",
-      "query": "montgaillard",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Montgaillard"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "montgaillard"
-        ]
-      }
-    },
-    {
       "id": "loc_la_source_saint_denis_0",
       "query": "quartier la source saint denis",
       "family": "location",
@@ -1377,74 +863,6 @@
         "result_hay_any": [
           "quartier la source saint denis",
           "la source saint denis"
-        ]
-      }
-    },
-    {
-      "id": "loc_bois_de_nefles_sainte_clotilde_0",
-      "query": "bois de nefles sainte clotilde",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Bois de Nèfles Sainte-Clotilde"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "bois de nefles sainte clotilde",
-          "bois de nèfles sainte-clotilde",
-          "ste clotilde bois de nefles",
-          "sainte clotilde bois de nefles"
-        ]
-      }
-    },
-    {
-      "id": "loc_bois_de_nefles_sainte_clotilde_1",
-      "query": "bois de nèfles sainte-clotilde",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Bois de Nèfles Sainte-Clotilde"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "bois de nefles sainte clotilde",
-          "bois de nèfles sainte-clotilde",
-          "ste clotilde bois de nefles",
-          "sainte clotilde bois de nefles"
-        ]
-      }
-    },
-    {
-      "id": "loc_bois_de_nefles_sainte_clotilde_2",
-      "query": "ste clotilde bois de nefles",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Bois de Nèfles Sainte-Clotilde"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "bois de nefles sainte clotilde",
-          "bois de nèfles sainte-clotilde",
-          "ste clotilde bois de nefles",
-          "sainte clotilde bois de nefles"
-        ]
-      }
-    },
-    {
-      "id": "loc_bois_de_nefles_sainte_clotilde_3",
-      "query": "sainte clotilde bois de nefles",
-      "family": "location",
-      "expect": {
-        "understood_any": [
-          "Bois de Nèfles Sainte-Clotilde"
-        ],
-        "no_all_base": true,
-        "result_hay_any": [
-          "bois de nefles sainte clotilde",
-          "bois de nèfles sainte-clotilde",
-          "ste clotilde bois de nefles",
-          "sainte clotilde bois de nefles"
         ]
       }
     },
@@ -1583,150 +1001,6 @@
       }
     },
     {
-      "id": "rooms_3_t3",
-      "query": "T3",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_3_f3",
-      "query": "F3",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_3_t_3",
-      "query": "T 3",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_3_f_3",
-      "query": "F 3",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_3_3_pieces",
-      "query": "3 pièces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_3_3_pieces",
-      "query": "3 pieces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F3",
-          "3"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_t2",
-      "query": "T2",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_f2",
-      "query": "F2",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_t_2",
-      "query": "T 2",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_f_2",
-      "query": "F 2",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_2_pieces",
-      "query": "2 pièces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "rooms_2_2_pieces",
-      "query": "2 pieces",
-      "family": "rooms",
-      "expect": {
-        "understood_any": [
-          "T/F2",
-          "2"
-        ],
-        "no_zero": true
-      }
-    },
-    {
       "id": "rooms_4_t4",
       "query": "T4",
       "family": "rooms",
@@ -1799,73 +1073,73 @@
       }
     },
     {
-      "id": "rooms_1_t1",
-      "query": "T1",
+      "id": "rooms_3_t3",
+      "query": "T3",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
     },
     {
-      "id": "rooms_1_f1",
-      "query": "F1",
+      "id": "rooms_3_f3",
+      "query": "F3",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
     },
     {
-      "id": "rooms_1_t_1",
-      "query": "T 1",
+      "id": "rooms_3_t_3",
+      "query": "T 3",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
     },
     {
-      "id": "rooms_1_f_1",
-      "query": "F 1",
+      "id": "rooms_3_f_3",
+      "query": "F 3",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
     },
     {
-      "id": "rooms_1_1_pieces",
-      "query": "1 pièces",
+      "id": "rooms_3_3_pieces",
+      "query": "3 pièces",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
     },
     {
-      "id": "rooms_1_1_pieces",
-      "query": "1 pieces",
+      "id": "rooms_3_3_pieces",
+      "query": "3 pieces",
       "family": "rooms",
       "expect": {
         "understood_any": [
-          "T/F1",
-          "1"
+          "T/F3",
+          "3"
         ],
         "no_zero": true
       }
@@ -1938,6 +1212,150 @@
         "understood_any": [
           "T/F5",
           "5"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_t6",
+      "query": "T6",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_f6",
+      "query": "F6",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_t_6",
+      "query": "T 6",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_f_6",
+      "query": "F 6",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_6_pieces",
+      "query": "6 pièces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_6_6_pieces",
+      "query": "6 pieces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F6",
+          "6"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_t2",
+      "query": "T2",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_f2",
+      "query": "F2",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_t_2",
+      "query": "T 2",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_f_2",
+      "query": "F 2",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_2_pieces",
+      "query": "2 pièces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "rooms_2_2_pieces",
+      "query": "2 pieces",
+      "family": "rooms",
+      "expect": {
+        "understood_any": [
+          "T/F2",
+          "2"
         ],
         "no_zero": true
       }
@@ -2200,70 +1618,6 @@
       }
     },
     {
-      "id": "budget_bare_980",
-      "query": "980",
-      "family": "budget_ambiguous",
-      "expect": {
-        "understood_any": [
-          "à préciser"
-        ],
-        "has_price_buttons": true
-      }
-    },
-    {
-      "id": "budget_max_980",
-      "query": "moins 980",
-      "family": "budget_max",
-      "expect": {
-        "understood_any": [
-          "≤ 980"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_under_980",
-      "query": "sous 980",
-      "family": "budget_max",
-      "expect": {
-        "understood_any": [
-          "≤ 980"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_min_980",
-      "query": "plus 980",
-      "family": "budget_min",
-      "expect": {
-        "understood_any": [
-          "≥ 980"
-        ],
-        "no_zero": true
-      }
-    },
-    {
-      "id": "budget_equal_980",
-      "query": "exact 980",
-      "family": "budget_equal",
-      "expect": {
-        "understood_any": [
-          "= 980"
-        ]
-      }
-    },
-    {
-      "id": "budget_around_980",
-      "query": "autour de 980",
-      "family": "budget_around",
-      "expect": {
-        "understood_any": [
-          "autour"
-        ]
-      }
-    },
-    {
       "id": "budget_bare_1000",
       "query": "1000",
       "family": "budget_ambiguous",
@@ -2384,6 +1738,70 @@
     {
       "id": "budget_around_1200",
       "query": "autour de 1200",
+      "family": "budget_around",
+      "expect": {
+        "understood_any": [
+          "autour"
+        ]
+      }
+    },
+    {
+      "id": "budget_bare_1349",
+      "query": "1349",
+      "family": "budget_ambiguous",
+      "expect": {
+        "understood_any": [
+          "à préciser"
+        ],
+        "has_price_buttons": true
+      }
+    },
+    {
+      "id": "budget_max_1349",
+      "query": "moins 1349",
+      "family": "budget_max",
+      "expect": {
+        "understood_any": [
+          "≤ 1349"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_under_1349",
+      "query": "sous 1349",
+      "family": "budget_max",
+      "expect": {
+        "understood_any": [
+          "≤ 1349"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_min_1349",
+      "query": "plus 1349",
+      "family": "budget_min",
+      "expect": {
+        "understood_any": [
+          "≥ 1349"
+        ],
+        "no_zero": true
+      }
+    },
+    {
+      "id": "budget_equal_1349",
+      "query": "exact 1349",
+      "family": "budget_equal",
+      "expect": {
+        "understood_any": [
+          "= 1349"
+        ]
+      }
+    },
+    {
+      "id": "budget_around_1349",
+      "query": "autour de 1349",
       "family": "budget_around",
       "expect": {
         "understood_any": [
@@ -2556,17 +1974,6 @@
       }
     },
     {
-      "id": "feature_piscine",
-      "query": "Piscine",
-      "family": "feature",
-      "expect": {
-        "understood_any": [
-          "Piscine"
-        ],
-        "no_all_base": true
-      }
-    },
-    {
       "id": "feature_non_meuble",
       "query": "Non meublé",
       "family": "feature",
@@ -2578,23 +1985,23 @@
       }
     },
     {
+      "id": "feature_piscine",
+      "query": "Piscine",
+      "family": "feature",
+      "expect": {
+        "understood_any": [
+          "Piscine"
+        ],
+        "no_all_base": true
+      }
+    },
+    {
       "id": "feature_baignoire",
       "query": "baignoire",
       "family": "feature",
       "expect": {
         "understood_any": [
           "baignoire"
-        ],
-        "no_all_base": true
-      }
-    },
-    {
-      "id": "feature_salle_de_bain_equipement_non_precise",
-      "query": "salle de bain, équipement non précisé",
-      "family": "feature",
-      "expect": {
-        "understood_any": [
-          "salle de bain, équipement non précisé"
         ],
         "no_all_base": true
       }

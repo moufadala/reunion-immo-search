@@ -80,6 +80,12 @@ def _excluded_district_from_text(city: Any, row: Mapping[str, Any]) -> str | Non
         r"\b(?:quartier(?: de)?|(?:secteur )?(?:bas|hauts?) de) (?:saint|st) francois\b",
         text,
     )
+    # Common source wording places the property directly at/in the district.
+    # Keep proximity mentions exempt through the shared helper.
+    saint_francois_location = saint_francois_location or _has_affirmative_location(
+        r"\b(?:a|au|dans) (?:saint|st) francois\b",
+        text,
+    )
     saint_francois_title = _has_affirmative_location(r"\b(?:saint|st) francois$", title)
     if saint_francois_location or saint_francois_title:
         return "saint_denis_saint_francois"

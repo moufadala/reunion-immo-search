@@ -53,7 +53,7 @@ def test_daily_refresh_sanitizes_python_import_environment_before_steps() -> Non
     script = DAILY.read_text(encoding="utf-8")
     export_pos = script.index("export PYTHONNOUSERSITE=1")
     unset_pos = script.index("unset PYTHONPATH")
-    project_pos = script.index('PROJECT="/opt/data/projects/reunion-immo-search"')
+    project_pos = script.index('PROJECT="${IMMO_PROJECT_DIR:-/opt/data/projects/reunion-immo-search}"')
     assert export_pos < project_pos
     assert unset_pos < project_pos
     assert "if [ ! -x \"$PY\" ]; then PY=python3; fi" not in script

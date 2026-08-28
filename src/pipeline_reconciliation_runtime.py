@@ -197,6 +197,7 @@ def build_runtime_reconciliation(
     db_path: Path,
     before_db_path: Path | None = None,
     expected_sources: set[str] | frozenset[str],
+    critical_sources: set[str] | frozenset[str] | None = None,
 ) -> dict[str, Any]:
     """Build and validate the exact run proof used as a publication gate."""
     feed_path = Path(feed_path)
@@ -226,9 +227,11 @@ def build_runtime_reconciliation(
             "visible_ids",
             "also_on_ids",
             "excluded_ids",
+            "exclusion_policy_inputs",
             "unexplained_eligible_ids",
             "unexpected_also_on_ids",
             "invalid_also_on_links",
+            "degradations",
         )
     }
     fields = product_raw.get("fields")
@@ -263,7 +266,17 @@ def build_runtime_reconciliation(
     if unexpected_sources:
         errors.append(f"unexpected source manifests: {', '.join(unexpected_sources)}")
 
-    source_gate = evaluate_source_manifests(raw_sources, critical_sources=expected)
+    # A source can be *expected to be present* without being *blocking*: the
+    # manifest must still be there and be valid, but a degraded snapshot only
+    # warns.  Keeping the two sets separate is what lets the bundle gate and
+    # this proof agree on one env contract instead of contradicting each other.
+    blocking = (
+        {str(source).strip().lower() for source in critical_sources if str(source).strip()}
+        if critical_sources is not None
+        else set(expected)
+    )
+    source_gate = evaluate_source_manifests(raw_sources, critical_sources=blocking)
+    source_gate["non_blocking_sources"] = sorted(expected - blocking)
     if not source_gate["ok"]:
         errors.extend(
             f"source manifest gate blocked: {source}"
@@ -308,6 +321,8 @@ def build_runtime_reconciliation(
     invalid_link_count = 0
     missing_description_ids: list[str] = []
     missing_photo_ids: list[str] = []
+    visible_policy_violations: list[tuple[str, str]] = []
+    policy_inputs = _db_policy_inputs(db_path)
     for item in listings:
         if not isinstance(item, Mapping):
             continue
@@ -321,6 +336,14 @@ def build_runtime_reconciliation(
         )
         if not has_photo:
             missing_photo_ids.append(identity)
+        # Feed fields are authoritative when present; SQLite fills fields that
+        # compact/test feeds legitimately omit. This keeps over-publication
+        # blocking without mistaking a sparse representation for bad policy.
+        visible_input = dict(policy_inputs.get(identity, {}))
+        visible_input.update(item)
+        decision = evaluate_publication(visible_input)
+        if not decision.eligible:
+            visible_policy_violations.append((identity, decision.reason or "unknown"))
 
         links = item.get("also_on") or []
         if not isinstance(links, list):
@@ -347,13 +370,75 @@ def build_runtime_reconciliation(
         )
     if invalid_link_count:
         errors.append(f"feed contains {invalid_link_count} invalid also_on links")
+    if visible_policy_violations:
+        sample = ", ".join(
+            f"{identity}={reason}"
+            for identity, reason in visible_policy_violations[:5]
+        )
+        errors.append(
+            f"feed visible listings violate publication policy: "
+            f"{len(visible_policy_violations)} ({sample})"
+        )
 
     if missing_description_ids:
         errors.append(
             f"feed visible listings missing description: {len(missing_description_ids)} "
             f"({', '.join(missing_description_ids[:5])})"
         )
-    if missing_photo_ids:
+    photo_degradation = None
+    raw_degradations = product.get("degradations")
+    if isinstance(raw_degradations, Mapping):
+        candidate_degradation = raw_degradations.get("missing_photo")
+        if isinstance(candidate_degradation, Mapping):
+            photo_degradation = candidate_degradation
+
+    photo_degradation_valid = False
+    if photo_degradation is not None:
+        claimed_ids = sorted(str(value).strip() for value in (photo_degradation.get("ids") or []))
+        claimed_reason = str(photo_degradation.get("reason") or "").strip()
+        claimed_policy = str(photo_degradation.get("public_image_policy") or "").strip()
+        try:
+            claimed_count = int(photo_degradation.get("count"))
+            claimed_visible = int(photo_degradation.get("visible"))
+            claimed_ratio = float(photo_degradation.get("ratio"))
+            max_ratio = float(photo_degradation.get("max_ratio"))
+        except (TypeError, ValueError):
+            errors.append("missing-photo degradation has invalid numeric evidence")
+        else:
+            actual_ids = sorted(missing_photo_ids)
+            expected_ratio = len(actual_ids) / len(listings) if listings else 0.0
+            remote_photo_ids = set()
+            with closing(sqlite3.connect(str(db_path))) as photo_con:
+                for source, source_id, image_url in photo_con.execute(
+                    "SELECT source_site, source_id, image_url FROM rental_listings "
+                    "WHERE image_url IS NOT NULL AND trim(image_url) <> ''"
+                ):
+                    if str(image_url).strip().startswith(("http://", "https://")):
+                        remote_photo_ids.add(f"{source}:{source_id}")
+            evidence_ok = (
+                claimed_ids == actual_ids
+                and claimed_count == len(actual_ids)
+                and claimed_visible == len(listings)
+                and abs(claimed_ratio - expected_ratio) < 1e-12
+                and 0 < max_ratio <= 1
+                and expected_ratio <= max_ratio
+                and claimed_reason == "remote_source_image_not_cached"
+                and claimed_policy == "local_only"
+                and set(actual_ids) <= remote_photo_ids
+            )
+            if evidence_ok:
+                photo_degradation_valid = True
+                strict_error = f"fields: visible missing_photo={len(actual_ids)}"
+                errors = [error for error in errors if error != strict_error]
+                warnings.append(
+                    f"feed photo degradation: {len(actual_ids)}/{len(listings)} visible "
+                    f"listings have remote source images but no local cached copy "
+                    f"(ratio={expected_ratio:.6f}, max={max_ratio:.6f})"
+                )
+            else:
+                errors.append("missing-photo degradation evidence does not match feed/SQLite")
+
+    if missing_photo_ids and not photo_degradation_valid:
         errors.append(
             f"feed visible listings missing photo: {len(missing_photo_ids)} "
             f"({', '.join(missing_photo_ids[:5])})"
@@ -421,9 +506,25 @@ def build_runtime_reconciliation(
         if dict(sorted(claimed_reason_counts.items())) != actual_reason_counts:
             errors.append("product.policy_exclusions differs from excluded_ids reasons")
 
-    policy_inputs = _db_policy_inputs(db_path)
+    claimed_policy_inputs = product.get("exclusion_policy_inputs")
+    if claimed_policy_inputs is not None and not isinstance(claimed_policy_inputs, Mapping):
+        errors.append("product.exclusion_policy_inputs must be an object")
+        claimed_policy_inputs = None
+    if isinstance(claimed_policy_inputs, Mapping):
+        evidence_ids = {str(value).strip() for value in claimed_policy_inputs}
+        if evidence_ids != excluded_set:
+            errors.append(
+                "product.exclusion_policy_inputs identities differ from excluded_ids"
+            )
     for identity, claimed_reason in sorted(excluded_ids.items()):
-        candidate = policy_inputs.get(identity)
+        candidate = (
+            claimed_policy_inputs.get(identity)
+            if isinstance(claimed_policy_inputs, Mapping)
+            else policy_inputs.get(identity)
+        )
+        if candidate is not None and not isinstance(candidate, Mapping):
+            errors.append(f"excluded identity {identity} has invalid policy input evidence")
+            continue
         if candidate is None:
             errors.append(f"excluded identity {identity} has no SQLite policy input")
             continue

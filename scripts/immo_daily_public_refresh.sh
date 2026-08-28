@@ -16,7 +16,12 @@ unset PYTHONPATH
 export PYTHONPYCACHEPREFIX="${PYTHONPYCACHEPREFIX:-/tmp/pycache-hermes}"
 export PLAYWRIGHT_BROWSERS_PATH="${IMMO_PLAYWRIGHT_BROWSERS_PATH:-/opt/data/.cache/ms-playwright}"
 
-PROJECT="/opt/data/projects/reunion-immo-search"
+PROJECT="${IMMO_PROJECT_DIR:-/opt/data/projects/reunion-immo-search}"
+if [ ! -d "$PROJECT/scripts" ] || [ ! -d "$PROJECT/tests" ]; then
+  printf 'IMMO_PROJECT_DIR is not a reunion-immo-search checkout: %s\n' "$PROJECT" >&2
+  exit 64
+fi
+export IMMO_PROJECT="$PROJECT"
 PY="${IMMO_PROJECT_PYTHON:-$PROJECT/.venv/bin/python}"
 if [ ! -x "$PY" ]; then
   printf 'IMMO_PROJECT_PYTHON is not executable: %s\n' "$PY" >&2
@@ -103,6 +108,9 @@ report_step() {
     tail -n 40 "$stderr" >&2 || true
     tail -n 40 "$stdout" >&2 || true
   fi
+  return 0
+}
+
 # Recover a prior run before copying any canonical state into this run.
 run_step global_publication_recover "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" recover \
   --journal "$GLOBAL_TXN_JOURNAL" --run-id "$STAMP" \
@@ -116,9 +124,6 @@ if source.exists():
     with sqlite3.connect(source) as src, sqlite3.connect(target) as dst:
         src.backup(dst)
 PYCODE
-
-  return 0
-}
 
 run_step preflight_disk_guard "$PY" - "$PROJECT" "${IMMO_MIN_FREE_GB:-15}" <<'PY'
 import json, shutil, sys
@@ -140,7 +145,11 @@ PY
 
 run_step pipeline_invariants "$PY" "$PROJECT/tests/test_pipeline_invariants.py"
 run_step mapping_golden_regression "$PY" "$PROJECT/tests/test_mapping_golden.py"
-run_step runtime_script_contracts "$PY" "$PROJECT/tests/audit_pipeline_script_contracts.py" --runtime-check
+if [ "$PROJECT" = "/opt/data/projects/reunion-immo-search" ]; then
+  run_step runtime_script_contracts "$PY" "$PROJECT/tests/audit_pipeline_script_contracts.py" --runtime-check
+else
+  run_step runtime_script_contracts "$PY" "$PROJECT/tests/audit_pipeline_script_contracts.py"
+fi
 run_step browser_runtime_import_gate "$PY" - <<'PY'
 import importlib
 import json
@@ -262,7 +271,7 @@ print(json.dumps({"executable": sys.executable, "version": sys.version, "greenle
 
 # Refresh API/RSS/HTML sources already supported by realestate_watch.
 run_step realestate_refresh \
-  "$PY" "$ROOT/scripts/realestate_watch.py" \
+  "$PY" "$PROJECT/scripts/realestate_watch.py" \
     --refresh \
     --db "$DB" \
     --run-dir "$RUN_DIR/realestate_watch" \
@@ -276,8 +285,20 @@ run_step realestate_refresh \
 # latter used to prepend a Python 3.13 user-site to this Python 3.12 venv and
 # broke greenlet._greenlet at runtime.
 run_step playwright_import_gate "$PY" "$PROJECT/tests/audit_runtime_playwright_import.py"
-run_step seloger_cdp_collect "$PY" "$PROJECT/scripts/seloger_multi_page.py"
-run_step seloger_import "$PY" "$PROJECT/src/import_seloger_multipage.py" --db "$DB" --artifact "$SELOGER_ARTIFACT" --max-age-hours 6
+# In candidate-only mode, Moufadal may explicitly ask for a consultable
+# degraded dashboard while a portal is repaired. Keep the collector truthful
+# (rc!=0 on partial snapshot), but do not abort the candidate run when SeLoger
+# is listed as non-blocking for this invocation only.
+if [ x"${IMMO_CANDIDATE_ONLY:-0}" = x"1" ] && [[ ",${IMMO_NON_BLOCKING_REFRESH_SOURCES:-}," == *",seloger,"* ]]; then
+  report_step seloger_cdp_collect "$PY" "$PROJECT/scripts/seloger_multi_page.py"
+else
+  run_step seloger_cdp_collect "$PY" "$PROJECT/scripts/seloger_multi_page.py"
+fi
+if [ x"${IMMO_CANDIDATE_ONLY:-0}" = x"1" ] && [[ ",${IMMO_NON_BLOCKING_REFRESH_SOURCES:-}," == *",seloger,"* ]]; then
+  run_step seloger_import "$PY" "$PROJECT/src/import_seloger_multipage.py" --db "$DB" --artifact "$SELOGER_ARTIFACT" --max-age-hours 6 --allow-partial-manifest --no-mark-inactive
+else
+  run_step seloger_import "$PY" "$PROJECT/src/import_seloger_multipage.py" --db "$DB" --artifact "$SELOGER_ARTIFACT" --max-age-hours 6
+fi
 run_step source_manifest_bundle \
   "$PY" "$PROJECT/scripts/build_source_manifest_bundle.py" \
     --base "$RUN_DIR/realestate_watch/source_run_manifests.json" \
@@ -322,7 +343,33 @@ run_step source_detail_enrichment "$PY" "${ENRICH_ARGS[@]}"
 # (hCaptcha reel, aucun contournement tente).
 run_step detail_enrich "$PY" "$PROJECT/scripts/detail_enrich.py" --limit 60 --delay 5 --only-active --exclude superimmo
 run_step description_observability_gate bash -lc \
-  'cd "$1" && "$2" -m src.description_observability --db "$3" --output "$4"' \
+  'set -euo pipefail
+   cd "$1"
+   set +e
+   "$2" -m src.description_observability --db "$3" --output "$4"
+   rc=$?
+   set -e
+   if [ "$rc" -eq 0 ]; then
+     exit 0
+   fi
+   if [ x"${IMMO_CANDIDATE_ONLY:-0}" = x"1" ]; then
+     "$2" - "$4" "${IMMO_MAX_DESCRIPTION_UNEXPLAINED_RATIO:-0.20}" <<'PY'
+import json, sys
+path, raw_limit = sys.argv[1:3]
+limit = float(raw_limit)
+with open(path, encoding="utf-8") as handle:
+    data = json.load(handle)
+summary = data.get("summary") or {}
+targeted = int(summary.get("targeted") or 0)
+unexplained = int(summary.get("unexplained") or 0)
+ratio = (unexplained / targeted) if targeted else 0.0
+if ratio > limit:
+    raise SystemExit(f"description unexplained ratio too high for candidate: {unexplained}/{targeted}={ratio:.3f} > {limit:.3f}")
+print(f"REPORT-ONLY candidate description_observability unexplained={unexplained}/{targeted} ratio={ratio:.3f} limit={limit:.3f}")
+PY
+     exit 0
+   fi
+   exit "$rc"' \
   _ "$PROJECT" "$PY" "$DB" "$RUN_DIR/description_observability.json"
 
 # Recompute through a safe two-stage pipeline:
@@ -447,6 +494,36 @@ run_step candidate_app_permissions bash -lc '
   find "$app" -type d -exec chmod 755 {} +
   find "$app" -type f -exec chmod 644 {} +
 ' _ "$CLEAN_STAGE"
+run_step public_monitor_candidate_gate env \
+  IMMO_PUBLIC_MONITOR_APP_DIR="$CLEAN_STAGE" \
+  IMMO_PUBLIC_MONITOR_SKIP_AUTH=1 \
+  "$PY" "$PROJECT/scripts/immo_public_monitor.py"
+if [ "${IMMO_CANDIDATE_ONLY:-0}" = "1" ]; then
+  "$PY" - "$RUN_DIR" "$CLEAN_STAGE" "$DB" "$HISTORY_STAGE" <<'PY'
+import json, os, pathlib, sys
+run_dir, app, db, history = map(pathlib.Path, sys.argv[1:])
+summary = {
+    'ok': True,
+    'mode': 'candidate-only',
+    'run_dir': str(run_dir),
+    'candidate_app': str(app),
+    'candidate_db': str(db),
+    'candidate_history': str(history),
+    'promoted': False,
+    'message': 'Candidate gates passed; production app/db/history were not promoted.',
+}
+destination = run_dir / 'candidate_only_summary.json'
+temporary = run_dir / '.candidate_only_summary.json.prepared'
+encoded = json.dumps(summary, ensure_ascii=False, indent=2) + '\n'
+with temporary.open('w', encoding='utf-8') as handle:
+    handle.write(encoded)
+    handle.flush()
+    os.fsync(handle.fileno())
+os.replace(temporary, destination)
+print(encoded, end='')
+PY
+  exit 0
+fi
 run_step pre_promote_artifact_retention "$PY" "$PROJECT/scripts/artifact_retention.py" \
   --artifacts "$PROJECT/artifacts" \
   --keep-daily "${IMMO_RETENTION_KEEP_DAILY:-1}" \

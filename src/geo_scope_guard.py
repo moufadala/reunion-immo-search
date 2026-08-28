@@ -20,7 +20,10 @@ class OutsideScopeEvidence:
     matched_text: str
 
 
-_FIELDS = ("commune", "city", "location_label", "address", "quartier", "title", "url", "description")
+_FIELDS = (
+    "commune", "city", "location_label", "address", "quartier", "district",
+    "title", "url", "description",
+)
 _OUTSIDE_LOCALITIES = (
     ("La Saline-les-Hauts", "la saline les hauts"),
     ("Plaine-des-Cafres", "plaine des cafres"),

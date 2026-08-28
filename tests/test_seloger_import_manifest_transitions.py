@@ -257,6 +257,50 @@ def test_partial_manifest_is_a_database_noop_and_writes_no_final_manifest(
     assert not final.exists()
 
 
+def test_partial_manifest_can_be_imported_in_degraded_mode_without_withdrawals(
+    tmp_path: Path,
+):
+    ads = [_ad("new"), _ad("reappear"), _ad("seen")]
+    artifact = _write_artifact(tmp_path / "seloger.json", ads)
+    provisional = _write_provisional(
+        tmp_path / "provisional.json", artifact, ads, "partial-run"
+    )
+    payload = json.loads(provisional.read_text(encoding="utf-8"))
+    payload.update(
+        status="partial",
+        truncation_signals=["repeated_page"],
+        terminal_reason="repeated_page",
+    )
+    provisional.write_text(json.dumps(payload), encoding="utf-8")
+    final = tmp_path / "final.json"
+    db = tmp_path / "watch.db"
+    _seed_existing(db, artifact, ads)
+
+    result = importer.import_artifact(
+        db,
+        artifact,
+        min_total=1,
+        min_prices=1,
+        collection_manifest=provisional,
+        source_manifest_out=final,
+        allow_partial_manifest=True,
+        mark_inactive=True,
+    )
+
+    manifest = SourceRunManifest.from_dict(json.loads(final.read_text(encoding="utf-8")))
+    assert manifest.status == "partial"
+    assert manifest.withdrawn == 0
+    assert result["inactive_marked"] == 0
+    con = sqlite3.connect(db)
+    assert con.execute(
+        "SELECT is_active FROM rental_listings WHERE source_id='gone'"
+    ).fetchone()[0] == 1
+    assert con.execute(
+        "SELECT is_active FROM rental_listings WHERE source_id='new'"
+    ).fetchone()[0] == 1
+    con.close()
+
+
 def test_replaying_same_complete_run_does_not_advance_absence_ledger(
     tmp_path: Path,
 ):

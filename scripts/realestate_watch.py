@@ -58,7 +58,12 @@ SOURCE_JOBS = [
     {'source': 'leboncoin', 'script': MULTI_SCRAPER, 'timeout': 300, 'args': ['--only', 'leboncoin']},
     {'source': 'adrezio', 'script': MULTI_SCRAPER, 'timeout': 180, 'args': ['--only', 'adrezio']},
 ]
-NON_BLOCKING_REFRESH_SOURCES: set[str] = set()
+def _env_source_set(name: str) -> set[str]:
+    raw = os.environ.get(name, "")
+    return {item.strip() for item in raw.split(",") if item.strip()}
+
+
+NON_BLOCKING_REFRESH_SOURCES: set[str] = _env_source_set("IMMO_NON_BLOCKING_REFRESH_SOURCES")
 CRITICAL_REFRESH_SOURCES = {job['source'] for job in SOURCE_JOBS} - NON_BLOCKING_REFRESH_SOURCES
 SOURCE_STATUS_ALIASES = {'leboncoin_apify_dataset': 'leboncoin'}
 DEFAULT_SOURCE_SCRAPE_BUDGET_SEC = 1500

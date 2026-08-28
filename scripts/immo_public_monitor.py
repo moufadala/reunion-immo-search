@@ -30,8 +30,11 @@ from src.publication_policy import evaluate_publication
 #      listings.json (ancien pipeline, toujours ecrit en parallele mais plus
 #      la source de verite produit).
 
-PUBLIC_BASE = "https://immo.148.230.103.174.sslip.io/"
-LOCAL_APP_DIR = Path(os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR", "/opt/data/projects/reunion-immo-search/artifacts/app"))
+PUBLIC_BASE = os.environ.get("IMMO_PUBLIC_BASE", "https://immo.148.230.103.174.sslip.io/")
+DEFAULT_LOCAL_APP_DIR = Path("/opt/data/projects/reunion-immo-search/artifacts/app")
+LOCAL_APP_DIR_ENV = os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR")
+LOCAL_APP_DIR = Path(LOCAL_APP_DIR_ENV or DEFAULT_LOCAL_APP_DIR)
+SKIP_AUTH_GATE = os.environ.get("IMMO_PUBLIC_MONITOR_SKIP_AUTH", "").lower() in {"1", "true", "yes"}
 MIN_LISTINGS = 100
 MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
 MIN_LOCAL_PHOTO_RATIO = 0.85
@@ -69,6 +72,40 @@ def check_feed_freshness(data: dict[str, object], evidence: dict[str, object], e
     if age_hours > MAX_FEED_AGE_HOURS:
         errors.append(
             f"feed périmé: meta.genere_le={generated_at.isoformat()} "
+            f"âge={age_hours:.1f}h > {MAX_FEED_AGE_HOURS}h"
+        )
+
+
+def check_listing_observation_freshness(data: dict[str, object], evidence: dict[str, object], errors: list[str]) -> None:
+    """Reject a freshly regenerated feed when its underlying observations are old."""
+    raw_rows = data.get("listings")
+    rows = raw_rows if isinstance(raw_rows, list) else []
+    active_rows = [row for row in rows if isinstance(row, dict) and row.get("active", True)]
+    observed: list[datetime] = []
+    for row in active_rows:
+        # Le contrat feed réel expose `seen_last` (scripts/export_feed.py),
+        # tandis que la base conserve `seen_last_at`. Garder les anciens noms en
+        # repli évite de casser des artefacts historiques/tests existants.
+        for key in ("seen_last", "seen_last_at", "last_seen_at", "updated_at"):
+            parsed = parse_feed_datetime(row.get(key))
+            if parsed is not None:
+                observed.append(parsed)
+                break
+    evidence["active_rows_with_observation_time"] = len(observed)
+    evidence["active_rows_checked_for_observation_time"] = len(active_rows)
+    if not active_rows:
+        return
+    if not observed:
+        errors.append("listing observation freshness unknown: no seen_last_at/last_seen_at/updated_at on active rows")
+        return
+    latest = max(observed)
+    age_hours = max(0.0, (datetime.now(timezone.utc) - latest).total_seconds() / 3600)
+    evidence["latest_listing_observed_at"] = latest.isoformat()
+    evidence["latest_listing_observation_age_hours"] = round(age_hours, 2)
+    evidence["listing_observation_max_age_hours"] = MAX_FEED_AGE_HOURS
+    if age_hours > MAX_FEED_AGE_HOURS:
+        errors.append(
+            f"listing observations stale: latest={latest.isoformat()} "
             f"âge={age_hours:.1f}h > {MAX_FEED_AGE_HOURS}h"
         )
 
@@ -126,13 +163,28 @@ def main() -> int:
     evidence: dict[str, object] = {"checked_at": datetime.now(timezone.utc).isoformat()}
 
     # --- 1. la porte d'acces prive est toujours active ---
-    try:
-        code = fetch_externe_sans_auth("feed.json")
-        evidence["auth_gate_status"] = code
-        if code != 401:
-            errors.append(f"REGRESSION VIE PRIVEE: feed.json repond {code} sans identifiants (401 attendu)")
-    except Exception as exc:
-        errors.append(f"auth gate check failed: {type(exc).__name__}: {exc}")
+    if SKIP_AUTH_GATE:
+        if LOCAL_APP_DIR_ENV is None or LOCAL_APP_DIR.resolve() == DEFAULT_LOCAL_APP_DIR.resolve():
+            errors.append(
+                "unsafe auth gate skip refused: IMMO_PUBLIC_MONITOR_SKIP_AUTH requires "
+                "IMMO_PUBLIC_MONITOR_APP_DIR on a non-production candidate directory"
+            )
+            evidence["auth_gate_status"] = "skip_refused"
+        else:
+            evidence["auth_gate_status"] = "skipped"
+            evidence["auth_gate_skip_reason"] = "IMMO_PUBLIC_MONITOR_SKIP_AUTH on local candidate"
+            print(
+                "WARNING: auth gate skipped for local candidate monitor only",
+                file=sys.stderr,
+            )
+    else:
+        try:
+            code = fetch_externe_sans_auth("feed.json")
+            evidence["auth_gate_status"] = code
+            if code != 401:
+                errors.append(f"REGRESSION VIE PRIVEE: feed.json repond {code} sans identifiants (401 attendu)")
+        except Exception as exc:
+            errors.append(f"auth gate check failed: {type(exc).__name__}: {exc}")
 
     # --- 2. contenu, verifie en interne (pas besoin d'identifiants) ---
     try:
@@ -159,6 +211,7 @@ def main() -> int:
         evidence["feed_status"] = status
         data = json.loads(body.decode("utf-8"))
         check_feed_freshness(data, evidence, errors)
+        check_listing_observation_freshness(data, evidence, errors)
         errors.extend(feed_contract_errors(data))
         rows = data.get("listings") or []
         total = len(rows)
