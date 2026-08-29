@@ -163,8 +163,13 @@ def excluded_quartier_from_description(title, description, location_label=None):
     title_norm = norm(raw_title).replace('-', ' ')
 
 
+    if re.search(r'\b(?:rampe(?:s)?\s+de|quartier(?:\s+de)?|secteur(?:\s+de)?|(?:bas|hauts?)\s+de)\s+(?:saint|st)\s+francois\b', title_norm):
+        return 'Saint-François'
+    if re.search(r'\b(?:quartier(?:\s+de)?|secteur(?:\s+de)?|(?:bas|hauts?)\s+de)\s+(?:la\s+)?providence\b', title_norm):
+        return 'Providence'
+
     for needle, label in ((r'\b(?:la\s+)?providence\b', 'Providence'),
-                          (r'\bsaint\s+francois\b', 'Saint-François')):
+                          (r'\b(?:saint|st)\s+francois\b', 'Saint-François')):
         for m in re.finditer(needle, txt):
             before = txt[max(0, m.start() - 100):m.start()]
             if DESCRIPTION_REPERE_RE.search(before):
@@ -1130,6 +1135,23 @@ def main():
         publication = evaluate_publication(listing)
         if not publication.eligible:
             compter_exclusion(publication.reason or 'publication_policy', listing)
+            continue
+
+        # Contrat public: une carte visible doit être directement exploitable.
+        # On exclut du feed les lignes sans photo locale et les descriptions
+        # prouvées incomplètes, sans toucher la DB ni marquer d'absence source.
+        visible_images_raw = listing.get('images')
+        visible_images = visible_images_raw if isinstance(visible_images_raw, list) else []
+        if not str(listing.get('image') or '').strip() and not any(str(u or '').strip() for u in visible_images):
+            compter_exclusion('missing_local_photo', listing)
+            continue
+        quality_raw = listing.get('description_quality')
+        quality = quality_raw if isinstance(quality_raw, dict) else {}
+        markers_raw = quality.get('markers')
+        markers = markers_raw if isinstance(markers_raw, (list, tuple, set)) else [markers_raw]
+        incomplete_evidence = {str(v or '').strip().lower() for v in (*markers, quality.get('status'), listing.get('description_status'))}
+        if incomplete_evidence & {'expand_prompt', 'truncated_ellipsis', 'synthetic_fallback', 'empty'}:
+            compter_exclusion('description_incomplete', listing)
             continue
 
         listings.append(listing)

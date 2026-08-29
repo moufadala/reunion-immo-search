@@ -848,6 +848,11 @@ def main() -> int:
             except Exception as e:
                 counts['errors'] += 1; by_source[src]['errors'] += 1
                 rec.update({'action': 'error', 'error': repr(e)})
+            if not args.dry_run:
+                # Agentic resume: persist each listing's accepted description/LLM
+                # cache independently. A later crash resumes from remaining sparse
+                # rows instead of repaying the whole prefix of work.
+                con.commit()
             log.write(json.dumps(rec, ensure_ascii=False) + '\n')
             log.flush()
             if idx < len(rows):

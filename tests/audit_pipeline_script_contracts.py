@@ -23,6 +23,7 @@ RUNTIME_SCRIPT_CONTRACTS = [
     ("immo_daily_public_refresh.sh", "scripts/immo_daily_public_refresh.sh"),
     ("realestate_watch.py", "scripts/realestate_watch.py"),
     ("seloger_multi_page.py", "scripts/seloger_multi_page.py"),
+    ("immo_agentic_os_status.py", "scripts/immo_agentic_os_status.py"),
 ]
 
 RUNTIME_SCRIPT_ALLOWLIST: dict[str, str] = {

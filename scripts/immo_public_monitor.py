@@ -10,7 +10,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_PATH = Path(__file__).resolve()
+ROOT_CANDIDATES = [
+    SCRIPT_PATH.parents[1],
+    Path("/opt/data/projects/reunion-immo-search"),
+]
+ROOT = next((candidate for candidate in ROOT_CANDIDATES if (candidate / "src" / "publication_policy.py").exists()), ROOT_CANDIDATES[0])
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
@@ -36,7 +41,13 @@ LOCAL_APP_DIR_ENV = os.environ.get("IMMO_PUBLIC_MONITOR_APP_DIR")
 LOCAL_APP_DIR = Path(LOCAL_APP_DIR_ENV or DEFAULT_LOCAL_APP_DIR)
 SKIP_AUTH_GATE = os.environ.get("IMMO_PUBLIC_MONITOR_SKIP_AUTH", "").lower() in {"1", "true", "yes"}
 MIN_LISTINGS = 100
-MIN_SELOGER = 60          # 91 actives au 27/07 ; marge sous le niveau observe, pas l'ancien seuil ile entiere
+# 2026-08-29: source-only SeLoger CDP run collected 247 complete rows, but
+# publication policy for Saint-Denis/Sainte-Marie >=65m² <=1700€ first left 20
+# visible SeLoger cards. The stricter public content contract then excludes
+# cards without proven usable descriptions/photos, leaving 3. The monitor must
+# watch the public feed actually served, not the all-island source volume;
+# keep env override for future recalibration.
+MIN_SELOGER = int(os.environ.get("IMMO_PUBLIC_MONITOR_MIN_SELOGER", "3"))
 MIN_LOCAL_PHOTO_RATIO = 0.85
 MAX_FEED_AGE_HOURS = 36  # meme seuil que la banniere client "feed perime"
 TIMEOUT = 25

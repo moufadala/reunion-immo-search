@@ -46,6 +46,55 @@ BASE_URL = 'https://www.seloger.com/classified-search?distributionTypes=Rent&est
 PAGE_SIZE = 30
 MAX_PAGES = int(os.getenv('SELOGER_MAX_PAGES', '100'))  # safety cap, not completion proof
 
+
+def seloger_checkpoint_dir() -> Path | None:
+    refresh_run_dir = os.getenv('IMMO_REFRESH_RUN_DIR', '').strip()
+    if not refresh_run_dir:
+        return None
+    path = Path(refresh_run_dir) / 'seloger_page_checkpoints'
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def checkpoint_path(page_num: int) -> Path | None:
+    base = seloger_checkpoint_dir()
+    return None if base is None else base / f'page-{page_num:03d}.json'
+
+
+def save_page_checkpoint(page_num: int, cards: list[dict], *, total_text: str | None = None, reported_total: int | None = None, new_count: int | None = None) -> None:
+    path = checkpoint_path(page_num)
+    if path is None:
+        return
+    tmp = path.with_suffix('.json.tmp')
+    tmp.write_text(json.dumps({
+        'run_id': os.getenv('IMMO_RUN_ID', '').strip(),
+        'page': page_num,
+        'saved_at': datetime.now(timezone.utc).isoformat(),
+        'cards': cards,
+        'total_text': total_text,
+        'reported_total': reported_total,
+        'new_count': new_count,
+    }, ensure_ascii=False, indent=2), encoding='utf-8')
+    tmp.replace(path)
+
+
+def load_page_checkpoints(expected_run_id: str | None = None) -> list[dict]:
+    base = seloger_checkpoint_dir()
+    if base is None or os.getenv('IMMO_RESUME_COMPLETED') != '1':
+        return []
+    out = []
+    for path in sorted(base.glob('page-*.json')):
+        try:
+            payload = json.loads(path.read_text(encoding='utf-8'))
+        except (OSError, ValueError, TypeError):
+            continue
+        if expected_run_id and str(payload.get('run_id') or '').strip() not in ('', expected_run_id):
+            continue
+        cards = payload.get('cards')
+        if isinstance(cards, list):
+            out.append(payload)
+    return out
+
 def force_dismiss_consent(page):
     """Agressively remove all consent overlays."""
     page.evaluate(r"""
@@ -205,6 +254,7 @@ def parse_card(card):
 def collect_all_pages():
     print('=== SeLoger La Réunion — Multi-Page Scraper ===')
     print(f'Date: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    run_id = os.getenv('IMMO_RUN_ID', '').strip()
     all_annonces = {}
     page_sizes = []
     pages_attempted = 0
@@ -213,78 +263,86 @@ def collect_all_pages():
     terminal_reason = 'page_cap'
     collection_error = None
 
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.connect_over_cdp(CDP_IP)
-            ctx = browser.contexts[0] if browser.contexts else browser.new_context()
-            page = ctx.new_page()
+    checkpoints = load_page_checkpoints(run_id or None)
+    for payload in checkpoints:
+        cards = payload.get('cards') or []
+        raw_page_num = payload.get('page')
+        page_num = int(raw_page_num) if raw_page_num not in (None, '') else len(page_sizes) + 1
+        page_sizes.append(len(cards))
+        pages_attempted += 1
+        pages_succeeded += 1
+        if payload.get('reported_total') is not None:
+            reported_total = int(payload.get('reported_total'))
+        new_count = 0
+        for card in cards:
+            if isinstance(card, dict) and card.get('id') not in all_annonces:
+                all_annonces[card['id']] = card
+                new_count += 1
+        print(f'Reprise checkpoint page {page_num}: {len(cards)} cards | {new_count} nouveaux | Total unique: {len(all_annonces)}')
 
-            pages_attempted += 1
-            page.goto(BASE_URL, wait_until='domcontentloaded', timeout=30000)
-            force_dismiss_consent(page)
-            cards = extract_cards(page)
-            for card in cards:
-                p_data = parse_card(card)
-                all_annonces[p_data['id']] = p_data
-            pages_succeeded += 1
-            page_sizes.append(len(cards))
-            total_text = page.evaluate(
-                "() => { const h1 = document.querySelector('h1'); return h1 ? h1.innerText : ''; }"
-            )
-            reported_total = extract_reported_total(total_text)
-            print(f'Total annoncé: {total_text!r} -> {reported_total}')
-            print(f'Page 1: {len(cards)} cards | Total unique: {len(all_annonces)}')
+    if reported_total is not None and len(all_annonces) >= reported_total:
+        terminal_reason = 'reported_total_reached'
+    elif page_sizes and page_sizes[-1] == 0:
+        terminal_reason = 'empty_page'
+    elif page_sizes and page_sizes[-1] < PAGE_SIZE:
+        terminal_reason = 'short_page'
 
-            if reported_total is not None and len(all_annonces) >= reported_total:
-                terminal_reason = 'reported_total_reached'
-            elif len(cards) == 0:
-                terminal_reason = 'empty_page'
-            elif len(cards) < PAGE_SIZE:
-                terminal_reason = 'short_page'
-            else:
-                for page_num in range(2, MAX_PAGES + 1):
+    next_page = len(page_sizes) + 1
+    if terminal_reason in {'reported_total_reached', 'empty_page', 'short_page'}:
+        print(f'Collection déjà complète via checkpoints: {terminal_reason}')
+    else:
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.connect_over_cdp(CDP_IP)
+                ctx = browser.contexts[0] if browser.contexts else browser.new_context()
+                page = ctx.new_page()
+
+                for page_num in range(next_page, MAX_PAGES + 1):
                     pages_attempted += 1
-                    force_dismiss_consent(page)
-                    click_result = click_page_button(page, page_num)
-                    print(f'Page {page_num} click: {click_result}')
-                    if not click_result.get('clicked'):
-                        terminal_reason = 'no_next_page_button'
-                        break
-
-                    time.sleep(4)
+                    url = BASE_URL if page_num == 1 else f'{BASE_URL}&page={page_num}'
+                    page.goto(url, wait_until='domcontentloaded', timeout=30000)
+                    time.sleep(2.5 if page_num > 1 else 0)
                     force_dismiss_consent(page)
                     cards = extract_cards(page)
+                    parsed_cards = [parse_card(card) for card in cards]
                     pages_succeeded += 1
-                    page_sizes.append(len(cards))
+                    page_sizes.append(len(parsed_cards))
+                    total_text = None
+                    if page_num == 1:
+                        total_text = page.evaluate(
+                            "() => { const h1 = document.querySelector('h1'); return h1 ? h1.innerText : ''; }"
+                        )
+                        reported_total = extract_reported_total(total_text)
+                        print(f'Total annoncé: {total_text!r} -> {reported_total}')
                     new_count = 0
-                    for card in cards:
-                        p_data = parse_card(card)
+                    for p_data in parsed_cards:
                         if p_data['id'] not in all_annonces:
                             all_annonces[p_data['id']] = p_data
                             new_count += 1
+                    save_page_checkpoint(page_num, parsed_cards, total_text=total_text, reported_total=reported_total, new_count=new_count)
                     print(
-                        f'Page {page_num}: {len(cards)} cards | '
+                        f'Page {page_num}: {len(parsed_cards)} cards | '
                         f'{new_count} nouveaux | Total unique: {len(all_annonces)}'
                     )
 
                     if reported_total is not None and len(all_annonces) >= reported_total:
                         terminal_reason = 'reported_total_reached'
                         break
-                    if len(cards) == 0:
+                    if len(parsed_cards) == 0:
                         terminal_reason = 'empty_page'
                         break
                     if new_count == 0:
                         terminal_reason = 'repeated_page'
                         break
-                    if len(cards) < PAGE_SIZE:
+                    if len(parsed_cards) < PAGE_SIZE:
                         terminal_reason = 'short_page'
                         break
                     time.sleep(1.5)
-            page.close()
-    except Exception as exc:
-        collection_error = f'{type(exc).__name__}: {exc}'
-        terminal_reason = 'page_error'
-        print(f'COLLECTION_ERROR: {collection_error}')
+                page.close()
+        except Exception as exc:
+            collection_error = f'{type(exc).__name__}: {exc}'
+            terminal_reason = 'page_error'
+            print(f'COLLECTION_ERROR: {collection_error}')
 
     evidence = evaluate_seloger_collection(
         page_sizes=page_sizes,

@@ -49,6 +49,7 @@ SELOGER_ARTIFACT="/opt/data/artifacts/realestate/seloger_multipage_results.json"
 SELOGER_MANIFEST="/opt/data/artifacts/realestate/seloger_source_run_manifest.json"
 SOURCE_MANIFEST_BUNDLE="$RUN_DIR/source_run_manifests.json"
 mkdir -p "$RUN_DIR"
+RESUME_COMPLETED="${IMMO_RESUME_COMPLETED:-0}"
 "$PY" - "$RUN_DIR/scrapling_probe.json" <<'PYCODE'
 import json, os, pathlib, sys
 sys.path.insert(0, '/opt/data/scripts')
@@ -74,6 +75,11 @@ run_step() {
   local stderr="$RUN_DIR/${name}.stderr"
   local status="$RUN_DIR/${name}.status"
   local start end rc
+  if [ "$RESUME_COMPLETED" = "1" ] && [ -s "$status" ] && grep -Eq "(^| )rc=0($| )" "$status"; then
+    printf '%s rc=0 duration_s=0 skipped=resume_completed previous_status=%q\n' "$name" "$(cat "$status")" >"$RUN_DIR/${name}.resume.status"
+    printf 'Resume: skipping completed step %s\n' "$name" >&2
+    return 0
+  fi
   start=$(date +%s)
   set +e
   "$@" >"$stdout" 2>"$stderr"
@@ -96,6 +102,11 @@ report_step() {
   local stderr="$RUN_DIR/${name}.stderr"
   local status="$RUN_DIR/${name}.status"
   local start end rc
+  if [ "$RESUME_COMPLETED" = "1" ] && [ -s "$status" ] && grep -Eq "(^| )rc=0($| )" "$status"; then
+    printf '%s rc=0 duration_s=0 report_only=1 skipped=resume_completed previous_status=%q\n' "$name" "$(cat "$status")" >"$RUN_DIR/${name}.resume.status"
+    printf 'Resume: skipping completed report step %s\n' "$name" >&2
+    return 0
+  fi
   start=$(date +%s)
   set +e
   "$@" >"$stdout" 2>"$stderr"
@@ -193,13 +204,6 @@ LOCAL_AUDIT_PID=""
 restore_on_failure() {
   local rc=$?
   stop_local_audit_server
-  if [ "$rc" -ne 0 ] \
-    && [ -n "${ENRICHMENT_DB_BACKUP:-}" ] \
-    && [ "${ENRICHMENT_DB_KEEP:-0}" != "1" ] \
-    && [ -s "$ENRICHMENT_DB_BACKUP" ]; then
-    printf 'Restoring DB before source_detail_enrichment after failure rc=%s\n' "$rc" >&2
-    printf 'backup: %s\n' "$ENRICHMENT_DB_BACKUP" >&2
-    printf 'db: %s\n' "$DB" >&2
   if [ "$rc" -ne 0 ] && [ -s "${GLOBAL_TXN_JOURNAL:-}" ]; then
     printf 'Recovering global DB/app/history publication after failure rc=%s\n' "$rc" >&2
     "$PY" "$PROJECT/scripts/pipeline_publication_transaction.py" recover \
@@ -208,6 +212,13 @@ restore_on_failure() {
         printf 'CRITICAL: global publication recovery failed; next official run will retry\n' >&2
       }
   fi
+  if [ "$rc" -ne 0 ] \
+    && [ -n "${ENRICHMENT_DB_BACKUP:-}" ] \
+    && [ "${ENRICHMENT_DB_KEEP:-0}" != "1" ] \
+    && [ -s "$ENRICHMENT_DB_BACKUP" ]; then
+    printf 'Restoring DB before source_detail_enrichment after failure rc=%s\n' "$rc" >&2
+    printf 'backup: %s\n' "$ENRICHMENT_DB_BACKUP" >&2
+    printf 'db: %s\n' "$DB" >&2
     "$PY" "$PROJECT/scripts/rollback_db_candidate.py" --apply \
       --backup "$ENRICHMENT_DB_BACKUP" --target "$DB" \
       --json-out "$RUN_DIR/rollback_enrichment_failure.json" >&2 || {
@@ -379,7 +390,12 @@ PY
 # 4) swap artifacts/app only after local gates pass, then publish.
 TECH_STAGE="$PROJECT/artifacts/daily-tech-stage-${STAMP}"
 CLEAN_STAGE="$PROJECT/artifacts/daily-clean-stage-${STAMP}"
-rm -rf "$TECH_STAGE" "$CLEAN_STAGE"
+# Resume-safe: these stages are produced by checkpointed run_step calls below.
+# On IMMO_RESUME_COMPLETED=1, deleting them here would make later skipped steps
+# point at missing artifacts and force a full rebuild after a late failure.
+if [ "$RESUME_COMPLETED" != "1" ]; then
+  rm -rf "$TECH_STAGE" "$CLEAN_STAGE"
+fi
 mkdir -p "$TECH_STAGE" "$CLEAN_STAGE"
 
 run_step db_enrichment_audit "$PY" "$PROJECT/tests/audit_db_enrichment.py" --db "$DB"
@@ -583,6 +599,7 @@ run_step immo_health_state_save "$PY" "$PROJECT/scripts/immo_health_checks.py" -
 # Keep it after every producer/audit that can touch artifacts/app, but before
 # APP_KEEP/DB_PROMOTE_KEEP so a failure still triggers the rollback trap.
 run_step postflight_public_contract env IMMO_MAX_FEED_AGE_H="${IMMO_MAX_FEED_AGE_H:-2}" "$PY" "$PROJECT/scripts/postflight_public_contract.py" --app "$PROJECT/artifacts/app" --container "${IMMO_PUBLIC_CONTAINER:-immo-dashboard}" --json-out "$RUN_DIR/postflight_public_contract.json"
+run_step agentic_os_status "$PY" "$PROJECT/scripts/immo_agentic_os_status.py" --run-dir "$RUN_DIR" --app "$PROJECT/artifacts/app" --out "$RUN_DIR/agentic_os_status.json"
 "$PY" - "$RUN_DIR" "$PROJECT" <<'PY'
 import json, os, pathlib, sys
 run_dir=pathlib.Path(sys.argv[1])
@@ -617,6 +634,7 @@ summary={
     'promote_db': str(run_dir/'promote_db.json'),
     'rollback_app_drill': str(run_dir/'rollback_app_drill.json'),
     'rollback_db_drill': str(run_dir/'rollback_db_drill.json'),
+    'agentic_os_status': str(run_dir/'agentic_os_status.json'),
     'public': 'https://immo.148.230.103.174.sslip.io/',
 }
 destination=run_dir/'final_summary.json'

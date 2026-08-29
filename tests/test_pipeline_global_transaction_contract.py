@@ -25,6 +25,8 @@ def test_full_candidate_is_built_and_gated_before_any_public_swap() -> None:
 
 def test_global_transaction_survives_until_summary_is_durable() -> None:
     recover = SCRIPT.index("run_step global_publication_recover")
+    disk_guard = SCRIPT.index("run_step preflight_disk_guard")
+    report_fn = SCRIPT[SCRIPT.index("report_step()") : recover]
     begin = SCRIPT.index("run_step global_publication_begin")
     promote_history = SCRIPT.index("run_step promote_listing_history")
     postflight = SCRIPT.index("run_step postflight_public_contract")
@@ -32,10 +34,15 @@ def test_global_transaction_survives_until_summary_is_durable() -> None:
     commit = SCRIPT.index("run_step global_publication_commit")
     keep = SCRIPT.index("APP_KEEP=1")
 
+    assert "run_step" not in report_fn
+    assert recover < disk_guard < begin
     assert recover < begin < promote_history < postflight < summary < commit < keep
     assert 'pipeline_publication_transaction.py" recover' in SCRIPT
     assert 'pipeline_publication_transaction.py" begin' in SCRIPT
     assert 'pipeline_publication_transaction.py" commit' in SCRIPT
     trap = SCRIPT[SCRIPT.index("restore_on_failure()") : SCRIPT.index("trap restore_on_failure EXIT")]
+    enrichment_rollback = trap.index("rollback_enrichment_failure.json")
+    global_recover = trap.index('pipeline_publication_transaction.py" recover')
+    assert global_recover < enrichment_rollback
     assert "pipeline_publication_transaction.py" in trap
     assert "recover" in trap

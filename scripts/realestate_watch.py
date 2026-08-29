@@ -482,6 +482,51 @@ def _skipped_result(source: str, script: Path, run_dir: Path, reason: str, elaps
     return rr
 
 
+def _resumed_result(source: str, script: Path, run_dir: Path, expected_run_id: str) -> RunnerResult | None:
+    """Rehydrate a successful source checkpoint for the same logical run.
+
+    This is deliberately opt-in and same-run only: it avoids re-scraping sources
+    that already passed in an interrupted run, without ever carrying yesterday's
+    data into a new gate.
+    """
+    if os.environ.get('IMMO_RESUME_COMPLETED') != '1':
+        return None
+    name = f"{script.stem}__{source}"
+    status_path = run_dir / f'{name}.status.json'
+    if not status_path.exists():
+        return None
+    try:
+        payload = json.loads(status_path.read_text(encoding='utf-8'))
+    except (OSError, ValueError, TypeError):
+        return None
+    parsed = payload.get('parsed_summary')
+    if not isinstance(parsed, dict) or payload.get('ok') is not True:
+        return None
+    manifests = parsed.get('source_manifests')
+    manifest = manifests.get(source) if isinstance(manifests, dict) else None
+    if not isinstance(manifest, dict):
+        return None
+    if str(manifest.get('run_id') or '').strip() != expected_run_id:
+        return None
+    if not _source_result_ok(parsed, source, int(payload.get('exit_code') or 0)):
+        return None
+    stdout_path = str(payload.get('stdout_path') or (run_dir / f'{name}.json'))
+    stderr_path = str(payload.get('stderr_path') or (run_dir / f'{name}.stderr'))
+    return RunnerResult(
+        name,
+        True,
+        int(payload.get('exit_code') or 0),
+        stdout_path,
+        stderr_path,
+        parsed,
+        source,
+        float(payload.get('duration_sec') or 0.0),
+        payload.get('timeout_sec'),
+        str(status_path),
+        manifest,
+    )
+
+
 def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | None = None) -> list[RunnerResult]:
     results: list[RunnerResult] = []
     jobs = _rotated_source_jobs(run_dir)
@@ -494,15 +539,33 @@ def run_scrapers(db: Path, run_dir: Path, dry_run: bool = False, timeout: int | 
         'timeouts_sec': {j['source']: j['timeout'] for j in jobs},
     }, ensure_ascii=False, indent=2), encoding='utf-8')
 
+    logical_run_id = os.environ.get('IMMO_RUN_ID') or (run_dir.parent.name if run_dir.name == 'realestate_watch' else run_dir.name)
+
     for idx, job in enumerate(jobs):
         source = str(job['source'])
         script = Path(job['script'])
+        name = f"{script.stem}__{source}"
+        stdout_path = run_dir / f'{name}.json'
+        stderr_path = run_dir / f'{name}.stderr'
+        status_path = run_dir / f'{name}.status.json'
+
+        resumed = _resumed_result(source, script, run_dir, logical_run_id)
+        if resumed is not None:
+            results.append(resumed)
+            continue
+
         elapsed_budget = time.monotonic() - budget_started
         if budget is not None and elapsed_budget >= budget:
             skipped = [str(j['source']) for j in jobs[idx:]]
             reason = f"GLOBAL SCRAPE BUDGET EXCEEDED after {budget}s; sources not served: {', '.join(skipped)}"
             for skipped_job in jobs[idx:]:
-                results.append(_skipped_result(str(skipped_job['source']), Path(skipped_job['script']), run_dir, reason, elapsed_budget, budget))
+                skipped_source = str(skipped_job['source'])
+                skipped_script = Path(skipped_job['script'])
+                resumed = _resumed_result(skipped_source, skipped_script, run_dir, logical_run_id)
+                results.append(
+                    resumed if resumed is not None else
+                    _skipped_result(skipped_source, skipped_script, run_dir, reason, elapsed_budget, budget)
+                )
             break
 
         env_key = f"IMMO_SOURCE_TIMEOUT_{source.upper().replace('-', '_')}"

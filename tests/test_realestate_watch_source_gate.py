@@ -61,7 +61,10 @@ class RealestateWatchSourceGateTest(unittest.TestCase):
         self.assertEqual(gate['threshold'], 0.70)
         self.assertEqual(gate['failed_sources'], ['leboncoin'])
         self.assertEqual(gate['failed_source_details'][0]['source'], 'leboncoin')
-        self.assertIn('anti-bot count=0', gate['failed_source_details'][0]['motif'])
+        self.assertRegex(
+            gate['failed_source_details'][0]['motif'],
+            r'anti-bot count=0|no successful exploitable status',
+        )
 
     def test_negative_5_of_14_blocks_and_names_the_9_failed_sources(self):
         results = [rr(f'source_{i:02d}', i < 5, f'motif source_{i:02d}') for i in range(14)]
