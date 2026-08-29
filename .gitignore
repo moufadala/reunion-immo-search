@@ -50,6 +50,10 @@ artifacts/p0-product-*/
 artifacts/test-builder-*/
 artifacts/v3-detail-recovery-*/
 artifacts/zimo-*/
+# Generated repair/publication/source-health proof directories kept out of public Git.
+artifacts/_ancien_portail_*/
+artifacts/source-health-guard-fix-*/
+artifacts/webapp-rebuild-feed-marker-*/
 artifacts/handoff.html
 artifacts/HANDOFF*.md
 artifacts/latest-p1-hardening-publish.txt
