@@ -174,7 +174,7 @@ def test_network_and_cache_paths_persist_description_evidence_not_only_schema():
     source = (Path(__file__).parents[1] / "scripts" / "detail_enrich.py").read_text(
         encoding="utf-8"
     )
-    reparse_body = source.split("def reparse(c):", 1)[1].split("def main():", 1)[0]
+    reparse_body = source.split("def reparse(c):", 1)[1].split("def _load_requested_ids", 1)[0]
     network_body = source.split("for i, (ss, si, url, fb)", 1)[1]
     assert "description_fields(" in reparse_body
     assert "description_fields(" in network_body
@@ -185,3 +185,100 @@ def test_network_and_cache_paths_persist_description_evidence_not_only_schema():
         "description_attempt_sha256=excluded.description_attempt_sha256",
     ):
         assert assignment in network_body
+
+
+def test_targeted_ids_mode_processes_only_requested_listing(tmp_path, monkeypatch):
+    db_path = tmp_path / "watch.sqlite"
+    cache_path = tmp_path / "cache"
+    con = sqlite3.connect(db_path)
+    con.execute(
+        """CREATE TABLE rental_listings (
+        source_site TEXT, source_id TEXT, url TEXT, description TEXT,
+        is_active INTEGER, seen_last_at TEXT
+        )"""
+    )
+    con.executemany(
+        "INSERT INTO rental_listings VALUES (?,?,?,?,?,?)",
+        [
+            ("portal", "p1", "https://example.test/p1", "fallback", 1, "2026-08-18"),
+            ("portal", "p2", "https://example.test/p2", "fallback", 1, "2026-08-19"),
+        ],
+    )
+    con.commit()
+    con.close()
+
+    fetched = []
+
+    def fake_fetch(url):
+        fetched.append(url)
+        return 200, '<div class="description">Studio meuble, libre immediatement.</div>'
+
+    monkeypatch.setattr(detail_enrich, "DB", str(db_path))
+    monkeypatch.setattr(detail_enrich, "CACHE", str(cache_path))
+    monkeypatch.setattr(detail_enrich, "fetch", fake_fetch)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["detail_enrich.py", "--all", "--delay", "0", "--ids", "p1"],
+    )
+
+    detail_enrich.main()
+
+    con = sqlite3.connect(db_path)
+    rows = con.execute("SELECT source_id FROM listing_detail ORDER BY source_id").fetchall()
+    con.close()
+    assert fetched == ["https://example.test/p1"]
+    assert rows == [("p1",)]
+
+
+def test_targeted_run_can_stop_after_consecutive_sparse_attempts(tmp_path, monkeypatch):
+    db_path = tmp_path / "watch.sqlite"
+    cache_path = tmp_path / "cache"
+    con = sqlite3.connect(db_path)
+    con.execute(
+        """CREATE TABLE rental_listings (
+        source_site TEXT, source_id TEXT, url TEXT, description TEXT,
+        is_active INTEGER, seen_last_at TEXT
+        )"""
+    )
+    con.executemany(
+        "INSERT INTO rental_listings VALUES (?,?,?,?,?,?)",
+        [
+            ("portal", "p1", "https://example.test/p1", "fallback", 1, "2026-08-20"),
+            ("portal", "p2", "https://example.test/p2", "fallback", 1, "2026-08-19"),
+        ],
+    )
+    con.commit()
+    con.close()
+
+    fetched = []
+
+    def fake_fetch(url):
+        fetched.append(url)
+        return 200, "<html><body>pas de descriptif structurel</body></html>"
+
+    monkeypatch.setattr(detail_enrich, "DB", str(db_path))
+    monkeypatch.setattr(detail_enrich, "CACHE", str(cache_path))
+    monkeypatch.setattr(detail_enrich, "fetch", fake_fetch)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "detail_enrich.py",
+            "--all",
+            "--delay",
+            "0",
+            "--ids",
+            "p1,p2",
+            "--max-consecutive-errors",
+            "1",
+        ],
+    )
+
+    detail_enrich.main()
+
+    con = sqlite3.connect(db_path)
+    attempted = con.execute("SELECT count(*) FROM listing_detail").fetchone()[0]
+    con.close()
+    assert len(fetched) == 1
+    assert attempted == 1

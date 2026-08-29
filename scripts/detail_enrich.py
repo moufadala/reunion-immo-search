@@ -262,6 +262,57 @@ def close_cdp():
     _CDP_CONTEXT = None
 
 
+def _extract_cdp_description_text(page):
+    """Return a focused detail-description text from the rendered DOM.
+
+    This is intentionally conservative: it only trusts nodes whose selectors or
+    nearby headings mention description/descriptif. Whole-page text is never used
+    as structural evidence.
+    """
+    return page.evaluate(r"""
+        () => {
+            const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+            const reject = /cookie|connexion|créer une alerte|recevoir les annonces|signaler|partager|calculer votre temps|découvrir le quartier/i;
+            const candidates = [];
+            const push = (node, reason) => {
+                if (!node) return;
+                const text = clean(node.innerText || node.textContent || '');
+                if (text.length < 20 || text.length > 6000 || reject.test(text)) return;
+                candidates.push({text, reason, length: text.length});
+            };
+            for (const selector of [
+                '[data-testid*=description i]', '[data-test*=description i]',
+                '[class*=description i]', '[id*=description i]',
+                '[class*=descriptif i]', '[id*=descriptif i]'
+            ]) {
+                document.querySelectorAll(selector).forEach((node) => push(node, selector));
+            }
+            const labels = Array.from(document.querySelectorAll('h1,h2,h3,h4,button,span,div'))
+                .filter((node) => /^(description|descriptif|voir plus|lire la suite)$/i.test(clean(node.innerText || node.textContent || '')));
+            for (const label of labels) {
+                push(label.closest('section,article,[class*=description i],[class*=content i]'), 'near-heading');
+                push(label.parentElement, 'label-parent');
+                push(label.nextElementSibling, 'label-next');
+            }
+            candidates.sort((a, b) => b.length - a.length);
+            return candidates[0] || null;
+        }
+    """)
+
+
+def _expand_cdp_description(page):
+    page.evaluate(r"""
+        () => {
+            const clean = (s) => (s || '').replace(/\s+/g, ' ').trim();
+            for (const node of Array.from(document.querySelectorAll('button,a,[role=button]'))) {
+                if (/voir plus|lire la suite|afficher la suite|description complète/i.test(clean(node.innerText || node.textContent || ''))) {
+                    node.click();
+                }
+            }
+        }
+    """)
+
+
 def fetch_cdp(url, timeout=45000):
     ctx = _cdp_context()
     page = ctx.new_page()
@@ -269,7 +320,20 @@ def fetch_cdp(url, timeout=45000):
         rep = page.goto(url, wait_until='domcontentloaded', timeout=timeout)
         page.wait_for_timeout(2500)
         status = rep.status if rep else 200
-        return status, page.content()
+        if status == 200:
+            _expand_cdp_description(page)
+            page.wait_for_timeout(1000)
+        content = page.content()
+        extracted = _extract_cdp_description_text(page) if status == 200 else None
+        if extracted and extracted.get('text'):
+            # Make browser-side structural evidence available to the existing
+            # HTML parser without trusting the whole page body.
+            injected = '<section class="description immo-cdp-extracted" data-immo-source="%s">%s</section>' % (
+                html.escape(str(extracted.get('reason') or 'cdp-dom'), quote=True),
+                html.escape(str(extracted.get('text')), quote=False),
+            )
+            content = content.replace('</body>', injected + '</body>') if '</body>' in content else content + injected
+        return status, content
     finally:
         page.close()
 
@@ -684,6 +748,16 @@ def reparse(c):
     print('re-extrait depuis le cache : %d pages (%d absentes du cache)' % (ok, manquant))
 
 
+def _load_requested_ids(ids_arg='', ids_file=''):
+    values = []
+    if ids_arg:
+        values.extend(ids_arg.split(','))
+    if ids_file:
+        with open(ids_file, encoding='utf-8') as f:
+            values.extend(f.read().splitlines())
+    return {str(v).strip() for v in values if str(v).strip()}
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--limit', type=int, default=30)
@@ -691,6 +765,12 @@ def main():
     ap.add_argument('--delay', type=float, default=4.0)
     ap.add_argument('--only-active', action='store_true')
     ap.add_argument('--source')
+    ap.add_argument('--ids', default='',
+                    help='source_id a traiter, separes par des virgules; evite un run source complet')
+    ap.add_argument('--ids-file', default='',
+                    help='fichier contenant un source_id par ligne; evite un run source complet')
+    ap.add_argument('--max-consecutive-errors', type=int, default=0,
+                    help='arrete apres N erreurs consecutives (0 = desactive)')
     ap.add_argument('--exclude', default='',
                     help='portails a sauter, separes par des virgules (ceux qui bloquent)')
     ap.add_argument('--stats', action='store_true')
@@ -778,6 +858,14 @@ def main():
         q += ' and r.source_site not in (%s)' % ','.join("'%s'" % s.replace("'", '') for s in skip)
     q += ' order by r.is_active desc, r.seen_last_at desc'
     rows = c.execute(q).fetchall()
+    requested_ids = _load_requested_ids(a.ids, a.ids_file)
+    if requested_ids:
+        before_filter = len(rows)
+        rows = [r for r in rows if str(r[1]) in requested_ids]
+        missing_ids = sorted(requested_ids - {str(r[1]) for r in rows})
+        if missing_ids:
+            print('ids demandes introuvables ou deja verifies: %s' % ','.join(missing_ids))
+        print('filtre ids cible: %d/%d annonces retenues' % (len(rows), before_filter))
 
     # ROUND-ROBIN entre portails. Deux raisons :
     #  1) on obtient vite une couverture large plutot que 168 pages d'un seul site ;
@@ -799,7 +887,8 @@ def main():
     print('a traiter : %d annonces sur %d portails (delay %.1fs/hote)'
           % (len(rows), len({r[0] for r in rows}), a.delay))
 
-    ok = err = 0
+    ok = err = blocked_or_sparse = 0
+    consecutive_errors = 0
     last_host = {}
     for i, (ss, si, url, fb) in enumerate(rows, 1):
         host = re.sub(r'^https?://([^/]+).*', r'\1', url or '')
@@ -913,11 +1002,20 @@ def main():
              rec.get('description_attempt_length'), rec.get('description_attempt_sha256'),
              rec.get('description_attempt_error'), rec.get('description_extractor_version'), note))
         c.commit()
+        if fields['description_attempt_status'] in {
+                'fetched_complete', 'source_short_complete'}:
+            consecutive_errors = 0
+        else:
+            blocked_or_sparse += 1
+            consecutive_errors += 1
         if i % 10 == 0 or i == len(rows):
-            print('  %d/%d  ok=%d err=%d' % (i, len(rows), ok, err), flush=True)
+            print('  %d/%d  ok=%d err=%d non_exploitables=%d consecutive_errors=%d' % (i, len(rows), ok, err, blocked_or_sparse, consecutive_errors), flush=True)
+        if a.max_consecutive_errors and consecutive_errors >= a.max_consecutive_errors:
+            print('ARRET_AGENTIQUE: %d erreurs consecutives, stop sans traiter le reste' % consecutive_errors, flush=True)
+            break
 
     close_cdp()
-    print('\nTERMINE: %d lues, %d erreurs' % (ok, err))
+    print('\nTERMINE: %d lues, %d erreurs, %d non exploitables' % (ok, err, blocked_or_sparse))
 
 
 if __name__ == '__main__':
