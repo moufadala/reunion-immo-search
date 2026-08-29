@@ -51,6 +51,13 @@ DELAI_HOTE = float(os.environ.get('PHOTO_HOST_DELAY', '1.2'))  # secondes entre 
 MAX_ECHECS_HOTE = int(os.environ.get('PHOTO_HOST_MAX_FAILS', '8'))  # on lache un hote qui bloque
 MAX_PHOTOS = int(os.environ.get('PHOTO_MAX_PER_LISTING', '20'))
 OFFLINE = os.environ.get('PHOTO_OFFLINE', '0') not in {'0', '', 'false', 'no'}
+# Optional download throttle for agentic recovery: keep rebuilding the full
+# manifest from already-cached files, but fetch only the requested source(s).
+# Example: PHOTO_DOWNLOAD_SOURCE_FILTER=seloger PHOTO_DOWNLOAD_LIMIT=50
+DOWNLOAD_SOURCE_FILTER = {
+    s.strip().lower() for s in os.environ.get('PHOTO_DOWNLOAD_SOURCE_FILTER', '').split(',') if s.strip()
+}
+DOWNLOAD_LIMIT = int(os.environ.get('PHOTO_DOWNLOAD_LIMIT', '0') or '0')
 
 UA = ('Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 '
       '(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1')
@@ -223,6 +230,10 @@ def main() -> int:
                 locaux.append('/thumbs/' + p.name)
                 deja += 1
             else:
+                if DOWNLOAD_SOURCE_FILTER and str(r['source_site']).lower() not in DOWNLOAD_SOURCE_FILTER:
+                    continue
+                if DOWNLOAD_LIMIT > 0 and len(a_chercher) >= DOWNLOAD_LIMIT:
+                    continue
                 a_chercher.append((r, url))
         if locaux:
             enregistrer_manifest_entry(manifeste, cle, locaux, r['image_url'], 'cache')

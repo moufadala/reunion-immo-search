@@ -1,11 +1,7 @@
 import sys
 import types
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-
-
-def _fresh_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -40,11 +36,12 @@ def test_feed_marks_expand_prompt_and_synthetic_text_as_sparse():
 
 def test_feed_exposes_complete_description_evidence():
     text = "Appartement familial lumineux avec trois chambres, varangue, parking et une grande cuisine equipee."
+    fresh_seen = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
     result = description_quality_payload(
         text,
         {
             "http_status": 200,
-            "fetched_at": _fresh_now(),
+            "fetched_at": fresh_seen,
             "description_full_text_evidence": 1,
         },
     )
@@ -56,7 +53,8 @@ def test_feed_exposes_complete_description_evidence():
 
 def test_http_200_and_long_text_do_not_claim_detail_read_without_full_text_evidence():
     text = "Appartement familial lumineux avec trois chambres, varangue et parking securise."
-    detail = {"http_status": 200, "fetched_at": _fresh_now()}
+    fresh_seen = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    detail = {"http_status": 200, "fetched_at": fresh_seen}
     quality = description_quality_payload(text, detail)
 
     assert quality["status"] == "fetched_complete"
