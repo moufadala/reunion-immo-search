@@ -53,6 +53,7 @@ artifacts/zimo-*/
 # Generated repair/publication/source-health proof directories kept out of public Git.
 artifacts/_ancien_portail_*/
 artifacts/source-health-guard-fix-*/
+artifacts/source-health/
 artifacts/webapp-rebuild-feed-marker-*/
 artifacts/handoff.html
 artifacts/HANDOFF*.md
